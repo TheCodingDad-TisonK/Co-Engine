@@ -2,7 +2,7 @@
 
 The runtime, editor and template behind [Grow Co.](https://github.com/TheCodingDad-TisonK/Grow-Co) and [Depot Co.](https://github.com/TheCodingDad-TisonK/Depot-Co): one HTML page, one closure, three.js, no bundler, no framework. Every texture, figure and sound is generated in code.
 
-**Status:** milestone 2, the runtime. The pure layer stands (the head, the three.js layer with the base palette, the bake, the format helpers) and the engine's own smoke passes on a sample room. The editor shell runs and ships as one exe. The plan is `docs/PLAN.md`; the inventory of what the two games share is `docs/M1-INVENTORY.md`; the two candidate games are planned in `docs/games/`.
+**Status:** milestone 2 done, v0.1.0: the runtime stands in seventeen parts (the head, the three.js layer and the base palette, the bake, props and build mode, doors and touch screens, people, the world kit, the route finder, weather and the sky, vehicles, sound, settings and saves, the shell, the player, the dev link, the boot), with the tooling and the workflow templates beside it. The engine's own smoke boots a sample room through the whole loop. The editor shell runs and ships as one exe. Next is milestone 3: Depot Co on the engine. The contract a game writes against is `docs/ENGINE.md`. The plan is `docs/PLAN.md`; the inventory of what the two games share is `docs/M1-INVENTORY.md`; the two candidate games are planned in `docs/games/`.
 
 ## Run it
 

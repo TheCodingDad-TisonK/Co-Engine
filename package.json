@@ -5,7 +5,7 @@
   "main": "tools/build-game.js",
   "scripts": {
     "build": "node tools/build-game.js --game tests/sample",
-    "check": "node tools/build-game.js --game tests/sample --check && node tools/lint-gate.js tests/sample/game && node --check tests/sample/game/sample.js",
+    "check": "node tools/build-game.js --game tests/sample --check && node tools/lint-gate.js tests/sample/game && node tools/check-syntax.js --game tests/sample && node --check editor/main.js && node --check shell/main.js",
     "test": "npm run check && electron tests/smoke.js",
     "editor": "electron editor/main.js",
     "editor:exe": "electron-builder --win portable --x64 --publish never --config editor/builder.json"
@@ -19,7 +19,8 @@
   "private": false,
   "devDependencies": {
     "electron": "^33.2.1",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^2.1.8"
   },
   "files": [
     "engine",

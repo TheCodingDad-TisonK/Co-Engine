@@ -1,0 +1,11 @@
+{
+  "name": "A new game",
+  "title": "A new game",
+  "out": "game/game.js",
+  "src": "src",
+  "engine": "node_modules/co-engine/engine",
+  "page": "index.html",
+  "versionGlobal": "GAME_VERSION",
+  "background": "#0b0f14",
+  "pictures": "A new game"
+}

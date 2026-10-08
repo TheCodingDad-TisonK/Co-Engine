@@ -15,9 +15,9 @@
   "files": [
     "editor/**",
     "engine/**",
-    "tools/build-game.js",
-    "tools/lint-gate.js",
-    "tools/smoke-runner.js",
+    "tools/**",
+    "shell/**",
+    "template/**",
     "vendor/**",
     "tests/sample/src/**",
     "tests/sample/index.html",
