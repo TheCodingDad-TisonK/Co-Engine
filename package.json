@@ -1,0 +1,13 @@
+{
+  "name": "co-engine",
+  "version": "0.0.0",
+  "description": "The runtime, editor and template behind Grow Co and Depot Co: one HTML page, one closure, three.js, no bundler.",
+  "main": "engine/index.js",
+  "scripts": {
+    "check": "node -e \"console.log('co-engine: nothing to check yet (milestone 1)')\""
+  },
+  "repository": { "type": "git", "url": "https://github.com/TheCodingDad-TisonK/Co-Engine.git" },
+  "author": "TheCodingDad-TisonK",
+  "license": "MIT",
+  "private": false
+}
