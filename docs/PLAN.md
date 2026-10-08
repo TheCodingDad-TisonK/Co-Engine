@@ -94,8 +94,13 @@ A prop pack is a folder with `pack.js` (the `defProp` calls and build functions)
 | Build menu | Installer, portable exe, web folder, from the same button the workflow uses |
 | Undo and redo | On every inspector and scene edit, as a diff stack over the game's files |
 | Asset store | The pack folders of the other games on this engine |
+| Modelling | A prop modeller: boxes, cylinders, bevels, extrusions and lathes placed with gizmos, mirrored and snapped, written out as the prop's build code with a live preview. Later, vertex editing of a mesh kept as data beside the code |
+| Animation | A timeline: keyframe tracks on a prop's parts (position, rotation, scale, a material value), looping or one-shot clips kept as data, played by an engine part, with the people rig's walk cycles as the first clips |
+| Shader graph | A material graph: nodes for the painters the engine already has (grain, noise, bricks, wood, planks, blotches, cracks), colour and roughness maps, emissive and glow, compiled to a material. Later, GLSL nodes through three.js onBeforeCompile |
+| Physics | A rigid-body layer for props and items: gravity, stacking, sliding, simple joints, on the AABB and sphere shapes the engine has, with a switch to plug a full solver in later |
+| Terrain | A heightmap terrain with sculpt and paint brushes, splat textures, flora scatter from the world kit, and roads that follow the ground |
 
-Not in it: a mesh modeller, an animation timeline, a shader graph, a physics engine, a terrain tool. A prop is code that draws it, so the editor edits that code with a live preview, not vertices.
+All of that is in. The first editor (M6) ships the rows above the modelling row; the five tool rows follow one by one (section 7). The principle stays: a prop is code that draws it, so every tool writes code or data the game loads, never a binary only the editor can read.
 
 An Electron app, `npm run editor` in the engine repo, later its own exe like the dev console. One window, three columns.
 
@@ -133,6 +138,12 @@ Each milestone ends with every suite green and a tag.
 5. **M5, Grow Co on the engine.** The engine grows what Grow Co needs that Depot Co did not (the city, the car, the basement are game parts; the shelf kit and the customers' line may be packs). Its suite passes. DLC parts untouched.
 6. **M6, the editor v1.** The MCP server over the editor's actions, then project, scene, inspector, play, console, and the Claude panel attached to the server. Writes layouts, placements, config and texts.
 7. **M7, the editor v2.** Pack authoring with live preview, undo and redo as a diff stack, the profiler, the build menu.
+8. **M8, terrain and the material graph.** The two with the most visible payoff for game three: a sculpted yard or town instead of a flat plane, and materials composed from the painters in a graph.
+9. **M9, the animation timeline.** Clips as data, an engine player part, the people rig on clips.
+10. **M10, the prop modeller.** Primitives, bevels, extrusions and lathes with gizmos, written out as build code; then vertex editing on data meshes.
+11. **M11, physics.** The rigid-body layer for props and items, with the plug for a full solver.
+
+Each of M8 to M11 is a project of its own, sized like the expansion. They are ordered by what a new game feels first.
 
 M1 to M3 is the big block, the largest piece of work since the expansion. Everything after is incremental.
 
