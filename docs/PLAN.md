@@ -131,9 +131,9 @@ The assistant ships with the first editor (M6), not after it. The MCP server is 
 
 Each milestone ends with every suite green and a tag.
 
-1. **M1, the inventory.** Lay the shared parts of both games side by side, name every function that is the same thing, and write the list of what moves and what stays. One document. No code moves yet.
-2. **M2, Co Engine v0.1.** The runtime repo with the parts from Depot Co, the tooling, the Electron shell, the dev console, the smoke harness, and an engine smoke of its own on a sample scene. Depot Co is not touched yet.
-3. **M3, Depot Co 1.22.0 on the engine.** Depot Co's `src/` loses the engine parts and pins v0.1 (then v0.2 for whatever the move teaches). Its 503 checks pass. No player-visible change; the changelog says so.
+1. **M1, the inventory.** Done 2026-10-08 (`docs/M1-INVENTORY.md`). Lay the shared parts of both games side by side, name every function that is the same thing, and write the list of what moves and what stays. One document. No code moves yet.
+2. **M2, Co Engine v0.1.** Done 2026-10-08, tag v0.1.0. The runtime repo with the parts from Depot Co, the tooling, the Electron shell, the dev console, the smoke harness, and an engine smoke of its own on a sample scene. Depot Co is not touched yet.
+3. **M3, Depot Co 1.22.0 on the engine.** Done 2026-10-09 on Depot Co's main; the engine moved to v0.1.2 for what the move taught (the missing-key map for migrations, the catalogue-only panel actions, the autoplay flag left to a game's own menu, the shell in the npm package). Depot Co's `src/` lost the engine parts and pins v0.1.2. Its 503 checks pass. No player-visible change; the changelog says so.
 4. **M4, the template and game three's first room.** The template repo runs. If game three has a name by then, it starts here.
 5. **M5, Grow Co on the engine.** The engine grows what Grow Co needs that Depot Co did not (the city, the car, the basement are game parts; the shelf kit and the customers' line may be packs). Its suite passes. DLC parts untouched.
 6. **M6, the editor v1.** The MCP server over the editor's actions, then project, scene, inspector, play, console, and the Claude panel attached to the server. Writes layouts, placements, config and texts.

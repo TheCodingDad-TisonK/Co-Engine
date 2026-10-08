@@ -17,17 +17,47 @@
     "brand": "electron node_modules/co-engine/tools/render-brand.js",
     "installer": "npm run check && npm run brand && node node_modules/co-engine/tools/verify-icon.js && electron-builder --win nsis --x64 --publish never"
   },
+  "dependencies": {
+    "co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.1.2"
+  },
   "devDependencies": {
-    "co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.1.0",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8"
   },
   "build": {
     "appId": "com.example.anewgame",
     "productName": "A new game",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "index.html", "game/**/*", "vendor/**/*", "node_modules/co-engine/shell/**", "package.json", "co.json"],
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
-    "nsis": { "oneClick": true, "perMachine": false, "createDesktopShortcut": "always", "createStartMenuShortcut": true, "artifactName": "A-new-game-Setup-${version}.exe" }
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "game/**/*",
+      "vendor/**/*",
+      "package.json",
+      "co.json",
+      "!node_modules/co-engine/{editor,template,docs,vendor,tests,engine,tools}/**",
+      "!node_modules/co-engine/*.md"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "artifactName": "A-new-game-Setup-${version}.exe"
+    }
   }
 }
