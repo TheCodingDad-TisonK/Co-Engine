@@ -6,6 +6,7 @@
   var CO = { version: '0.1.0', cfg: null, game: null, root: null, flash: 0, ready: false };
   var S, SET, SAVE, SETTINGS_KEY, BOOT_SLOT, BOOT_SAVE;               // 40-state fills these
   var canvas, renderer, scene, camera;                                 // 10-three fills these in CO.setup
+  var player = null, focus = null, hudDirty = true;                    // 42-player owns player and focus; the HUD throttle flag is read everywhere
 
   // ── Utilities ─────────────────────────────────────────────────────
   var now = function () { return Date.now(); };
@@ -26,8 +27,8 @@
   var HOOKS = {};
   function hook(name, fn) { (HOOKS[name] = HOOKS[name] || []).push(fn); return fn; }
   function runHooks(name, a, b, c) { var list = HOOKS[name]; if (!list) return; for (var i = 0; i < list.length; i++) { try { list[i](a, b, c); } catch (e) { if (typeof console !== 'undefined') console.error('hook ' + name + ': ' + (e && e.message || e)); } } }
-  // CO.setup(cfg): the game's first part calls this once, before any part uses the scene. It makes the renderer, the scene, the
-  // camera, the lights and the palette (10-three), then runs the 'setup' hooks. Function declarations are hoisted, so the parts
-  // that define coSetupThree may come later in the closure.
-  function coSetup(cfg) { cfg = cfg || {}; CO.cfg = cfg; coSetupThree(cfg); runHooks('setup', cfg); CO.ready = true; return CO; }
+  // CO.setup(cfg): the game's first part calls this once, before any part uses the scene. It reads the settings and the save slot
+  // (40-state), makes the renderer, the scene, the camera, the lights and the palette (10-three), then runs the 'setup' hooks.
+  // cfg.game is the game's hook object (CO.game). Function declarations are hoisted, so the parts that define the setup steps come later.
+  function coSetup(cfg) { cfg = cfg || {}; CO.cfg = cfg; CO.game = cfg.game || CO.game || {}; coSetupState(cfg); if (cfg.fov === undefined && SET && SET.fov) cfg.fov = SET.fov; coSetupThree(cfg); runHooks('setup', cfg); CO.ready = true; return CO; }
   CO.setup = coSetup;
