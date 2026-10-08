@@ -1,0 +1,40 @@
+{
+  "appId": "com.thecodingdad.coengine",
+  "productName": "Co Engine",
+  "copyright": "TheCodingDad-TisonK",
+  "extraMetadata": {
+    "name": "co-engine-editor",
+    "productName": "Co Engine",
+    "description": "Co Engine: the editor. Opens a game folder, builds, checks, runs and tests it, and links to the running game.",
+    "main": "editor/main.js"
+  },
+  "directories": {
+    "output": "dist",
+    "buildResources": "build"
+  },
+  "files": [
+    "editor/**",
+    "engine/**",
+    "tools/build-game.js",
+    "tools/lint-gate.js",
+    "tools/smoke-runner.js",
+    "vendor/**",
+    "tests/sample/src/**",
+    "tests/sample/index.html",
+    "tests/sample/co.json",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": [
+          "x64"
+        ]
+      }
+    ]
+  },
+  "portable": {
+    "artifactName": "Co-Engine-${version}.exe"
+  }
+}

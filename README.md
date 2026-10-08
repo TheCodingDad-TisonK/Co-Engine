@@ -2,7 +2,18 @@
 
 The runtime, editor and template behind [Grow Co.](https://github.com/TheCodingDad-TisonK/Grow-Co) and [Depot Co.](https://github.com/TheCodingDad-TisonK/Depot-Co): one HTML page, one closure, three.js, no bundler, no framework. Every texture, figure and sound is generated in code.
 
-**Status:** milestone 1, the inventory. Nothing runs yet. The plan is `docs/PLAN.md`; the inventory of what the two games share lands in `docs/M1-INVENTORY.md`.
+**Status:** milestone 2, the runtime. The pure layer stands (the head, the three.js layer with the base palette, the bake, the format helpers) and the engine's own smoke passes on a sample room. The editor shell runs and ships as one exe. The plan is `docs/PLAN.md`; the inventory of what the two games share is `docs/M1-INVENTORY.md`; the two candidate games are planned in `docs/games/`.
+
+## Run it
+
+```
+npm install
+npm test            # builds the sample room, lints it, runs the engine's smoke in a hidden Electron window
+npm run editor      # the editor from the repo
+npm run editor:exe  # the editor as one portable exe in dist/
+```
+
+The editor opens a game folder (Depot Co, Grow Co, or a game made from the sample), builds it, checks it, runs it in a window, runs its tests, and links to the running game over the dev link on 127.0.0.1:8432 with a readout and the game's own command list. "New game from the sample" copies the sample room, three.js and this engine's parts into an empty folder that then builds on its own.
 
 ## What it will be
 

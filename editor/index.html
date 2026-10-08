@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:8432 http://127.0.0.1:*; img-src 'self' data:;">
+<title>Co Engine</title>
+<style>
+  :root { --bg: #0b0f14; --panel: #121a24; --line: rgba(255,255,255,0.08); --text: #eef1f5; --muted: #a0acb8; --faint: #6b7784; --amber: #f5b53d; --green: #5fd38d; --red: #ff6b5e; --blue: #78bdf5; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 Bahnschrift, "Segoe UI", Arial, sans-serif; display: grid; grid-template-columns: 300px 1fr 340px; grid-template-rows: auto 1fr; height: 100vh; }
+  header { grid-column: 1 / 4; display: flex; align-items: center; gap: 14px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { margin: 0; font-size: 16px; color: var(--amber); letter-spacing: .04em; }
+  header .hint { color: var(--faint); font-size: 12px; }
+  header .link { margin-left: auto; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--faint); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  header .link.on { border-color: rgba(95,211,141,0.5); color: var(--green); }
+  aside, section, main { overflow: auto; }
+  aside { padding: 12px; border-right: 1px solid var(--line); }
+  main { padding: 12px 14px; display: flex; flex-direction: column; min-height: 0; }
+  section { padding: 12px; border-left: 1px solid var(--line); }
+  h2 { margin: 12px 0 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  h2:first-child { margin-top: 0; }
+  button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,0.05); color: var(--text); font: inherit; cursor: pointer; }
+  button:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+  button.primary { background: rgba(245,181,61,0.14); border-color: rgba(245,181,61,0.45); color: var(--amber); }
+  button.danger { color: var(--red); border-color: rgba(255,107,94,0.4); }
+  button:disabled { opacity: .4; cursor: default; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; align-items: center; }
+  .proj { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin: 6px 0; cursor: pointer; }
+  .proj:hover { border-color: rgba(255,255,255,0.2); } .proj.on { border-color: rgba(245,181,61,0.55); background: rgba(245,181,61,0.06); }
+  .proj b { display: block; } .proj small { color: var(--faint); display: block; word-break: break-all; } .proj .kind { color: var(--blue); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+  .log { flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 8px; background: rgba(0,0,0,0.3); padding: 8px 10px; font: 12px/1.5 Consolas, monospace; color: var(--muted); overflow: auto; white-space: pre-wrap; }
+  .log .err { color: var(--red); } .log .ok { color: var(--green); } .log .cmd { color: var(--blue); } .log .link { color: var(--faint); } .log .result { color: var(--green); }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 13px; }
+  .kv i { color: var(--faint); font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; align-self: center; }
+  .kv b { font-weight: 600; } .kv b.cash { color: var(--green); } .kv b.amber { color: var(--amber); }
+  input[type=text] { width: 110px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0,0,0,0.3); color: var(--text); font: inherit; }
+  .dim { opacity: .45; }
+  ul.plain { margin: 0; padding-left: 16px; color: var(--muted); } ul.plain li { margin: 1px 0; }
+</style>
+</head>
+<body>
+<header><h1>CO ENGINE</h1><span class="hint" id="about">editor</span><span class="link" id="link">no game linked</span></header>
+<aside>
+  <h2>Games</h2>
+  <div class="row"><button class="primary" id="open">Open a game folder</button><button id="new">New game from the sample</button></div>
+  <div id="projects"></div>
+</aside>
+<main>
+  <h2 id="title">No game open</h2>
+  <div class="row" id="actions">
+    <button data-act="build" disabled>Build</button><button data-act="check" disabled>Check</button><button data-act="test" disabled>Test</button><button data-act="run" class="primary" disabled>Run</button><button data-act="dev" disabled>Run linked</button><button data-act="folder" disabled>Open folder</button><button id="clear">Clear log</button>
+  </div>
+  <div class="log" id="log"></div>
+</main>
+<section>
+  <h2>Readout <span id="age" class="hint"></span></h2>
+  <div class="kv" id="kv"><i>waiting</i><b>for a linked game</b></div>
+  <h2>Commands</h2>
+  <div class="row" id="cmds"><span class="dim">the linked game lists its commands here</span></div>
+  <div class="row"><input type="text" id="arg" placeholder="argument"><span class="hint">goes with the next command you press</span></div>
+  <h2>Lists</h2>
+  <ul class="plain" id="lists"><li class="dim">none</li></ul>
+</section>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); }, current = null, projects = [], games = 0, open = 0;
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function money(n) { n = Math.round(n || 0); return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US'); }
+  function logRow(r) { var d = document.createElement('div'); d.className = r.kind || 'out'; d.textContent = (r.t ? new Date(r.t).toLocaleTimeString() + '  ' : '') + r.text; var el = $('log'); el.appendChild(d); while (el.children.length > 2000) el.removeChild(el.firstChild); el.scrollTop = el.scrollHeight; }
+  function linkState() { var el = $('link'); el.className = 'link' + (games ? ' on' : ''); el.textContent = games ? 'LINKED · ' + games + ' game' + (games > 1 ? 's' : '') : (open ? open + ' game window' + (open > 1 ? 's' : '') + ' open, none linked' : 'no game linked'); }
+  function renderProjects() {
+    $('projects').innerHTML = projects.length ? projects.map(function (p, i) { return '<div class="proj' + (current && current.dir === p.dir ? ' on' : '') + '" data-i="' + i + '"><b>' + esc(p.name) + (p.version ? ' <span class="hint">' + esc(p.version) + '</span>' : '') + '</b><span class="kind">' + (p.kind === 'engine' ? 'on the engine' : p.kind === 'npm' ? 'own scripts' : 'not a game') + '</span><small>' + esc(p.dir) + '</small></div>'; }).join('') : '<p class="hint">Open a folder that holds a game: Depot Co, Grow Co, or a game made from the sample.</p>';
+  }
+  function select(p) {
+    current = p; renderProjects();
+    $('title').textContent = p ? p.name + (p.kind === 'engine' ? ' · on the engine' : p.kind === 'npm' ? ' · own scripts' : '') : 'No game open';
+    document.querySelectorAll('[data-act]').forEach(function (b) { var a = b.getAttribute('data-act'); var can = !!p && p.kind !== 'none' && (a === 'folder' || a === 'build' || a === 'check' || (a === 'test' ? !!(p.scripts && p.scripts.test) : !!p.page)); b.disabled = !can; });
+  }
+  function readout(st, age) {
+    if (!st) return;
+    var rows = [];
+    ['version', 'day', 'clock', 'bank', 'level', 'xp', 'site', 'stageName', 'next', 'weather', 'power', 'orders', 'packed', 'late', 'stock', 'rows', 'intro'].forEach(function (k) { if (st[k] === undefined) return; var v = st[k]; if (k === 'bank') v = '<b class="cash">' + money(v) + '</b>'; else if (k === 'level') v = '<b class="amber">' + esc(v) + (st.cap ? ' / ' + st.cap : '') + '</b>'; else if (k === 'xp') v = esc(v) + (st.xpFor ? ' / ' + st.xpFor : ''); else if (typeof v === 'object') v = esc(JSON.stringify(v)); else v = esc(v); rows.push('<i>' + k + '</i><b>' + v + '</b>'); });
+    if (st.player) rows.push('<i>player</i><b>' + esc(st.player.x + ', ' + st.player.z) + '</b>');
+    $('kv').innerHTML = rows.join('');
+    var lists = []; ['trucks', 'staff', 'up'].forEach(function (k) { if (Array.isArray(st[k]) && st[k].length) lists.push('<li><b>' + k + ':</b> ' + st[k].map(esc).join(', ') + '</li>'); });
+    $('lists').innerHTML = lists.length ? lists.join('') : '<li class="dim">none</li>';
+    $('age').textContent = age < 3000 ? 'live' : Math.round(age / 1000) + ' s ago';
+    if (Array.isArray(st.commands) && st.commands.length && $('cmds').getAttribute('data-n') !== String(st.commands.length)) { $('cmds').setAttribute('data-n', String(st.commands.length)); $('cmds').innerHTML = st.commands.map(function (c) { var name = typeof c === 'string' ? c : c.name, label = typeof c === 'string' ? c : (c.label || c.name); return '<button data-cmd="' + esc(name) + '">' + esc(label) + '</button>'; }).join(''); }
+  }
+  function connect() {
+    var es = new EventSource('http://127.0.0.1:' + PORT + '/ui');
+    es.addEventListener('state', function (ev) { var d = JSON.parse(ev.data); readout(d.state, d.age); });
+    es.addEventListener('games', function (ev) { games = JSON.parse(ev.data).n; linkState(); });
+    es.addEventListener('log', function (ev) { logRow(JSON.parse(ev.data)); });
+    es.onerror = function () { es.close(); setTimeout(connect, 2000); };
+  }
+  var PORT = 8432;
+  window.co.info().then(function (i) { PORT = i.port; $('about').textContent = 'editor v' + i.version + (i.packed ? '' : ' · from the repo') + ' · dev link on 127.0.0.1:' + i.port; connect(); });
+  window.co.onLog(logRow);
+  window.co.onGames(function (d) { open = d.open; linkState(); });
+  window.co.recent().then(function (list) { projects = list; renderProjects(); if (list.length) select(list[0]); });
+  $('open').addEventListener('click', function () { window.co.openDialog().then(function (p) { if (!p) return; projects = projects.filter(function (q) { return q.dir !== p.dir; }); projects.unshift(p); select(p); }); });
+  $('new').addEventListener('click', function () { window.co.newDialog().then(function (p) { if (!p) return; projects.unshift(p); select(p); }); });
+  $('projects').addEventListener('click', function (e) { var el = e.target.closest('.proj'); if (!el) return; select(projects[+el.getAttribute('data-i')]); });
+  $('actions').addEventListener('click', function (e) { var b = e.target.closest('[data-act]'); if (!b || !current || b.disabled) return; b.disabled = true; window.co.act(current.dir, b.getAttribute('data-act')).then(function () { window.co.describe(current.dir).then(function (p) { var i = projects.findIndex(function (q) { return q.dir === p.dir; }); if (i >= 0) projects[i] = p; select(p); }); }); });
+  $('clear').addEventListener('click', function () { $('log').innerHTML = ''; });
+  $('cmds').addEventListener('click', function (e) { var b = e.target.closest('[data-cmd]'); if (!b) return; var raw = $('arg').value.trim(), arg = raw === '' ? undefined : (isNaN(+raw) ? raw : +raw); window.co.cmd(b.getAttribute('data-cmd'), arg); });
+  logRow({ t: Date.now(), kind: 'ok', text: 'Co Engine editor. Open a game folder on the left, or make a new game from the sample.' });
+})();
+</script>
+</body>
+</html>

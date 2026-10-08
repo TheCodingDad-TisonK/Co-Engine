@@ -95,6 +95,9 @@ function scan(file, text, out) {
   if (state === 'block' || state === 'template') out.push({ file: rel, line: line, rule: 'scan', msg: 'the file ends inside a ' + (state === 'block' ? 'block comment' : 'template literal') });
 }
 
+function lint(dir) { var files = fs.readdirSync(dir).filter(function (f) { return /\.js$/.test(f); }).sort().map(function (f) { return path.join(dir, f); }); var found = []; files.forEach(function (f) { scan(f, fs.readFileSync(f, 'utf8'), found); }); found.sort(function (a, b) { return a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line; }); return found; }
+module.exports = { lint: lint, scan: scan };
+if (require.main !== module) return;
 var files = fs.readdirSync(DIR).filter(function (f) { return /\.js$/.test(f); }).sort().map(function (f) { return path.join(DIR, f); });
 var found = [];
 files.forEach(function (f) { scan(f, fs.readFileSync(f, 'utf8'), found); });
