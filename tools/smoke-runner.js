@@ -50,11 +50,11 @@ async function run(opt) {
   let total = 0, failed = 0;
   const list = opt.scenarios;
   for (let i = 0; i < list.length; i++) {
-    const sc = list[i];
+    const sc = list[i], errsBefore = pageErrors.length;   // taken before the load: an error while the page boots is a failure of this scenario
     await win.loadFile(opt.page);
     if (sc.before) { await sc.before(win); await win.loadFile(opt.page); }
     await new Promise((r) => setTimeout(r, opt.settle || 1200));
-    const errsBefore = pageErrors.length, t0 = Date.now();
+    const t0 = Date.now();
     let result;
     const limit = +(process.env.SMOKE_TIMEOUT || opt.timeout || 240000);
     try { result = await Promise.race([win.webContents.executeJavaScript(wrap(opt.handle, sc.body), true), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), limit))]); }
