@@ -1,13 +1,28 @@
 {
   "name": "co-engine",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The runtime, editor and template behind Grow Co and Depot Co: one HTML page, one closure, three.js, no bundler.",
-  "main": "engine/index.js",
+  "main": "tools/build-game.js",
   "scripts": {
-    "check": "node -e \"console.log('co-engine: nothing to check yet (milestone 1)')\""
+    "build": "node tools/build-game.js --game tests/sample",
+    "check": "node tools/build-game.js --game tests/sample --check && node tools/lint-gate.js tests/sample/game && node --check tests/sample/game/sample.js",
+    "test": "npm run check && electron tests/smoke.js"
   },
-  "repository": { "type": "git", "url": "https://github.com/TheCodingDad-TisonK/Co-Engine.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheCodingDad-TisonK/Co-Engine.git"
+  },
   "author": "TheCodingDad-TisonK",
   "license": "MIT",
-  "private": false
+  "private": false,
+  "devDependencies": {
+    "electron": "^33.2.1"
+  },
+  "files": [
+    "engine",
+    "tools",
+    "vendor",
+    "README.md",
+    "LICENSE"
+  ]
 }
