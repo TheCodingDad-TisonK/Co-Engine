@@ -27,6 +27,10 @@ A game pins a tag:
 "co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.1.0"
 ```
 
+## Support
+
+The engine and the games on it are free and stay free. The work is visible first on Patreon, with builds a week early and a vote on what comes next: https://www.patreon.com/cw/thecodingdad
+
 ## Licence
 
 MIT. Made by TheCodingDad.
