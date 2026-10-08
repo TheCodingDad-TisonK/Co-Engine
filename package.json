@@ -1,6 +1,6 @@
 {
   "name": "co-engine",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "The runtime, editor and template behind Grow Co and Depot Co: one HTML page, one closure, three.js, no bundler.",
   "main": "tools/build-game.js",
   "scripts": {
@@ -25,8 +25,11 @@
   "files": [
     "engine",
     "tools",
-    "vendor",
+    "shell",
+    "template",
     "editor",
+    "vendor",
+    "docs",
     "README.md",
     "LICENSE"
   ]
