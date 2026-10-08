@@ -1,14 +1,15 @@
 # Co Engine: the plan
 
-Written 2026-10-08, after 1.21.0 of Depot Co. Decisions taken so far: the engine lives in its own repo and every game pins a tag of it; Depot Co moves onto it first; the name is Co Engine (repo `TheCodingDad-TisonK/Co-Engine`, package `co-engine`, tags `v0.x.y`); and the engine gets an editor of its own, in the spirit of Unity, not only a runtime library.
+Written 2026-10-08, after 1.21.0 of Depot Co. Decisions taken so far: the engine lives in its own repo and every game pins a tag of it; Depot Co moves onto it first; the name is Co Engine (repo `TheCodingDad-TisonK/Co-Engine`, package `co-engine`, tags `v0.x.y`); the engine gets an editor of its own in the spirit of Unity, Godot and Unreal, not only a runtime library; and Claude works inside that editor, seeing what you see and acting through the same tools you click.
 
 ## 1. What it is
 
-Three pillars, built in this order:
+Four pillars, built in this order:
 
 1. **The runtime.** The layer both games already carry twice: the 3D helpers, the prop system, build mode, bake, doors, the people rig, the screen kit, the sound synth, save slots, the HUD and menu shell, the Electron shell, the dev link, and the build, lint, brand, icon and smoke tooling. One repo, versioned by tag. A game's build joins the engine parts in front of its own parts, the way `src/NN-*.js` works today. Still one HTML page, one closure, no bundler, no framework.
 2. **The editor.** A desktop program of its own (Electron, like the dev console but grown up) that opens a game folder, shows the scene, and edits what the engine understands: the layout, the props and their placement, the prop packs, the config tables, the screens and texts. It hosts the real game page for play-in-editor and talks to it over the dev link that exists today. It writes the game's source files on disk, so a change in the editor is a diff in git.
 3. **The template.** A starter repo: config, one room, one prop pack, one person, one scenario, one screen. `git clone`, `npm install`, `npm start` and a game runs. Game three starts here.
+4. **The assistant.** Claude inside the editor. The editor publishes its own actions as tools over a local MCP server, and a Claude session attaches to them: it sees the scene, the selection, the console and the logs, and it places, moves, edits, runs and tests through the same channel the inspector uses. Section 6 says how.
 
 What it is not: a general engine. No physics beyond the AABB solids we have, no mesh or animation editor, no shader graph, no platforms beyond the browser and Electron. The editor edits this engine's data, nothing else. That limit is what makes it buildable by one person.
 
@@ -77,6 +78,25 @@ A prop pack is a folder with `pack.js` (the `defProp` calls and build functions)
 
 ## 5. The editor
 
+**What "like Unity, Godot or Unreal" means here.** The shape of those editors, scoped to this engine's data:
+
+| Unity has | Co Engine's editor has |
+|---|---|
+| Hierarchy | The scene tree: rooms, walls, docks, props, people, machines, belts, with the layout file each one lives in |
+| Scene view with gizmos | The real game page in edit mode: free-fly, top-down and first-person cameras; move, rotate and height handles; grid, wall and belt snap |
+| Inspector | Every field of the selected thing, typed, with units, live in the scene as you type |
+| Project window | The game folder: parts, packs, layouts, config tables, texts, scenarios |
+| Prefabs | Prop packs: a def plus its build function, droppable between games |
+| Play, pause, step | The game runs in place; pause, step one tick, set the clock, pick the save slot |
+| Console | The dev console's log, the game's events, page errors |
+| Profiler | Draw calls, baked and dynamic mesh counts, frame time, light budget |
+| Project settings | The config tables: ladder, economy, stages, clients, keys |
+| Build menu | Installer, portable exe, web folder, from the same button the workflow uses |
+| Undo and redo | On every inspector and scene edit, as a diff stack over the game's files |
+| Asset store | The pack folders of the other games on this engine |
+
+Not in it: a mesh modeller, an animation timeline, a shader graph, a physics engine, a terrain tool. A prop is code that draws it, so the editor edits that code with a live preview, not vertices.
+
 An Electron app, `npm run editor` in the engine repo, later its own exe like the dev console. One window, three columns.
 
 **Left: the project.** The game folder opened, its parts, its packs, its layouts, its config tables, its texts. Click a prop def and the inspector shows it.
@@ -91,7 +111,18 @@ An Electron app, `npm run editor` in the engine repo, later its own exe like the
 
 The editor is built after the runtime is out of Depot Co, because it edits the runtime's data model and that model is only fixed once one game runs on it. Its first version can be small: the dev console with a scene tree and an inspector is already most of column three and the bottom.
 
-## 6. Order of work and milestones
+## 6. The assistant: Claude inside the editor
+
+The editor is the one program Claude works in, the way you do.
+
+- **The editor is an MCP server.** It publishes its actions as tools: list and select scene objects, place, move, rotate and remove a prop, read and write a layout row, a config row or a text, run, pause and step the game, take a screenshot of the scene view, read the console and the page errors, run a smoke scenario, read a pack. Every tool is the same function the inspector button calls, so what Claude can do and what you can do are one list.
+- **A chat panel hosts a Claude session.** The editor embeds Claude Code in a terminal panel (ConPTY and xterm.js, as the Implementation Desk already does), started in the game folder with the editor's MCP server attached and a `co-engine` skill loaded that teaches it the engine's contracts, the pack format, the test harness and the rules of this office (no branding, no em dashes, one feature one PR). You type in plain words; it reads the scene and acts.
+- **Both directions.** Claude's edits show up in the scene live and in the inspector; your clicks show up to Claude as selection and state, so "move this one" means the thing you have selected.
+- **Nothing new on the wire.** The dev link the console uses today carries state out and commands in. The editor's server is that link grown to the editor's full action list.
+
+The assistant ships with the first editor (M6), not after it. The MCP server is built first inside M6 because it is also what the editor's own panels call.
+
+## 7. Order of work and milestones
 
 Each milestone ends with every suite green and a tag.
 
@@ -100,12 +131,12 @@ Each milestone ends with every suite green and a tag.
 3. **M3, Depot Co 1.22.0 on the engine.** Depot Co's `src/` loses the engine parts and pins v0.1 (then v0.2 for whatever the move teaches). Its 503 checks pass. No player-visible change; the changelog says so.
 4. **M4, the template and game three's first room.** The template repo runs. If game three has a name by then, it starts here.
 5. **M5, Grow Co on the engine.** The engine grows what Grow Co needs that Depot Co did not (the city, the car, the basement are game parts; the shelf kit and the customers' line may be packs). Its suite passes. DLC parts untouched.
-6. **M6, the editor v1.** Project, scene, inspector, play. Writes layouts, placements, config and texts.
-7. **M7, the editor v2.** Pack authoring with live preview.
+6. **M6, the editor v1.** The MCP server over the editor's actions, then project, scene, inspector, play, console, and the Claude panel attached to the server. Writes layouts, placements, config and texts.
+7. **M7, the editor v2.** Pack authoring with live preview, undo and redo as a diff stack, the profiler, the build menu.
 
 M1 to M3 is the big block, the largest piece of work since the expansion. Everything after is incremental.
 
-## 7. Rules
+## 8. Rules
 
 - The engine is released by tag; a game pins a tag; a game never builds against a branch.
 - An engine change runs the engine smoke, then every game that will pick up the tag. A change that only one game wants is a game part, not an engine part.
