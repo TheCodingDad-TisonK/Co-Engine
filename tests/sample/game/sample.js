@@ -5,7 +5,7 @@
   // The engine parts come first in the closure, the game's parts after. The engine declares the names both sides share
   // here, unassigned, and fills them when the game calls CO.setup (the renderer, the scene, the palette) and CO.boot (the
   // state, the shell, the frame loop). A game part may use any of them at its top level once CO.setup has run.
-  var CO = { version: '0.1.0', cfg: null, game: null, root: null, flash: 0, ready: false };
+  var CO = { version: '0.1.1', cfg: null, game: null, root: null, flash: 0, ready: false };
   var S, SET, SAVE, SETTINGS_KEY, BOOT_SLOT, BOOT_SAVE;               // 40-state fills these
   var canvas, renderer, scene, camera;                                 // 10-three fills these in CO.setup
   var player = null, focus = null, hudDirty = true;                    // 42-player owns player and focus; the HUD throttle flag is read everywhere
@@ -1293,15 +1293,16 @@
   function setSlot(n) { try { localStorage.setItem(CO.save.prefix + '-slot', String(n)); } catch (e) {} }
   // ── Load and save ─────────────────────────────────────────────────
   // loadSave(fresh, migrate): S becomes the slot's save, with every top-level key the fresh state has and the save lacks filled in,
-  // then the game's migrate(s, fresh) run on it; or the fresh state when there is no save or it will not parse (the broken copy is
-  // kept beside the slot). Returns true when a save was loaded.
+  // then the game's migrate(s, fresh, missing) run on it (missing[key] is true for each key that was filled in, so a migration can
+  // tell an old save from a new field); or the fresh state when there is no save or it will not parse (the broken copy is kept
+  // beside the slot). Returns true when a save was loaded.
   function loadSave(fresh, migrate) {
     var f = fresh(); S = f;
     try {
       var raw = localStorage.getItem(SAVE); if (!raw) return false;
       var s = JSON.parse(raw); if (!s || typeof s !== 'object') return false;
-      for (var k in f) if (!(k in s)) s[k] = f[k];
-      if (migrate) { var m = migrate(s, f); if (m && typeof m === 'object') s = m; }
+      var missing = {}; for (var k in f) if (!(k in s)) { s[k] = f[k]; missing[k] = true; }
+      if (migrate) { var m = migrate(s, f, missing); if (m && typeof m === 'object') s = m; }
       S = s; return true;
     } catch (e) {
       try { if (typeof console !== 'undefined') console.error('co-engine: the save in ' + SAVE + ' could not be loaded', e); var brokenRaw = localStorage.getItem(SAVE); if (brokenRaw) localStorage.setItem(SAVE + '-broken', brokenRaw); } catch (e2) {}
@@ -1340,8 +1341,8 @@
   }
   // ── Panels ────────────────────────────────────────────────────────
   // openPanel(kind, tab) shows the panel element; the game describes a kind in CO.game.panel(kind, tab) as { title, tabs: [[id, label]], body }.
-  // The catalogue kind is the engine's. Buttons in a panel carry data-act and data-arg; the engine takes restore and buy, the
-  // game takes the rest in CO.game.panelAct(act, arg). Tabs carry data-tab.
+  // The catalogue kind is the engine's. Buttons in a panel carry data-act and data-arg; the engine takes the catalogue's restore
+  // and buy, the game takes the rest in CO.game.panelAct(act, arg). Tabs carry data-tab.
   var panel = { kind: null, tab: null };
   function openPanel(kind, tab) {
     panel.kind = kind; panel.tab = tab || null; ui.panelOpen = true; var el = $('dc-panel'); if (el) el.hidden = false; if (ui.scanOpen && CO.game && CO.game.scanToggle) CO.game.scanToggle(false);
@@ -1360,8 +1361,8 @@
   }
   function btn(act, arg, label, cls, disabled) { return '<button class="dc-btn small ' + (cls || '') + '" data-act="' + act + '" data-arg="' + esc(arg == null ? '' : arg) + '"' + (disabled ? ' disabled' : '') + '>' + label + '</button>'; }
   function panelAct(act, arg) {
-    if (act === 'restore') { editRestore(arg); renderPanel(); return true; }
-    if (act === 'buy') { closePanel(); editBuy(arg); return true; }
+    if (panel.kind === 'catalogue' && act === 'restore') { editRestore(arg); renderPanel(); return true; }
+    if (panel.kind === 'catalogue' && act === 'buy') { closePanel(); editBuy(arg); return true; }   // only the catalogue's: a game's shop has a buy of its own
     if (CO.game && CO.game.panelAct && CO.game.panelAct(act, arg)) return true;
     runHooks('panelAct', act, arg); return false;
   }
@@ -1684,6 +1685,7 @@
   //   menuCamera(dt)           the camera behind the start screen       hiddenTick(dt)  what still ticks in a hidden tab
   //   T                        what the game adds to the test handle    handle          the window property ('DEPOT')
   //   bake false               skip the static bake                     weather false   no weather state machine
+  //   autoplay false           the game's own front menu handles the autoplay flag
   var loaded = false, autosaveT = 0, fpsN = 0, fpsT = 0, lastFrame = 0;
   function coBoot(GAME) {
     GAME = GAME || {}; if (!CO.game) CO.game = {}; for (var k in GAME) if (!(k in CO.game)) CO.game[k] = GAME[k]; CO.gameVersion = GAME.version || window[GAME.versionGlobal || 'GAME_VERSION'] || CO.gameVersion;
@@ -1706,8 +1708,9 @@
     var handle = { enter: enter, bootSlot: BOOT_SLOT, version: CO.gameVersion || 'dev', engine: CO.version, T: coHandle() };
     if (GAME.T) { var gt = typeof GAME.T === 'function' ? GAME.T() : GAME.T; for (var tk in gt) handle.T[tk] = gt[tk]; }
     window[GAME.handle || 'CO_GAME'] = handle; CO.handle = handle;
-    var auto = false; try { auto = sessionStorage.getItem(CO.save.prefix + '-autoplay') === '1'; if (auto) sessionStorage.removeItem(CO.save.prefix + '-autoplay'); } catch (e) {}
-    if (auto || /[?&]autoplay=1/.test(location.search)) setTimeout(enter, 50);
+    // <prefix>-autoplay in sessionStorage (or ?autoplay=1) presses the start button on the first frame; GAME.autoplay false leaves
+    // the flag to the game's own front menu, which reads and presses it itself
+    if (GAME.autoplay !== false) { var auto = false; try { auto = sessionStorage.getItem(CO.save.prefix + '-autoplay') === '1'; if (auto) sessionStorage.removeItem(CO.save.prefix + '-autoplay'); } catch (e) {} if (auto || /[?&]autoplay=1/.test(location.search)) setTimeout(enter, 50); }
     runHooks('boot', loaded);
     return handle;
   }

@@ -21,8 +21,8 @@
   }
   // ── Panels ────────────────────────────────────────────────────────
   // openPanel(kind, tab) shows the panel element; the game describes a kind in CO.game.panel(kind, tab) as { title, tabs: [[id, label]], body }.
-  // The catalogue kind is the engine's. Buttons in a panel carry data-act and data-arg; the engine takes restore and buy, the
-  // game takes the rest in CO.game.panelAct(act, arg). Tabs carry data-tab.
+  // The catalogue kind is the engine's. Buttons in a panel carry data-act and data-arg; the engine takes the catalogue's restore
+  // and buy, the game takes the rest in CO.game.panelAct(act, arg). Tabs carry data-tab.
   var panel = { kind: null, tab: null };
   function openPanel(kind, tab) {
     panel.kind = kind; panel.tab = tab || null; ui.panelOpen = true; var el = $('dc-panel'); if (el) el.hidden = false; if (ui.scanOpen && CO.game && CO.game.scanToggle) CO.game.scanToggle(false);
@@ -41,8 +41,8 @@
   }
   function btn(act, arg, label, cls, disabled) { return '<button class="dc-btn small ' + (cls || '') + '" data-act="' + act + '" data-arg="' + esc(arg == null ? '' : arg) + '"' + (disabled ? ' disabled' : '') + '>' + label + '</button>'; }
   function panelAct(act, arg) {
-    if (act === 'restore') { editRestore(arg); renderPanel(); return true; }
-    if (act === 'buy') { closePanel(); editBuy(arg); return true; }
+    if (panel.kind === 'catalogue' && act === 'restore') { editRestore(arg); renderPanel(); return true; }
+    if (panel.kind === 'catalogue' && act === 'buy') { closePanel(); editBuy(arg); return true; }   // only the catalogue's: a game's shop has a buy of its own
     if (CO.game && CO.game.panelAct && CO.game.panelAct(act, arg)) return true;
     runHooks('panelAct', act, arg); return false;
   }

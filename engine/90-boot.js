@@ -9,6 +9,7 @@
   //   menuCamera(dt)           the camera behind the start screen       hiddenTick(dt)  what still ticks in a hidden tab
   //   T                        what the game adds to the test handle    handle          the window property ('DEPOT')
   //   bake false               skip the static bake                     weather false   no weather state machine
+  //   autoplay false           the game's own front menu handles the autoplay flag
   var loaded = false, autosaveT = 0, fpsN = 0, fpsT = 0, lastFrame = 0;
   function coBoot(GAME) {
     GAME = GAME || {}; if (!CO.game) CO.game = {}; for (var k in GAME) if (!(k in CO.game)) CO.game[k] = GAME[k]; CO.gameVersion = GAME.version || window[GAME.versionGlobal || 'GAME_VERSION'] || CO.gameVersion;
@@ -31,8 +32,9 @@
     var handle = { enter: enter, bootSlot: BOOT_SLOT, version: CO.gameVersion || 'dev', engine: CO.version, T: coHandle() };
     if (GAME.T) { var gt = typeof GAME.T === 'function' ? GAME.T() : GAME.T; for (var tk in gt) handle.T[tk] = gt[tk]; }
     window[GAME.handle || 'CO_GAME'] = handle; CO.handle = handle;
-    var auto = false; try { auto = sessionStorage.getItem(CO.save.prefix + '-autoplay') === '1'; if (auto) sessionStorage.removeItem(CO.save.prefix + '-autoplay'); } catch (e) {}
-    if (auto || /[?&]autoplay=1/.test(location.search)) setTimeout(enter, 50);
+    // <prefix>-autoplay in sessionStorage (or ?autoplay=1) presses the start button on the first frame; GAME.autoplay false leaves
+    // the flag to the game's own front menu, which reads and presses it itself
+    if (GAME.autoplay !== false) { var auto = false; try { auto = sessionStorage.getItem(CO.save.prefix + '-autoplay') === '1'; if (auto) sessionStorage.removeItem(CO.save.prefix + '-autoplay'); } catch (e) {} if (auto || /[?&]autoplay=1/.test(location.search)) setTimeout(enter, 50); }
     runHooks('boot', loaded);
     return handle;
   }

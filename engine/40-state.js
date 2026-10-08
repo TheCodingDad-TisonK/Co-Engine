@@ -19,15 +19,16 @@
   function setSlot(n) { try { localStorage.setItem(CO.save.prefix + '-slot', String(n)); } catch (e) {} }
   // ── Load and save ─────────────────────────────────────────────────
   // loadSave(fresh, migrate): S becomes the slot's save, with every top-level key the fresh state has and the save lacks filled in,
-  // then the game's migrate(s, fresh) run on it; or the fresh state when there is no save or it will not parse (the broken copy is
-  // kept beside the slot). Returns true when a save was loaded.
+  // then the game's migrate(s, fresh, missing) run on it (missing[key] is true for each key that was filled in, so a migration can
+  // tell an old save from a new field); or the fresh state when there is no save or it will not parse (the broken copy is kept
+  // beside the slot). Returns true when a save was loaded.
   function loadSave(fresh, migrate) {
     var f = fresh(); S = f;
     try {
       var raw = localStorage.getItem(SAVE); if (!raw) return false;
       var s = JSON.parse(raw); if (!s || typeof s !== 'object') return false;
-      for (var k in f) if (!(k in s)) s[k] = f[k];
-      if (migrate) { var m = migrate(s, f); if (m && typeof m === 'object') s = m; }
+      var missing = {}; for (var k in f) if (!(k in s)) { s[k] = f[k]; missing[k] = true; }
+      if (migrate) { var m = migrate(s, f, missing); if (m && typeof m === 'object') s = m; }
       S = s; return true;
     } catch (e) {
       try { if (typeof console !== 'undefined') console.error('co-engine: the save in ' + SAVE + ' could not be loaded', e); var brokenRaw = localStorage.getItem(SAVE); if (brokenRaw) localStorage.setItem(SAVE + '-broken', brokenRaw); } catch (e2) {}

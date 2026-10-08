@@ -1,6 +1,6 @@
 # The engine contract
 
-What a game on Co Engine writes against, as of v0.1.0. One HTML page, one closure: the build script opens the closure, joins the engine's parts (`engine/NN-*.js`) in front of the game's (`src/NN-*.js`), and closes it. A game part may use any engine name at its top level once `CO.setup` has run, which the game's first part does.
+What a game on Co Engine writes against, as of v0.1.1. One HTML page, one closure: the build script opens the closure, joins the engine's parts (`engine/NN-*.js`) in front of the game's (`src/NN-*.js`), and closes it. A game part may use any engine name at its top level once `CO.setup` has run, which the game's first part does.
 
 ## The two calls
 
@@ -28,7 +28,7 @@ What a game on Co Engine writes against, as of v0.1.0. One HTML page, one closur
 | `handle` | the window property the game publishes (`DEPOT`): `window.<handle> = { enter, bootSlot, version, engine, T }` |
 | `version`, `versionGlobal` | the game's version, or the global `sync-version` writes (`GAME_VERSION`) |
 | `freshState()` | the game's default `S` |
-| `migrate(s, fresh)` | its save migrations, run on a loaded save with the fresh state's missing keys already filled |
+| `migrate(s, fresh, missing)` | its save migrations, run on a loaded save with the fresh state's missing top-level keys already filled in; `missing[key]` is true for each one that was, so an old save can be told from a new field |
 | `afterLoad(loaded)` | repairs on `S` before the world is built |
 | `buildWorld(loaded)` | the walls, the floors, the props (`buildProps()`), the people, the sky (`buildSky`) |
 | `afterBuild(loaded)` | meshes for the saved things |
@@ -36,7 +36,8 @@ What a game on Co Engine writes against, as of v0.1.0. One HTML page, one closur
 | `startStats(loaded)`, `startNote(loaded)` | the start screen's chips (strings) and the line under them |
 | `onEnter(loaded)` | after the start button |
 | `tick(dt)` | the world, once a frame while running (not blocked, not in photo mode) |
-| `weather` | `false` turns the weather state machine off |
+| `weather` | `false` turns the weather state machine off (the game ticks `tickWeatherState` itself) |
+| `autoplay` | `false` leaves the `<prefix>-autoplay` session flag to the game's own front menu |
 | `present(dt)` | the game's own per-frame presentation, after the engine's |
 | `menuCamera(dt)` | the camera behind the start screen (default: an orbit) |
 | `hiddenTick(dt)` | what still ticks in a hidden tab beside `tick` and the doors |
@@ -66,7 +67,7 @@ All optional. Where a hook returns a value the engine uses it; where it returns 
 - `mouseLook(e, sx, iy)`: take the mouse. `key(e)`: take a key before the engine's own bindings (after F12, F3, F9, Esc, F2 and build mode). `escape()`: take Esc first. `wheel(dir, e)`: take the wheel. `scanToggle(on)`: the game's own overlay the engine closes. `blocked()`: more layers that block the world. `photoBlocked()`: no photo mode now. `promptHidden()`: hide the E prompt.
 
 **Shell**
-- `hud()`: fill the HUD fields (under the dirty throttle). `panel(kind, tab)`: `{title, tabs: [[id, label]], tab, body}`. `panelAct(act, arg)`: a `data-act` button; return true when taken. `menu(k, button)`: a `data-menu` the engine does not know. `menuLine()`: the pause menu's first line. `guideHtml()`, `statsHtml()`, `settingsHtml()`: extra rows (`data-set` names the engine does not know go to `setting(k, v)`). `saveLooksRight(s)`: before an import.
+- `hud()`: fill the HUD fields (under the dirty throttle). `panel(kind, tab)`: `{title, tabs: [[id, label]], tab, body}`. `panelAct(act, arg)`: a `data-act` button; return true when taken. The engine takes `restore` and `buy` only on its own catalogue panel, so a game's shop may have a `buy` of its own. `menu(k, button)`: a `data-menu` the engine does not know. `menuLine()`: the pause menu's first line. `guideHtml()`, `statsHtml()`, `settingsHtml()`: extra rows (`data-set` names the engine does not know go to `setting(k, v)`). `saveLooksRight(s)`: before an import.
 - `devState()`: extra readout fields. `commands`: `{name: function (arg) { return 'what happened'; }}`.
 
 ## 4. Hooks on the bus
