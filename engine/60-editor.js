@@ -4,6 +4,8 @@
   // dev link). Everything here reads or writes the live scene and the save; nothing runs unless the editor asks. Objects are named
   // by id: a prop by its prop id, anything else by an editor id stamped on userData the first time it is listed.
   var EOBJ = {}, eidN = 0, editorSel = null, editorHelper = null, eRay = new THREE.Raycaster();
+  // a game that builds its props itself (Grow Co) names its builder in GAME.buildProp; the bridge rebuilds through it
+  function rebuildProp(id) { return CO.game && CO.game.buildProp ? CO.game.buildProp(id) : buildProp(id); }
   function eid(o) { if (!o.userData.eid) o.userData.eid = 'e' + (++eidN); EOBJ[o.userData.eid] = o; return o.userData.eid; }
   function isPropRoot(o) { return !!(o.userData.propId && propInst[o.userData.propId] && propInst[o.userData.propId].g === o); }
   function eobj(id) {
@@ -67,8 +69,8 @@
     if (p[0] === 'prop') {
       if (!PROPS[id] && !customById(id)) return id + ' is not a prop';
       var P = propPlacement(id); if (!S.layout) S.layout = {}; var L = S.layout[id] = S.layout[id] || { x: P.x, z: P.z, rot: P.rot, h: P.h || 0 };
-      if (p[1] === 'hidden') { L.hidden = !!(v && v !== 'false'); } else if (p[1] === 'reset') { delete S.layout[id]; } else if (p[1] === 'rot') L.rot = ((Math.round(+v) % 4) + 4) % 4; else L[p[1]] = +v;
-      buildProp(id); save(); editorSelect(propInst[id] ? id : null); return 'ok';
+      if (p[1] === 'hidden') { L.hidden = !!(v && v !== 'false'); } else if (p[1] === 'reset') { delete S.layout[id]; } else if (p[1] === 'rot') L.rot = ((Math.round(+v) % 4) + 4) % 4; else if (p[1] === 'xz') { L.x = +v[0]; L.z = +v[1]; } else L[p[1]] = +v;
+      rebuildProp(id); save(); editorSelect(propInst[id] ? id : null); return 'ok';
     }
     var o = eobj(id); if (!o) return 'no such object ' + id;
     if (p[0] === 'position' || p[0] === 'rotation' || p[0] === 'scale') { o[p[0]][p[1]] = p[0] === 'rotation' ? (+v) * Math.PI / 180 : +v; o.updateMatrixWorld(true); shadowDirty = true; if (editorHelper) editorHelper.update(); return 'ok'; }
@@ -154,17 +156,30 @@
   // in the editor's viewport there is no pointer lock (a locked pointer in an embedded page is not safe): a left click selects what it
   // is on, and the look follows the mouse while the right button is held, in the scene camera and in the game alike
   var editorTool = { mode: null, radius: 3, strength: 0.5, tex: 0 }, toolDown = false;
-  function editorSetTool(t) { if (!t || !t.mode) { editorTool.mode = null; return editorTool; } editorTool.mode = t.mode; if (t.radius) editorTool.radius = +t.radius; if (t.strength !== undefined) editorTool.strength = +t.strength; if (t.tex !== undefined) editorTool.tex = t.tex | 0; return editorTool; }
+  function editorSetTool(t) { if (!t || !t.mode) { editorTool.mode = null; editorTool.type = null; return editorTool; } editorTool.mode = t.mode; editorTool.type = t.type || null; if (t.radius) editorTool.radius = +t.radius; if (t.strength !== undefined) editorTool.strength = +t.strength; if (t.tex !== undefined) editorTool.tex = t.tex | 0; return editorTool; }
   function toolApply(e) { var r = canvas.getBoundingClientRect(), nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1, pt = terrainPick(nx, ny); if (!pt) return; var res = terrainBrush(pt.x, pt.z, editorTool.mode, editorTool.radius, editorTool.mode === 'paint' ? 1 : editorTool.strength * 0.25, editorTool.tex); if (res && res.changed) console.log('[co-editor] ' + JSON.stringify({ terrain: res.changed })); }
+  var dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), dragPt = new THREE.Vector3(), propDrag = null, partDrag = null, dragT = 0;
+  function pointOnPlane(e, y) { var r = canvas.getBoundingClientRect(), nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1; eRay.setFromCamera({ x: nx, y: ny }, camera); dragPlane.constant = -y; return eRay.ray.intersectPlane(dragPlane, dragPt) ? dragPt : null; }
+  function snapTo(v, s) { return Math.round(v / s) * s; }
   function editorBind() {
     canvas.addEventListener('mousedown', function (e) {
       if (!CO.editor.on || !ui.started) return;
-      if (e.button === 0 && editorTool.mode && TERRAIN.on) { toolDown = true; toolApply(e); e.preventDefault(); return; }
+      if (e.button === 0 && editorTool.mode === 'model' && editorTool.type) { var r0 = canvas.getBoundingClientRect(), mx = ((e.clientX - r0.left) / r0.width) * 2 - 1, my = -((e.clientY - r0.top) / r0.height) * 2 + 1, pk = modelPick(editorTool.type, mx, my); if (pk) { var inst0 = propInst[pk.id]; inst0.g.updateMatrixWorld(true); var partObj = null; inst0.g.traverse(function (o) { if (!partObj && o.userData && o.userData.part === pk.part) partObj = o; }); var wp = partObj ? partObj.getWorldPosition(new THREE.Vector3()) : inst0.g.position.clone(); var p0 = pointOnPlane(e, wp.y); if (p0) { partDrag = { type: editorTool.type, id: pk.id, part: pk.part, g: inst0.g, y: wp.y, off: p0.clone().sub(wp) }; console.log('[co-editor] ' + JSON.stringify({ partPick: pk.part, type: editorTool.type })); e.preventDefault(); return; } } }
+      if (e.button === 0 && editorTool.mode && editorTool.mode !== 'model' && TERRAIN.on) { toolDown = true; toolApply(e); e.preventDefault(); return; }
+      if (e.button === 0 && photo.on && editorSel && propInst[editorSel]) { var r1 = canvas.getBoundingClientRect(), sx = ((e.clientX - r1.left) / r1.width) * 2 - 1, sy = -((e.clientY - r1.top) / r1.height) * 2 + 1, hit1 = editorPick(sx, sy); var defS = propDef(editorSel); if (hit1 && hit1.id === editorSel && hit1.prop && !(defS && defS.fixed)) { var inst1 = propInst[editorSel], gy = inst1.g.position.y, p1 = pointOnPlane(e, gy); if (p1) { propDrag = { id: editorSel, g: inst1.g, y: gy, off: p1.clone().sub(inst1.g.position), before: layoutSnap(editorSel), moved: false }; e.preventDefault(); return; } } }
       if (e.button === 0) { var r = canvas.getBoundingClientRect(), nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1, hit = editorPick(nx, ny); editorSelect(hit ? hit.id : null); console.log('[co-editor] ' + JSON.stringify({ select: hit ? hit.id : null, point: hit ? hit.point : null, nx: nx, ny: ny })); }
       if (e.button === 2) { CO.editor.drag = true; e.preventDefault(); }
     });
-    document.addEventListener('mouseup', function (e) { if (e.button === 2) CO.editor.drag = false; if (e.button === 0) toolDown = false; });
-    canvas.addEventListener('mousemove', function (e) { if (toolDown && editorTool.mode && TERRAIN.on) toolApply(e); });
+    document.addEventListener('mouseup', function (e) {
+      if (e.button === 2) CO.editor.drag = false; if (e.button === 0) toolDown = false;
+      if (e.button === 0 && propDrag) { var D = propDrag; propDrag = null; if (D.moved) { var P = propPlacement(D.id), x = Math.round(D.g.position.x * 100) / 100, z = Math.round(D.g.position.z * 100) / 100; if (!S.layout) S.layout = {}; S.layout[D.id] = S.layout[D.id] || { x: P.x, z: P.z, rot: P.rot, h: P.h || 0 }; S.layout[D.id].x = x; S.layout[D.id].z = z; rebuildProp(D.id); save(); var after = layoutSnap(D.id), bef = D.before; histPush('move ' + D.id, function () { layoutRestore(D.id, bef); }, function () { layoutRestore(D.id, after); }); editorSelect(D.id); console.log('[co-editor] ' + JSON.stringify({ moved: D.id, x: x, z: z })); } }
+      if (e.button === 0 && partDrag) { console.log('[co-editor] ' + JSON.stringify({ partDragEnd: partDrag.part, type: partDrag.type })); partDrag = null; }
+    });
+    canvas.addEventListener('mousemove', function (e) {
+      if (toolDown && editorTool.mode && editorTool.mode !== 'model' && TERRAIN.on) toolApply(e);
+      if (propDrag) { var p = pointOnPlane(e, propDrag.y); if (!p) return; var s = e.shiftKey ? 0.5 : 0.05, nx2 = snapTo(p.x - propDrag.off.x, s), nz2 = snapTo(p.z - propDrag.off.z, s); if (nx2 !== propDrag.g.position.x || nz2 !== propDrag.g.position.z) { propDrag.g.position.x = nx2; propDrag.g.position.z = nz2; propDrag.moved = true; if (editorHelper) editorHelper.update(); shadowDirty = true; } return; }
+      if (partDrag) { var pp = pointOnPlane(e, partDrag.y); if (!pp) return; var now = performance.now(); if (now - dragT < 40) return; dragT = now; var local = partDrag.g.worldToLocal(pp.clone().sub(partDrag.off)); var st = e.shiftKey ? 0.25 : 0.05; console.log('[co-editor] ' + JSON.stringify({ partDrag: partDrag.part, type: partDrag.type, x: snapTo(local.x, st), z: snapTo(local.z, st) })); }
+    });
     window.addEventListener('blur', function () { CO.editor.drag = false; });
     canvas.addEventListener('contextmenu', function (e) { if (CO.editor.on) e.preventDefault(); });
     window.addEventListener('keydown', function (e) { if (!CO.editor.on || !(e.ctrlKey || e.metaKey)) return; var k = (e.key || '').toLowerCase(); if (k === 'z' && !e.shiftKey) { e.preventDefault(); console.log('[co-editor] ' + JSON.stringify({ history: editorUndoStep() })); } else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); console.log('[co-editor] ' + JSON.stringify({ history: editorRedoStep() })); } });
@@ -174,7 +189,7 @@
   var editorUndoStack = [], editorRedoStack = [];
   function histPush(label, undo, redo) { editorUndoStack.push({ label: label, undo: undo, redo: redo, t: Date.now() }); if (editorUndoStack.length > 200) editorUndoStack.shift(); editorRedoStack.length = 0; }
   function layoutSnap(id) { return S && S.layout && S.layout[id] ? JSON.parse(JSON.stringify(S.layout[id])) : undefined; }
-  function layoutRestore(id, snap) { if (!S.layout) S.layout = {}; if (snap === undefined) delete S.layout[id]; else S.layout[id] = JSON.parse(JSON.stringify(snap)); buildProp(id); save(); if (editorSel === id) editorSelect(propInst[id] ? id : null); }
+  function layoutRestore(id, snap) { if (!S.layout) S.layout = {}; if (snap === undefined) delete S.layout[id]; else S.layout[id] = JSON.parse(JSON.stringify(snap)); rebuildProp(id); save(); if (editorSel === id) editorSelect(propInst[id] ? id : null); }
   function editorUndoStep() { var s = editorUndoStack.pop(); if (!s) return 'nothing to undo'; s.undo(); editorRedoStack.push(s); if (editorHelper) editorHelper.update(); return 'undid: ' + s.label; }
   function editorRedoStep() { var s = editorRedoStack.pop(); if (!s) return 'nothing to redo'; s.redo(); editorUndoStack.push(s); if (editorHelper) editorHelper.update(); return 'redid: ' + s.label; }
   function editorHistory() { return { undo: editorUndoStack.map(function (s) { return s.label; }), redo: editorRedoStack.map(function (s) { return s.label; }) }; }
@@ -217,7 +232,7 @@
     return { fn: fn };
   }
   function propTypeIds(type) { var ids = []; if (PROPS[type] && !PROPS[type].extra) ids.push(type); LAYOUT.placed.forEach(function (p) { if (p.type === type && !PROPS[p.id]) ids.push(p.id); }); (S && S.custom || []).forEach(function (c) { if (c.type === type) ids.push(c.id); }); return ids; }
-  function rebuildType(type) { var n = 0, err = null; propTypeIds(type).forEach(function (id) { try { buildProp(id); n++; } catch (e) { err = err || (id + ': ' + e.message); } }); if (editorSel && propTypeIds(type).indexOf(editorSel) >= 0) editorSelect(propInst[editorSel] ? editorSel : null); return { rebuilt: n, error: err }; }
+  function rebuildType(type) { var n = 0, err = null; propTypeIds(type).forEach(function (id) { try { rebuildProp(id); n++; } catch (e) { err = err || (id + ': ' + e.message); } }); if (editorSel && propTypeIds(type).indexOf(editorSel) >= 0) editorSelect(propInst[editorSel] ? editorSel : null); return { rebuilt: n, error: err }; }
   function editorSource(type) {
     var def = PROPS[type]; if (!def) return { error: 'no prop definition ' + type };
     var fields = {}; ['label', 'cat', 'x', 'z', 'rot', 'y', 'wall', 'fixed', 'extra', 'price', 'desc', 'lvl', 'ico', 'noBlob'].forEach(function (k) { if (def[k] !== undefined) fields[k] = def[k]; });
@@ -286,7 +301,7 @@
       if (D.B.asleep || D.t > 6) {
         removeBody(g); delete dropping[id]; var P = propPlacement(id), ground = propGroundY(g.position.x, g.position.z);
         if (!S.layout) S.layout = {}; var L = S.layout[id] = S.layout[id] || { x: P.x, z: P.z, rot: P.rot, h: P.h || 0 }; L.x = Math.round(g.position.x * 100) / 100; L.z = Math.round(g.position.z * 100) / 100; L.h = Math.max(0, Math.round((g.position.y - ground) * 100) / 100);
-        buildProp(id); save(); var after = layoutSnap(id), bef = D.before; histPush('drop ' + id, function () { layoutRestore(id, bef); }, function () { layoutRestore(id, after); });
+        rebuildProp(id); save(); var after = layoutSnap(id), bef = D.before; histPush('drop ' + id, function () { layoutRestore(id, bef); }, function () { layoutRestore(id, after); });
         if (editorSel === id) editorSelect(id); console.log('[co-editor] ' + JSON.stringify({ dropped: id, x: L.x, z: L.z, h: L.h }));
       }
     }
@@ -333,6 +348,6 @@
     ui: uiData, uiSet: function (data) { CO.ui(data); if (ui.panelOpen) renderPanel(); return uiData(); }, uiCode: uiCode, uiOpen: function (kind) { openPanel(kind); return !!UI.panels[kind]; }, uiEval: uiEval,
     model: modelOf, modelPreview: modelPreview, modelStart: modelStart, modelPick: modelPick, modelMirror: modelMirror, modelCode: modelCode,
     physics: physicsState, bodyAdd: function (id, opt) { var o = eobj(id); if (!o) return { error: 'no such object ' + id }; var B = body(o, opt || {}); return { ok: true, id: B.id, size: [B.hx * 2, B.hy * 2, B.hz * 2] }; }, bodyRemove: function (id) { var o = eobj(id); return !!o && removeBody(o); }, impulse: function (id, vx, vy, vz) { var o = eobj(id); return !!o && impulse(o, vx, vy, vz); },
-    drop: editorDrop,
+    drop: editorDrop, hingeAdd: function (id, opt) { var o = eobj(id); if (!o) return { error: 'no such object ' + id }; var H = hinge(o, opt || {}); return { ok: true, pivot: H.pivot, length: H.length, axis: H.axis }; }, hingeRemove: function (id) { var o = eobj(id); return !!o && removeHinge(o); },
     ids: function () { return { props: Object.keys(propInst), objects: Object.keys(EOBJ) }; }
   };

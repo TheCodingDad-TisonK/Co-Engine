@@ -39,6 +39,9 @@
     var T = TERRAIN, spec = TERRAIN_PAINT[T.palette[T.paint[j * T.w + i]]] || TERRAIN_PAINT.dirt, c = T.ctx, px = T.px, x = i * px, y = j * px, k;
     c.fillStyle = spec.base; c.fillRect(x, y, px, px);
     for (k = 0; k < spec.n; k++) { var r = seededF('t' + i + ',' + j, k, spec.r[0], spec.r[1]) * px / 16; c.fillStyle = spec.dots[seededI('tc' + i + ',' + j, k, 0, spec.dots.length - 1)]; c.beginPath(); c.arc(x + seededF('tx' + i + ',' + j, k, 0, px), y + seededF('tz' + i + ',' + j, k, 0, px), r, 0, Math.PI * 2); c.fill(); }
+    // the neighbours' paints feather in over the edges, so two paints meet in a soft seam rather than a hard line
+    var own = T.paint[j * T.w + i], f = Math.max(2, Math.round(px * 0.45)), nb = [[i - 1, j, 'l'], [i + 1, j, 'r'], [i, j - 1, 't'], [i, j + 1, 'b']];
+    for (k = 0; k < 4; k++) { var ni = nb[k][0], nj = nb[k][1]; if (ni < 0 || nj < 0 || ni >= T.w || nj >= T.d) continue; var np = T.paint[nj * T.w + ni]; if (np === own) continue; var ns = TERRAIN_PAINT[T.palette[np]] || TERRAIN_PAINT.dirt, side = nb[k][2], g = side === 'l' ? c.createLinearGradient(x, 0, x + f, 0) : side === 'r' ? c.createLinearGradient(x + px, 0, x + px - f, 0) : side === 't' ? c.createLinearGradient(0, y, 0, y + f) : c.createLinearGradient(0, y + px, 0, y + px - f); g.addColorStop(0, ns.base); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.globalAlpha = 0.75; if (side === 'l') c.fillRect(x, y, f, px); else if (side === 'r') c.fillRect(x + px - f, y, f, px); else if (side === 't') c.fillRect(x, y, px, f); else c.fillRect(x, y + px - f, px, f); c.globalAlpha = 1; }
   }
   function terrainBuild() {
     var T = TERRAIN; if (!T.on || T.mesh) return T.mesh;
@@ -67,6 +70,12 @@
     var T = TERRAIN; if (!T.on) return { changed: 0, error: 'no terrain: make one first' };
     radius = Math.max(0.3, +radius || 2); strength = Math.max(0, +strength || 0.5); var W = T.w + 1, H = T.heights, n = 0;
     var ci = (x - T.x0) / T.cell, cj = (z - T.z0) / T.cell, rc = radius / T.cell, i0 = Math.floor(ci - rc), i1 = Math.ceil(ci + rc), j0 = Math.floor(cj - rc), j1 = Math.ceil(cj + rc), i, j;
+    if (mode === 'road') {   /* a road: the strip flattens to the height under the brush and takes the road paint */
+      var rh = terrainY(x, z), W2 = T.w + 1, ri = T.palette.indexOf('road'), nR = 0; if (ri < 0) { T.palette.push('road'); ri = T.palette.length - 1; }
+      for (j = Math.max(0, j0); j <= Math.min(T.d, j1); j++) for (i = Math.max(0, i0); i <= Math.min(T.w, i1); i++) { var rdx = i - ci, rdz = j - cj; if (rdx * rdx + rdz * rdz <= rc * rc) { var ra = j * W2 + i; if (H[ra] !== rh) { H[ra] = rh; nR++; } } }
+      for (j = Math.max(0, j0); j < Math.min(T.d, j1 + 1); j++) for (i = Math.max(0, i0); i < Math.min(T.w, i1 + 1); i++) { var pdx = (i + 0.5) - ci, pdz = (j + 0.5) - cj; if (pdx * pdx + pdz * pdz <= (rc * 0.8) * (rc * 0.8) && T.paint[j * T.w + i] !== ri) { T.paint[j * T.w + i] = ri; nR++; } }
+      if (nR) terrainUpdate(i0, j0, i1, j1); return { changed: nR };
+    }
     if (mode === 'paint') {
       var tex = Math.max(0, Math.min(T.palette.length - 1, texIndex | 0));
       for (j = Math.max(0, j0); j < Math.min(T.d, j1 + 1); j++) for (i = Math.max(0, i0); i < Math.min(T.w, i1 + 1); i++) { var dx = (i + 0.5) - ci, dz = (j + 0.5) - cj; if (dx * dx + dz * dz <= rc * rc && T.paint[j * T.w + i] !== tex) { T.paint[j * T.w + i] = tex; n++; } }
