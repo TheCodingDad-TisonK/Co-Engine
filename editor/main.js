@@ -19,6 +19,8 @@ const SAMPLE_DIR = path.join(__dirname, '..', 'tests', 'sample');
 // a name and a user-data folder of its own, before the single-instance lock: the lock is keyed by that folder, and the games
 // run from the editor must never share it
 app.setName('Co Engine'); app.setPath('userData', path.join(app.getPath('appData'), 'Co Engine'));
+// a self-picture (--shot) must paint even when another window covers this one: Windows occlusion would otherwise leave the capture empty
+if (process.argv.some((x) => x.startsWith('--shot='))) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
 let win = null, srv = null; const gameWins = [];
 // --open=<dir> opens that game in the viewport at once; --shot=<file.png> then saves a picture of the window after --after=<ms> and quits (the editor's own smoke);

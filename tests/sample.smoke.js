@@ -165,4 +165,27 @@ module.exports = `
     const b = E.spawn('pkBarrier', -4, 6); ok(!!node(b) && T.solids.some((s) => s.prop === b && s.y0 > 0.5), 'the barrier arm blocks at waist height when down');
     ['pkLever', 'pkSign', 'pkWallSign', 'pkCrate', 'pkPallet', 'pkBench', 'pkBin', 'pkCone', 'pkLampPost', 'pkFence', 'pkPlanter', 'pkWallScreen'].forEach((t) => { const id = E.spawn(t, -8, 8); ok(!!node(id), t + ' builds'); E.remove(id); });
     ok(!T.catalogueData().groups.pack, 'the catalogue does not sell the pack props'); [g, p, b].forEach((id) => E.remove(id)); }
+
+  // M9 (0.2.1): clips as data on props and on the people rig; UI as data: HUD chips, panels with buttons, start chips
+  { const E = T.editor, CO2 = T.CO, NL = String.fromCharCode(10); const node = (id) => { const tr = E.tree(); for (const k in tr.props) { const n = tr.props[k].find((p) => p.id === id); if (n) return n; } return null; };
+    const cl = E.clips(); ok(cl.order.indexOf('wave') >= 0 && cl.order.indexOf('spin') >= 0 && cl.clips.spin.loop === true && cl.clips.wave.tracks.length === 3, 'the built-in clips are there: ' + cl.order.join(', '));
+    const box = E.spawn('xChair', 2, 2); const y0 = E.inspect(box).position[1]; const pl = E.clipPlay(box, 'bob', { blend: 0 }); ok(pl.ok === true && pl.tracks === 1, 'a clip plays on a prop: ' + JSON.stringify(pl));
+    await wait(450); const y1 = E.inspect(box).position[1]; ok(y1 > y0 + 0.05, 'the bob lifts the chair: ' + y0 + ' to ' + y1.toFixed(3)); ok(E.clips().playing.some((p) => p.name === 'bob'), 'it is on the playing list');
+    E.clipStop(box); ok(!E.clips().playing.some((p) => p.name === 'bob'), 'stop takes it off the list');
+    const r1 = E.clip('eSpin2', { duration: 1, loop: false, tracks: [{ path: 'rotation.y', keys: [[0, 0, 'linear'], [1, 1.5, 'linear']] }], events: [[0.5, 'half']] }); ok(r1.ok === true && r1.duration === 1, 'a clip is defined from data');
+    let fired = null; T.hook('clipEvent', (obj, name) => { fired = name; }); E.clipPlay(box, 'eSpin2', { blend: 0, hold: true }); await wait(1300); ok(Math.abs(E.inspect(box).rotation[1] - 1.5 * 180 / Math.PI) < 3, 'a one-shot clip ends on its last key and holds: ' + E.inspect(box).rotation[1].toFixed(1) + ' degrees'); ok(fired === 'half', 'its event fired through the clipEvent hook: ' + fired);
+    const sk = E.clipSeek(box, 'eSpin2', 0.5); ok(sk.ok === true && Math.abs(E.inspect(box).rotation[1] - 0.75 * 180 / Math.PI) < 3, 'seek puts the pose at a time: ' + E.inspect(box).rotation[1].toFixed(1));
+    E.set(box, 'rotation.y', 90); const kp = E.clipKey(box, 'eSpin2', 2); ok(kp.ok === true && kp.keyed === 1 && E.clips().clips.eSpin2.tracks[0].keys.length === 3 && E.clips().clips.eSpin2.duration === 2, 'keying the pose adds a key at t and stretches the clip');
+    ok(E.clipCode().indexOf('CO.clip("eSpin2"') >= 0 && E.clipCode().indexOf('"wave"') < 0, 'clipCode writes the new clip and not the built-in ones'); ok(E.clipRemove('eSpin2') === true && !E.clips().clips.eSpin2, 'and removes it');
+    const person = E.tree().people[0]; const paths = E.clipPaths(person.id); ok(paths.indexOf('arm.1.rotation.x') >= 0 && paths.indexOf('head.rotation.y') >= 0, 'a person offers its limbs as paths');
+    const w = E.clipPlay(person.id, 'wave', { blend: 0 }); ok(w.ok === true && w.tracks === 3, 'wave plays on a person with all three tracks'); await wait(500); const arm = E.inspect(person.id); ok(E.clips().playing.some((p) => p.name === 'wave'), 'the person is waving'); await wait(1400); ok(!E.clips().playing.some((p) => p.name === 'wave'), 'and done after 1.6 s');
+    E.remove(box);
+    // UI as data
+    const u0 = E.ui(); ok(u0 && u0.hud.length === 0 && Object.keys(u0.panels).length === 0, 'no UI data to begin with');
+    E.uiSet({ hud: [{ label: 'Presses', value: 'S.presses || 0' }, { label: 'Bank', value: 'money(S.bank)', color: '#f5b53d' }], panels: { board: { title: 'The board', text: 'Welcome to the room.' + NL + NL + '- one' + NL + '- two', buttons: [{ label: 'Give 100', action: 'cash 100', primary: true }, { label: 'Count', action: 'S.presses = (S.presses || 0) + 1' }, { label: 'Close', action: '', close: true }] } }, start: ["'Presses ' + (S.presses || 0)"], menuLine: "'Day ' + S.day + ' in the sample room'" });
+    T.updateHud(1); const row = document.getElementById('h-ui'); ok(!!row && row.children.length === 2 && /Presses/.test(row.textContent) && row.children[1].textContent.indexOf('$') >= 0, 'two HUD chips appear with their values: ' + (row && row.textContent));
+    const bank0 = S.bank; ok(E.uiOpen('board') === true && T.ui.panelOpen === true && /Welcome/.test(document.getElementById('dc-panel-body').innerHTML) && document.querySelectorAll('#dc-panel-body [data-act="ui"]').length === 3, 'the panel opens with its text and three buttons');
+    T.panelAct('ui', 'board:0'); ok(S.bank === bank0 + 100, 'a button runs a dev command: bank ' + S.bank); T.panelAct('ui', 'board:1'); ok(S.presses >= 1, 'a button runs an expression'); T.panelAct('ui', 'board:2'); ok(T.ui.panelOpen === false, 'a close button closes the panel');
+    ok(E.uiEval("'Day ' + S.day + ' in the sample room'") === 'Day 1 in the sample room', 'uiEval runs an expression over the kit'); ok(E.uiCode().indexOf('CO.ui(') >= 0 && E.uiCode().indexOf('"board"') >= 0, 'uiCode writes the part');
+    E.uiSet({ hud: [], panels: {}, start: [], menuLine: '' }); T.updateHud(1); ok(E.uiCode() === '' && document.getElementById('h-ui').children.length === 0, 'cleared, the UI part is empty and the chips are gone'); }
 `;
