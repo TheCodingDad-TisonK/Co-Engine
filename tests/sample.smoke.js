@@ -126,7 +126,8 @@ module.exports = `
     E.set('lever', 'prop.x', 9); ok(E.layout().pending === 1 && E.layout().props.lever.x === 9, 'a move after adopt is pending again'); E.set('lever', 'prop.reset', 1); ok(E.layout().pending === 0, 'and reset clears it');
     E.remove(sp); ok(!node(sp) && !E.layout().placed.some((p) => p.id === sp) && E.layout().pending === 1, 'a removed placed copy leaves the layout and counts as pending'); E.undo(); ok(!!node(sp) && E.layout().pending === 0, 'and comes back with undo');
     E.set('wallSign', 'prop.hidden', true); ok(E.layout().props.wallSign && E.layout().props.wallSign.hidden === true && /hidden: true/.test(E.layout().code), 'a hidden prop is written as hidden'); E.set('wallSign', 'prop.hidden', false); ok(!E.layout().props.wallSign, 'and unhidden it is back to its definition');
-    E.remove('plChair'); E.undo(); ok(!!node('plChair'), 'a placed copy hides and comes back'); }
+    E.remove('plChair'); E.undo(); ok(!!node('plChair'), 'a placed copy hides and comes back');
+    ok(E.set('plChair', 'prop.rot', 2) === 'ok' && E.inspect('plChair').prop.rot === 2, 'a placed copy turns through set after the layout adopted it (0.4.1)'); E.set('plChair', 'prop.reset', 1); }
 
   // M8 (0.2.0): the terrain and the material graph
   { const E = T.editor, CO2 = T.CO; const node = (id) => { const tr = E.tree(); for (const k in tr.props) { const n = tr.props[k].find((p) => p.id === id); if (n) return n; } return null; };

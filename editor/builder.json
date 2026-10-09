@@ -22,7 +22,8 @@
     "tests/sample/src/**",
     "tests/sample/index.html",
     "tests/sample/co.json",
-    "package.json"
+    "package.json",
+    "packs/**/*"
   ],
   "win": {
     "target": [

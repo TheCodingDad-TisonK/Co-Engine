@@ -67,7 +67,7 @@
   function editorApply(id, path, value) {
     var p = String(path).split('.'), v = value;
     if (p[0] === 'prop') {
-      if (!PROPS[id] && !customById(id)) return id + ' is not a prop';
+      if (!PROPS[id] && !customById(id) && !placedById(id)) return id + ' is not a prop';   /* a copy the layout ships counts too */
       var P = propPlacement(id); if (!S.layout) S.layout = {}; var L = S.layout[id] = S.layout[id] || { x: P.x, z: P.z, rot: P.rot, h: P.h || 0 };
       if (p[1] === 'hidden') { L.hidden = !!(v && v !== 'false'); } else if (p[1] === 'reset') { delete S.layout[id]; } else if (p[1] === 'rot') L.rot = ((Math.round(+v) % 4) + 4) % 4; else if (p[1] === 'xz') { L.x = +v[0]; L.z = +v[1]; } else L[p[1]] = +v;
       rebuildProp(id); save(); editorSelect(propInst[id] ? id : null); return 'ok';
