@@ -5,7 +5,7 @@
   // The engine parts come first in the closure, the game's parts after. The engine declares the names both sides share
   // here, unassigned, and fills them when the game calls CO.setup (the renderer, the scene, the palette) and CO.boot (the
   // state, the shell, the frame loop). A game part may use any of them at its top level once CO.setup has run.
-  var CO = { version: '0.1.7', cfg: null, game: null, root: null, flash: 0, ready: false, paused: false, stepOnce: false, editor: null };
+  var CO = { version: '0.1.8', cfg: null, game: null, root: null, flash: 0, ready: false, paused: false, stepOnce: false, editor: null };
   var S, SET, SAVE, SETTINGS_KEY, BOOT_SLOT, BOOT_SAVE;               // 40-state fills these
   var canvas, renderer, scene, camera;                                 // 10-three fills these in CO.setup
   var player = null, focus = null, hudDirty = true;                    // 42-player owns player and focus; the HUD throttle flag is read everywhere
@@ -506,15 +506,26 @@
   // canEdit() gates build mode. Hooks on the bus: 'propCtx' (ctx, g, id), 'propBuilt' (id, inst, def), 'propRemoved' (id, inst),
   // 'propPlaced' (id, inst, def), 'propDeleted' (id, def), 'editBought' (custom record).
   var PROPS = {}, PROP_ORDER = [], propInst = {};
+  // The layout a game ships: where its props stand (over what the definitions say) and the copies the editor placed. The editor writes it
+  // into src/00-layout.js as CO.layout({ props: { id: { x, z, rot, h, hidden } }, placed: [{ id, type, x, z, rot, h }] }), the first part
+  // in the build so the boot sees it. A player's save still wins over it, as it wins over the definitions.
+  var LAYOUT = { props: {}, placed: [] };
+  CO.layout = function (L) { if (!L) return LAYOUT; if (L.props) for (var k in L.props) LAYOUT.props[k] = L.props[k]; if (L.placed) L.placed.forEach(function (p) { if (p && p.id && !placedById(p.id)) LAYOUT.placed.push(p); }); return LAYOUT; };
+  function placedById(id) { for (var i = 0; i < LAYOUT.placed.length; i++) if (LAYOUT.placed[i].id === id) return LAYOUT.placed[i]; return null; }
+  function numOr(v, d) { return typeof v === 'number' ? v : d; }
   function defProp(id, def) { if (CO.game && CO.game.resolveDef) CO.game.resolveDef(id, def); def.id = id; PROPS[id] = def; PROP_ORDER.push(id); return def; }
   function propAllowed(id) { var d = PROPS[id]; if (!d) return true; if (d.extra) return true; if (CO.game && CO.game.propAllowed && !CO.game.propAllowed(id, d)) return false; return true; }
-  function propDef(id) { if (PROPS[id]) return PROPS[id]; var c = customById(id); return c ? PROPS[c.type] : null; }
+  function propDef(id) { if (PROPS[id]) return PROPS[id]; var c = customById(id); if (c) return PROPS[c.type]; var p = placedById(id); return p ? PROPS[p.type] : null; }
   function customById(id) { return (S && S.custom || []).filter(function (c) { return c.id === id; })[0] || null; }
+  // where a prop stands: the save's override, else the shipped layout, else the definition (a custom copy: the save over its own record)
   function propPlacement(id) {
-    var d = PROPS[id], c = customById(id), o = (S && S.layout && S.layout[id]) || {};
-    if (c) return { x: typeof o.x === 'number' ? o.x : c.x, z: typeof o.z === 'number' ? o.z : c.z, rot: typeof o.rot === 'number' ? o.rot : (c.rot || 0), h: typeof o.h === 'number' ? o.h : (c.h || 0), hidden: !!o.hidden, custom: true };
-    return { x: typeof o.x === 'number' ? o.x : d.x, z: typeof o.z === 'number' ? o.z : d.z, rot: typeof o.rot === 'number' ? o.rot : (d.rot || 0), h: o.h || 0, hidden: !!o.hidden, custom: false };
+    var d = PROPS[id], c = customById(id), p = placedById(id), o = (S && S.layout && S.layout[id]) || {}, L = LAYOUT.props[id] || {};
+    if (c) return { x: numOr(o.x, c.x), z: numOr(o.z, c.z), rot: numOr(o.rot, c.rot || 0), h: numOr(o.h, c.h || 0), hidden: !!o.hidden, custom: true };
+    if (p && !d) return { x: numOr(o.x, p.x), z: numOr(o.z, p.z), rot: numOr(o.rot, p.rot || 0), h: numOr(o.h, p.h || 0), hidden: !!o.hidden, custom: false, placed: true };
+    return { x: numOr(o.x, numOr(L.x, d.x)), z: numOr(o.z, numOr(L.z, d.z)), rot: numOr(o.rot, numOr(L.rot, d.rot || 0)), h: numOr(o.h, L.h || 0), hidden: o.hidden !== undefined ? !!o.hidden : !!L.hidden, custom: false };
   }
+  // the shipped place of a prop, with no save over it: what the layout file says, else the definition
+  function propDefault(id) { var d = PROPS[id], p = placedById(id), L = LAYOUT.props[id] || {}; if (p && !d) return { x: p.x, z: p.z, rot: p.rot || 0, h: p.h || 0, hidden: false }; return { x: numOr(L.x, d.x), z: numOr(L.z, d.z), rot: numOr(L.rot, d.rot || 0), h: L.h || 0, hidden: !!L.hidden }; }
   function propLabel(id) { var d = propDef(id); return d ? d.label : id; }
   function rotAABB(o, rot) {
     var pts = [[o.x0, o.z0], [o.x1, o.z0], [o.x0, o.z1], [o.x1, o.z1]], a = rot * Math.PI / 2, c = Math.cos(a), s = Math.sin(a), xs = [], zs = [];
@@ -569,7 +580,7 @@
     scene.add(g); NAV.dirty = true; shadowDirty = true;
     return inst;
   }
-  function buildProps() { PROP_ORDER.forEach(function (id) { if (!PROPS[id].extra && propAllowed(id) && (!PROPS[id].when || PROPS[id].when())) buildProp(id); }); (S && S.custom || []).forEach(function (c) { if (PROPS[c.type]) buildProp(c.id); }); }
+  function buildProps() { PROP_ORDER.forEach(function (id) { if (!PROPS[id].extra && propAllowed(id) && (!PROPS[id].when || PROPS[id].when())) buildProp(id); }); LAYOUT.placed.forEach(function (p) { if (PROPS[p.type] && !PROPS[p.id]) buildProp(p.id); }); (S && S.custom || []).forEach(function (c) { if (PROPS[c.type]) buildProp(c.id); }); }
   function propIdOf(obj) { for (var o = obj; o; o = o.parent) if (o.userData && o.userData.propId) return o.userData.propId; return null; }
   function propWorld(prop, lx, lz) { var P = propPlacement(prop), a = P.rot * Math.PI / 2; return { x: P.x + lx * Math.cos(a) + lz * Math.sin(a), z: P.z - lx * Math.sin(a) + lz * Math.cos(a), a: a }; }
 
@@ -659,7 +670,7 @@
     else { if (!S.layout) S.layout = {}; S.layout[id] = S.layout[id] || {}; S.layout[id].hidden = true; buildProp(id); toast('Removed the ' + propLabel(id) + ' (the catalogue brings it back)', ''); }
     editHelper(null); sfx('bad'); save();
   }
-  function editRestore(id) { if (S.layout && S.layout[id]) { delete S.layout[id].hidden; } buildProp(id); sfx('ok'); toast('The ' + propLabel(id) + ' is back', 'good'); save(); }
+  function editRestore(id) { if (!S.layout) S.layout = {}; S.layout[id] = S.layout[id] || {}; S.layout[id].hidden = false; buildProp(id); sfx('ok'); toast('The ' + propLabel(id) + ' is back', 'good'); save(); }
   function editBuy(type) {
     var def = PROPS[type]; if (!def || !def.extra) return; if (typeof def.lvl === 'number' && S.level !== undefined && S.level < def.lvl) { toast('That comes at level ' + def.lvl + '.', 'bad'); return; }
     if (def.price && S.bank < def.price) { toast('That costs ' + money(def.price) + ' and you have ' + money(S.bank), 'bad'); return; }
@@ -671,7 +682,7 @@
   }
   // the catalogue's data: removed props to bring back, and extras to buy, grouped by category (the game draws it)
   function catalogueData() {
-    var hidden = PROP_ORDER.filter(function (id) { return !PROPS[id].extra && propPlacement(id).hidden; }), groups = {};
+    var hidden = PROP_ORDER.filter(function (id) { return !PROPS[id].extra && propPlacement(id).hidden; }).concat(LAYOUT.placed.filter(function (p) { return !PROPS[p.id] && propPlacement(p.id).hidden; }).map(function (p) { return p.id; })), groups = {};
     PROP_ORDER.forEach(function (id) { var d = PROPS[id]; if (!d.extra) return; (groups[d.cat || 'other'] = groups[d.cat || 'other'] || []).push(id); });
     return { hidden: hidden, groups: groups };
   }
@@ -1758,7 +1769,7 @@
     if (o.isMesh && o.material && !Array.isArray(o.material)) { var m = o.material; r.material = { key: matName(m), type: m.type, color: m.color ? '#' + m.color.getHexString() : null, emissive: m.emissive ? '#' + m.emissive.getHexString() : null, emissiveIntensity: m.emissiveIntensity === undefined ? null : rnd(m.emissiveIntensity), roughness: m.roughness === undefined ? null : rnd(m.roughness), metalness: m.metalness === undefined ? null : rnd(m.metalness), opacity: rnd(m.opacity), transparent: !!m.transparent, map: !!m.map, shared: !!matName(m) }; }
     if (o.isMesh && o.geometry && o.geometry.parameters) r.geometry = { type: o.geometry.type, params: o.geometry.parameters };
     if (o.isLight) r.light = { type: o.type, color: '#' + o.color.getHexString(), intensity: rnd(o.intensity), distance: o.distance === undefined ? null : o.distance, decay: o.decay === undefined ? null : o.decay, shadow: !!o.castShadow };
-    if (propInst[id]) { var inst = propInst[id], def = inst.def || propDef(id) || {}, P = propPlacement(id), c = customById(id); r.prop = { id: id, type: c ? c.type : id, label: def.label, cat: def.cat || null, custom: !!c, fixed: !!def.fixed, wall: !!def.wall, extra: !!def.extra, price: def.price || 0, lvl: def.lvl || null, desc: def.desc || '', x: rnd(P.x), z: rnd(P.z), rot: P.rot, h: rnd(P.h || 0), hidden: !!P.hidden, moved: !!(S && S.layout && S.layout[id]), obstacles: inst.ctx.obstacles.length }; }
+    if (propInst[id]) { var inst = propInst[id], def = inst.def || propDef(id) || {}, P = propPlacement(id), c = customById(id); r.prop = { id: id, type: c ? c.type : (placedById(id) ? placedById(id).type : id), label: def.label, cat: def.cat || null, custom: !!c, fixed: !!def.fixed, wall: !!def.wall, extra: !!def.extra, price: def.price || 0, lvl: def.lvl || null, desc: def.desc || '', x: rnd(P.x), z: rnd(P.z), rot: P.rot, h: rnd(P.h || 0), hidden: !!P.hidden, moved: !!(S && S.layout && S.layout[id]), obstacles: inst.ctx.obstacles.length }; }
     if (o.userData.screen) r.screen = { title: o.userData.screen.title || '', w: o.userData.screen.w, h: o.userData.screen.h, zones: o.userData.screen.zones.length };
     try { var g = CO.game && CO.game.editorInspect ? CO.game.editorInspect(id, o) : null; if (g) r.game = g; } catch (e) { r.game = { error: String(e && e.message || e) }; }
     return r;
@@ -1769,7 +1780,7 @@
     if (p[0] === 'prop') {
       if (!PROPS[id] && !customById(id)) return id + ' is not a prop';
       var P = propPlacement(id); if (!S.layout) S.layout = {}; var L = S.layout[id] = S.layout[id] || { x: P.x, z: P.z, rot: P.rot, h: P.h || 0 };
-      if (p[1] === 'hidden') { if (v && v !== 'false') L.hidden = true; else delete L.hidden; } else if (p[1] === 'reset') { delete S.layout[id]; } else if (p[1] === 'rot') L.rot = ((Math.round(+v) % 4) + 4) % 4; else L[p[1]] = +v;
+      if (p[1] === 'hidden') { L.hidden = !!(v && v !== 'false'); } else if (p[1] === 'reset') { delete S.layout[id]; } else if (p[1] === 'rot') L.rot = ((Math.round(+v) % 4) + 4) % 4; else L[p[1]] = +v;
       buildProp(id); save(); editorSelect(propInst[id] ? id : null); return 'ok';
     }
     var o = eobj(id); if (!o) return 'no such object ' + id;
@@ -1912,7 +1923,7 @@
     if (typeof fn !== 'function') return { error: 'the ' + what + ' code must be a function expression: function (c, P, inst) { ... }' };
     return { fn: fn };
   }
-  function propTypeIds(type) { var ids = []; if (PROPS[type] && !PROPS[type].extra) ids.push(type); (S && S.custom || []).forEach(function (c) { if (c.type === type) ids.push(c.id); }); return ids; }
+  function propTypeIds(type) { var ids = []; if (PROPS[type] && !PROPS[type].extra) ids.push(type); LAYOUT.placed.forEach(function (p) { if (p.type === type && !PROPS[p.id]) ids.push(p.id); }); (S && S.custom || []).forEach(function (c) { if (c.type === type) ids.push(c.id); }); return ids; }
   function rebuildType(type) { var n = 0, err = null; propTypeIds(type).forEach(function (id) { try { buildProp(id); n++; } catch (e) { err = err || (id + ': ' + e.message); } }); if (editorSel && propTypeIds(type).indexOf(editorSel) >= 0) editorSelect(propInst[editorSel] ? editorSel : null); return { rebuilt: n, error: err }; }
   function editorSource(type) {
     var def = PROPS[type]; if (!def) return { error: 'no prop definition ' + type };
@@ -1942,6 +1953,29 @@
     return { ok: true, id: id, built: built, extra: !!def.extra, redefined: redefined };
   }
 
+  // ── The layout the game ships: what the editor writes into src/00-layout.js, and the moment it did ──
+  function sameSpot(a, b) { return a.x === b.x && a.z === b.z && (a.rot || 0) === (b.rot || 0) && (a.h || 0) === (b.h || 0) && !!a.hidden === !!b.hidden; }
+  function editorLayout() {
+    var props = {}, placed = [], changed = 0, pendingCopies = 0;
+    PROP_ORDER.forEach(function (id) { var d = PROPS[id]; if (d.extra) return; var P = propPlacement(id), D = propDefault(id), def = { x: d.x, z: d.z, rot: d.rot || 0, h: 0, hidden: false }; if (!sameSpot(P, D)) changed++; if (!sameSpot(P, def)) props[id] = { x: P.x, z: P.z, rot: P.rot, h: P.h || 0, hidden: !!P.hidden }; });
+    LAYOUT.placed.forEach(function (p) { if (PROPS[p.id]) return; var P = propPlacement(p.id); if (!sameSpot(P, propDefault(p.id))) changed++; if (!P.hidden) placed.push({ id: p.id, type: p.type, x: P.x, z: P.z, rot: P.rot, h: P.h || 0 }); });
+    (S && S.custom || []).forEach(function (c) { if (!PROPS[c.type] || placedById(c.id)) return; var P = propPlacement(c.id); if (!P.hidden) { placed.push({ id: c.id, type: c.type, x: P.x, z: P.z, rot: P.rot, h: P.h || 0 }); pendingCopies++; } });
+    var lines = ['//@ the layout the editor saved: where the props stand and the copies that ship with the game. Written by the Co Engine editor; it sorts first in src/ so the boot sees it. Move things in the editor rather than here.', '  CO.layout({', '    props: {'];
+    Object.keys(props).sort().forEach(function (id) { var p = props[id]; lines.push('      ' + JSON.stringify(id) + ': { x: ' + p.x + ', z: ' + p.z + ', rot: ' + p.rot + ', h: ' + p.h + (p.hidden ? ', hidden: true' : '') + ' },'); });
+    lines.push('    },', '    placed: [');
+    placed.forEach(function (p) { lines.push('      { id: ' + JSON.stringify(p.id) + ', type: ' + JSON.stringify(p.type) + ', x: ' + p.x + ', z: ' + p.z + ', rot: ' + p.rot + ', h: ' + p.h + ' },'); });
+    lines.push('    ]', '  });', '');
+    return { props: props, placed: placed, changed: changed, copies: placed.length, pending: changed + pendingCopies, code: lines.join('\n') };
+  }
+  // the file is written: what it says is now the baseline, the copies it carries leave the save, and overrides equal to the baseline go
+  function editorLayoutAdopt(L) {
+    L = L || editorLayout(); LAYOUT.props = {}; for (var k in L.props) LAYOUT.props[k] = L.props[k]; LAYOUT.placed = (L.placed || []).slice();
+    var moved = []; if (S.custom) S.custom = S.custom.filter(function (c) { if (placedById(c.id)) { moved.push(c.id); return false; } return true; });
+    if (S.layout) Object.keys(S.layout).forEach(function (id) { if (!PROPS[id] && !placedById(id) && !customById(id)) return; if (sameSpot(propPlacement(id), propDefault(id))) delete S.layout[id]; });
+    moved.forEach(function (id) { buildProp(id); }); save();
+    return { adopted: true, props: Object.keys(LAYOUT.props).length, placed: LAYOUT.placed.length, pending: editorLayout().pending };
+  }
+
   // ── The profiler: the frame's phases and the renderer's counts, sampled while the editor's profiler is open ──
   var PROF = { on: false, ring: [], max: 120, cur: null };
   function profBegin() { if (!PROF.on) return; PROF.cur = { t0: performance.now(), sim: 0, world: 0, present: 0, ui: 0, render: 0, total: 0 }; }
@@ -1967,6 +2001,7 @@
     undo: editorUndoStep, redo: editorRedoStep, history: editorHistory, get: editorGet,
     source: editorSource, preview: editorPreview, revert: editorRevert, define: editorDefine, kit: function () { return Object.keys(editorKit()); },
     profile: editorProfile, adopt: function (type) { delete ORIG_BUILD[type]; return 'ok'; },
+    layout: editorLayout, layoutAdopt: editorLayoutAdopt,
     ids: function () { return { props: Object.keys(propInst), objects: Object.keys(EOBJ) }; }
   };
   // ── Boot ──────────────────────────────────────────────────────────

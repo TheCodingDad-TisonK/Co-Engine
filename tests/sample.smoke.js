@@ -110,4 +110,19 @@ module.exports = `
     const df3 = E.define("defProp('eTestCone', { label: 'test cone', x: 3, z: 3, rot: 0, cat: 'room', build: function (c) { c.cyl(0.3, 1, MAT.red, 0, 0.5, 0); c.cyl(0.3, 1, MAT.red, 0, 1.5, 0); } })"); ok(df3.ok === true && df3.redefined === true && node('eTestCone').n >= 2, 'a redefinition rebuilds in place: ' + JSON.stringify(df3));
     ok(E.assets().props.some((p) => p.id === 'eTestCone'), 'the new prop is in the assets');
     E.profile(true); await wait(400); const pr = E.profile(); ok(pr.on === true && typeof pr.draws === 'number' && pr.counts && typeof pr.counts.props === 'number' && Array.isArray(pr.samples), 'the profiler reports draws, counts and samples: ' + pr.frames + ' frames, ' + pr.draws + ' draws'); E.profile(false); ok(E.profile().on === false && E.profile().frames === 0, 'the profiler switches off and drops its samples'); }
+
+  // the shipped layout (0.1.8): CO.layout under the save, placed copies, the part the editor writes, adopt
+  { const E = T.editor, CO2 = T.CO; const node = (id) => { const tr = E.tree(); for (const k in tr.props) { const n = tr.props[k].find((p) => p.id === id); if (n) return n; } return null; };
+    ok(E.inspect('lever').prop.x === 7, 'the lever stands where its definition says');
+    CO2.layout({ props: { lever: { x: 7.5, z: -7, rot: 1, h: 0 } } }); T.buildProp('lever'); const lv = E.inspect('lever').prop; ok(lv.x === 7.5 && lv.rot === 1, 'a shipped layout moves a prop under the save: x ' + lv.x + ' rot ' + lv.rot);
+    E.set('lever', 'prop.x', 8); ok(E.inspect('lever').prop.x === 8, 'the save still wins over the shipped layout'); E.set('lever', 'prop.reset', 1); ok(E.inspect('lever').prop.x === 7.5, 'reset goes back to the shipped place, not the definition');
+    CO2.layout({ placed: [{ id: 'plChair', type: 'xChair', x: 2, z: 3, rot: 0, h: 0 }] }); T.buildProp('plChair'); ok(!!node('plChair') && E.inspect('plChair').prop.type === 'xChair' && E.inspect('plChair').prop.custom === false, 'a placed copy from the shipped layout builds like a prop');
+    const sp = E.spawn('xChair', 4, 4); const L = E.layout();
+    ok(L.props.lever && L.props.lever.x === 7.5 && L.placed.some((p) => p.id === 'plChair') && L.placed.some((p) => p.id === sp) && L.code.indexOf('CO.layout(') >= 0 && L.code.indexOf('"lever": { x: 7.5') >= 0 && L.code.indexOf('//@') === 0, 'layout() reports the moved prop and both copies as the part to write: ' + L.changed + ' moved, ' + L.copies + ' copies, ' + L.pending + ' pending');
+    ok(L.pending === 1, 'one thing is pending: the spawned copy not yet in the shipped layout (' + L.pending + ')');
+    const ad = E.layoutAdopt({ props: L.props, placed: L.placed }); ok(ad.adopted === true && ad.pending === 0 && !S.custom.some((c) => c.id === sp) && !!node(sp) && E.inspect(sp).prop.custom === false, 'adopt makes the written layout the baseline: the copy leaves the save and stands as a placed prop');
+    E.set('lever', 'prop.x', 9); ok(E.layout().pending === 1 && E.layout().props.lever.x === 9, 'a move after adopt is pending again'); E.set('lever', 'prop.reset', 1); ok(E.layout().pending === 0, 'and reset clears it');
+    E.remove(sp); ok(!node(sp) && !E.layout().placed.some((p) => p.id === sp) && E.layout().pending === 1, 'a removed placed copy leaves the layout and counts as pending'); E.undo(); ok(!!node(sp) && E.layout().pending === 0, 'and comes back with undo');
+    E.set('wallSign', 'prop.hidden', true); ok(E.layout().props.wallSign && E.layout().props.wallSign.hidden === true && /hidden: true/.test(E.layout().code), 'a hidden prop is written as hidden'); E.set('wallSign', 'prop.hidden', false); ok(!E.layout().props.wallSign, 'and unhidden it is back to its definition');
+    E.remove('plChair'); E.undo(); ok(!!node('plChair'), 'a placed copy hides and comes back'); }
 `;

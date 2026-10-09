@@ -39,7 +39,7 @@ function rpc(proc, msg) {
     proc.stdin.write(JSON.stringify(msg) + '\n');
   });
 }
-const EXPECTED = ['status', 'open_game', 'play', 'reload', 'build', 'check', 'test', 'scene_tree', 'inspect', 'set', 'select', 'frame', 'spawn', 'remove', 'camera', 'pause', 'step', 'command', 'assets', 'screenshot', 'console_log', 'undo', 'redo', 'history', 'prop_source', 'prop_preview', 'prop_revert', 'prop_define', 'pack_save', 'profile', 'run_script'];
+const EXPECTED = ['status', 'open_game', 'play', 'reload', 'build', 'check', 'test', 'scene_tree', 'inspect', 'set', 'select', 'frame', 'spawn', 'remove', 'camera', 'pause', 'step', 'command', 'assets', 'screenshot', 'console_log', 'undo', 'redo', 'history', 'prop_source', 'prop_preview', 'prop_revert', 'prop_define', 'pack_save', 'profile', 'run_script', 'layout_save', 'save', 'release_preflight', 'release'];
 
 (async () => {
   await new Promise((res, rej) => srv.listen((e) => (e ? rej(e) : res())));

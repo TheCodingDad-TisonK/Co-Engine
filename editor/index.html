@@ -71,6 +71,11 @@
   #pk-code { flex: 1; min-height: 80px; font: 12px/1.45 Consolas, "Cascadia Mono", monospace; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px; resize: none; tab-size: 2; white-space: pre; overflow: auto; } #pk-status { color: var(--faint); font-size: 11.5px; }
   /* the profiler tab */
   #profiler.on { display: flex; flex-direction: column; gap: 8px; } #pf-canvas { width: 100%; height: 110px; display: block; background: var(--bg); border-radius: 6px; border: 1px solid var(--line); flex: none; } #pf-kv { grid-template-columns: repeat(4, auto 1fr); gap: 4px 12px; }
+  /* saved into src, and the release dialog */
+  #saved { color: var(--faint); font-size: 11.5px; min-width: 90px; } #saved.on { color: var(--green); } #saved.busy { color: var(--amber); } #saved.bad { color: var(--red); }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 0; width: 640px; max-width: 94vw; box-shadow: 0 30px 80px rgba(0,0,0,0.6); } dialog::backdrop { background: rgba(0,0,0,0.55); }
+  .dlg { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; } .dlg h2 { margin: 0 0 4px; font-size: 18px; } .dlg label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); } .dlg input[type=text], .dlg textarea { font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; } .dlg textarea { min-height: 110px; resize: vertical; }
+  .dlg .row2 { display: grid; grid-template-columns: 160px 1fr; gap: 10px; } .dlg .chk { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 13px; } .dlg .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; } .dlg .files { font: 11.5px/1.5 Consolas, monospace; color: var(--faint); max-height: 90px; overflow: auto; background: var(--bg); border-radius: 6px; padding: 6px 9px; } #rel-status { font-size: 12.5px; color: var(--muted); min-height: 18px; } #rel-status a { color: var(--blue); }
   /* the Claude panel */
   #claude.on { display: flex; flex-direction: column; } #cl-out { flex: 1; min-height: 0; overflow: auto; font-size: 12.5px; line-height: 1.45; }
   .cl-msg { padding: 7px 10px; margin: 4px 0; border-radius: 6px; white-space: pre-wrap; word-break: break-word; } .cl-you { background: #1a2433; border-left: 3px solid var(--amber); } .cl-ai { background: var(--panel); } .cl-err { color: var(--red); background: rgba(255,107,94,0.08); }
@@ -86,7 +91,7 @@
   <span class="sep"></span>
   <span class="dd"><button id="bmenuBtn" disabled>Build ▾</button><div class="menu" id="bmenu" hidden></div></span><button data-act="check" disabled title="Build in check mode, the lint gate, the syntax check">Check</button><button data-act="test" disabled title="npm test">Test</button>
   <span class="sep"></span>
-  <button id="play" class="primary" disabled>▶ Play</button><button id="pause" disabled title="Pause the world">❚❚</button><button id="step" disabled title="Step one frame">⏭</button><button id="undo" disabled title="Undo (Ctrl+Z)">↶</button><button id="redo" disabled title="Redo (Ctrl+Y)">↷</button><button id="reload" disabled title="Rebuild and reload">↻ Reload</button><button id="window" disabled title="Open the game in a window of its own">⧉</button>
+  <button id="play" class="primary" disabled>▶ Play</button><button id="pause" disabled title="Pause the world">❚❚</button><button id="step" disabled title="Step one frame">⏭</button><button id="undo" disabled title="Undo (Ctrl+Z)">↶</button><button id="redo" disabled title="Redo (Ctrl+Y)">↷</button><span id="saved" title="What you change goes into the game's src/ as you work; Ctrl+S saves everything pending now"></span><button id="reload" disabled title="Rebuild and reload">↻ Reload</button><button id="window" disabled title="Open the game in a window of its own">⧉</button>
   <span class="sep"></span>
   <span class="seg"><button id="mScene" disabled>Scene</button><button id="mGame" class="on" disabled>Game</button></span>
   <span class="hint" id="about">editor</span><span class="link" id="link">no game</span>
@@ -108,6 +113,16 @@
   <div class="tabs"><button class="on" data-tab="insp">Inspector</button></div>
   <div class="pane on insp" id="insp"><div class="hintp">Click a thing in the viewport or the hierarchy.</div></div>
 </section>
+<dialog id="rel"><form method="dialog" class="dlg" id="rel-form">
+  <h2>Release <span id="rel-name"></span></h2>
+  <div class="row2"><label>Version<input type="text" id="rel-version" placeholder="1.2.3"></label><label>Title (one line, goes in the changelog and the release name)<input type="text" id="rel-title" placeholder="what this version is about"></label></div>
+  <label>Notes (Markdown; the changelog entry and the GitHub release body)<textarea id="rel-notes" placeholder="- what changed, one line each"></textarea></label>
+  <div id="rel-files" class="files"></div>
+  <label class="chk"><input type="checkbox" id="rel-publish" checked> Push and create the GitHub release (the repo's workflow builds the installer and attaches it)</label>
+  <label class="chk"><input type="checkbox" id="rel-installer"> Also build the installer here and put it on the Desktop</label>
+  <div id="rel-status"></div>
+  <div class="btns"><button value="cancel" id="rel-cancel">Cancel</button><button type="button" class="primary" id="rel-go">Release</button></div>
+</form></dialog>
 <footer>
   <div id="split" title="Drag to resize the dock"></div>
   <div class="tabs"><button class="on" data-tab="console">Console</button><button data-tab="assets">Assets</button><button data-tab="readout">Readout</button><button data-tab="pack">Pack</button><button data-tab="profiler">Profiler</button><button data-tab="claude">Claude</button><span style="flex:1"></span><button id="clear" style="border:none;color:var(--faint)">clear</button></div>
@@ -134,7 +149,7 @@
   function ev(code) { if (!ready) return Promise.resolve(null); return view.executeJavaScript(code, true).catch(function (e) { logRow({ t: Date.now(), kind: 'err', text: 'viewport: ' + e.message }); return null; }); }
   function bridge(expr) { return ev('(function () { try { var CO = { editor: window.CO_EDITOR }; if (!CO.editor) return { __err: "the game has no editor bridge yet (engine 0.1.5 or later)" }; var r = ' + expr + '; return r === undefined ? null : JSON.parse(JSON.stringify(r)); } catch (e) { return { __err: String(e && e.message || e) }; } })()').then(function (r) { if (r && r.__err) { logRow({ t: Date.now(), kind: 'err', text: 'bridge: ' + r.__err }); return null; } return r; }); }
   function arg(v) { return JSON.stringify(v === undefined ? null : v); }
-  function setRunning(on) { ['pause', 'step', 'reload', 'mScene', 'mGame', 'undo', 'redo'].forEach(function (id) { $(id).disabled = !on; }); $('empty').hidden = on; $('vmode').hidden = !on; $('vhint').hidden = !on; if (!on) { ready = false; selected = null; treeData = null; $('tree').innerHTML = '<div class="hintp">Press Play: the running game’s scene lists here.</div>'; $('insp').innerHTML = '<div class="hintp">Click a thing in the viewport or the hierarchy.</div>'; assetsLoaded = false; } linkState(); }
+  function setRunning(on) { lay.last = null; lay.pending = 0; if (!on) savedState('', ''); ['pause', 'step', 'reload', 'mScene', 'mGame', 'undo', 'redo'].forEach(function (id) { $(id).disabled = !on; }); $('empty').hidden = on; $('vmode').hidden = !on; $('vhint').hidden = !on; if (!on) { ready = false; selected = null; treeData = null; $('tree').innerHTML = '<div class="hintp">Press Play: the running game’s scene lists here.</div>'; $('insp').innerHTML = '<div class="hintp">Click a thing in the viewport or the hierarchy.</div>'; assetsLoaded = false; } linkState(); }
   function play() {
     if (!current || !current.page) return;
     $('play').disabled = true; $('play').textContent = '▶ Playing';
@@ -169,7 +184,27 @@
   }
   function renderTreeSelection() { document.querySelectorAll('#tree .node').forEach(function (el) { el.classList.toggle('on', el.getAttribute('data-id') === selected); }); }
   function refreshHistory() { if (!ready) return; bridge('CO.editor.history()').then(function (h) { if (!h || h.__err) return; $('undo').disabled = !h.undo.length; $('redo').disabled = !h.redo.length; $('undo').title = (h.undo.length ? 'Undo: ' + h.undo[h.undo.length - 1] : 'Undo') + ' (Ctrl+Z)'; $('redo').title = (h.redo.length ? 'Redo: ' + h.redo[h.redo.length - 1] : 'Redo') + ' (Ctrl+Y)'; }); }
-  function refreshTree() { if (!ready) return; refreshHistory(); bridge('CO.editor.tree()').then(function (tr) { if (!tr) return; treeData = tr; renderTree(); paused = !!tr.paused; $('pause').classList.toggle('on', paused); $('pause').textContent = paused ? '▶ Resume' : '❚❚'; var m = tr.scene ? 'scene' : 'game'; if (m !== mode) { mode = m; $('mScene').classList.toggle('on', mode === 'scene'); $('mGame').classList.toggle('on', mode !== 'scene'); $('vmode').textContent = mode; } }); }
+  // ── what you change goes into src/: the layout file follows the scene, the Pack tab writes build code, Ctrl+S does both now ──
+  var lay = { last: null, timer: null, busy: false, pending: 0 };
+  function savedState(cls, text, title) { var el = $('saved'); el.className = cls || ''; el.textContent = text || ''; el.title = title || el.title; }
+  function saveLayout(force) {
+    if (!ready || !current || lay.busy) return Promise.resolve(null);
+    return bridge('CO.editor.layout()').then(function (L) {
+      if (!L || L.__err || typeof L.code !== 'string') return null;
+      lay.pending = L.pending; if (!force && L.code === lay.last) { savedState(L.pending ? 'bad' : 'on', L.pending ? 'src: not written' : 'src ✓', L.pending ? 'the layout could not be written; see the console' : 'the layout in src/00-layout.js matches the scene'); return null; }
+      lay.busy = true; savedState('busy', 'writing src…');
+      return window.co.layoutWrite({ dir: current.dir, code: L.code, onlyIfExists: !(L.changed || L.copies) }).then(function (w) {
+        lay.busy = false;
+        if (!w || w.error) { savedState('bad', 'src: not written', (w && w.error) || 'the layout could not be written'); if (w && w.error) logRow({ t: Date.now(), kind: 'err', text: 'layout: ' + w.error }); return w; }
+        lay.last = L.code;
+        if (w.wrote) { logRow({ t: Date.now(), kind: 'ok', text: 'layout: wrote ' + w.file + ' (' + Object.keys(L.props).length + ' props placed by hand, ' + L.copies + ' copies)' }); return bridge('CO.editor.layoutAdopt(' + arg({ props: L.props, placed: L.placed }) + ')').then(function () { savedState('on', 'src ✓', 'the layout in src/00-layout.js matches the scene'); refreshTree(); return w; }); }
+        savedState('on', w.skipped ? 'src (nothing placed by hand)' : 'src ✓', w.skipped ? 'nothing stands away from its definition, so no layout file is needed' : 'the layout in src/00-layout.js matches the scene'); return w;
+      });
+    });
+  }
+  function saveAll() { var a = saveLayout(true); var b = (pk.type && $('pk-code').value.trim() && pk.src && $('pk-code').value !== (pk.src.original || pk.src.build)) ? packSaveAct({ type: pk.type, code: $('pk-code').value }).then(function (w) { pkStatus('saved to ' + w.file); return w; }, function (e) { pkStatus(e.message, true); return { error: e.message }; }) : Promise.resolve(null); return Promise.all([a, b]).then(function (r) { return { layout: r[0], pack: r[1] }; }); }
+  document.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && (e.key || '').toLowerCase() === 's') { e.preventDefault(); saveAll(); } });
+  function refreshTree() { if (!ready) return; refreshHistory(); saveLayout(false); bridge('CO.editor.tree()').then(function (tr) { if (!tr) return; treeData = tr; renderTree(); paused = !!tr.paused; $('pause').classList.toggle('on', paused); $('pause').textContent = paused ? '▶ Resume' : '❚❚'; var m = tr.scene ? 'scene' : 'game'; if (m !== mode) { mode = m; $('mScene').classList.toggle('on', mode === 'scene'); $('mGame').classList.toggle('on', mode !== 'scene'); $('vmode').textContent = mode; } }); }
   setInterval(function () { if (ready && $('hier').classList.contains('on') && !document.hidden) refreshTree(); }, 2500);
   $('find').addEventListener('input', renderTree);
   $('tree').addEventListener('click', function (e) { var el = e.target.closest('.node'); if (!el) return; var id = el.getAttribute('data-id'); selected = id; renderTreeSelection(); bridge('CO.editor.select(' + arg(id) + ')').then(renderInspector); });
@@ -254,6 +289,8 @@
     if (action === 'status') return Promise.resolve(statusObj());
     if (action === 'console_log') return Promise.resolve(logRows.slice(-(a.n || 60)).map(function (r) { return new Date(r.t).toLocaleTimeString() + ' ' + (r.kind === 'err' ? 'ERR ' : '') + r.text; }).join('\n'));
     if (action === 'open_game') return window.co.describe(a.dir).then(function (q) { if (!q || q.kind === 'none') throw new Error('not a game folder (no co.json or package.json): ' + a.dir); projects = projects.filter(function (x) { return x.dir !== q.dir; }); projects.unshift(q); select(q); return editorAct('play'); });
+    if (action === 'release_preflight') { if (!current) return Promise.reject(new Error('no game open')); return window.co.releasePreflight(current.dir); }
+    if (action === 'release') { if (!current) return Promise.reject(new Error('no game open')); if (!/^\d+\.\d+\.\d+$/.test(a.version || '')) return Promise.reject(new Error('version must be three numbers, like 1.2.3')); return doRelease({ dir: current.dir, version: a.version, title: a.title || '', notes: a.notes || '', publish: a.publish !== false, installer: !!a.installer }).then(function (r) { if (r.error) throw new Error(r.error); return r; }); }
     if (action === 'run_script') { if (!current) return Promise.reject(new Error('no game open')); if (!a.name || !(current.scripts || {})[a.name]) return Promise.reject(new Error('no such npm script: ' + a.name + ' (the game has ' + Object.keys(current.scripts || {}).join(', ') + ')')); var ts = Date.now(); return window.co.script(current.dir, a.name).then(function (okv) { return { ok: !!okv, log: rowsSince(ts) }; }); }
     if (action === 'build' || action === 'check' || action === 'test') { if (!current) return Promise.reject(new Error('no game open')); var tb = Date.now(); return window.co.act(current.dir, action).then(function (okv) { return { ok: !!okv, log: rowsSince(tb) }; }); }
     if (action === 'play') { if (!current || !current.page) return Promise.reject(new Error('no game with a page is open')); var tp = Date.now(); play(); return waitStarted(120000).then(function (st) { if (!st) throw new Error('the game did not start in the viewport. ' + rowsSince(tp)); return statusObj(); }); }
@@ -266,6 +303,8 @@
     if (action === 'prop_revert') return bridge('CO.editor.revert(' + arg(a.type) + ')').then(function (r) { refreshTree(); if (pk.type === a.type) pkLoad(a.type); return r; });
     if (action === 'prop_define') return bridge('CO.editor.define(' + arg(a.code) + ')').then(function (r) { refreshTree(); assetsLoaded = false; return r; });
     if (action === 'pack_save') return packSaveAct(a);
+    if (action === 'layout_save') return saveLayout(true).then(function (w) { return w || { ok: true, same: true, pending: lay.pending }; });
+    if (action === 'save') return saveAll();
     if (action === 'profile') return bridge('CO.editor.profile(' + (a.on === undefined ? '' : arg(!!a.on)) + ')');
     if (action === 'camera') return new Promise(function (res) { setMode(a.mode === 'scene' ? 'scene' : 'game'); setTimeout(function () { res(statusObj()); }, 300); });
     if (action === 'pause') return bridge('CO.editor.pause(' + arg(!!a.on) + ')').then(function (r) { paused = !!r; $('pause').classList.toggle('on', paused); $('pause').textContent = paused ? '▶ Resume' : '❚❚'; return statusObj(); });
@@ -297,16 +336,23 @@
     if (sc.test) items.push({ act: 'test', label: 'Test', hint: 'npm test' });
     var extra = Object.keys(sc).filter(function (k) { return !SCRIPT_SKIP[k]; }); if (extra.length) items.push({ sep: true });
     extra.forEach(function (k) { items.push({ script: k, label: SCRIPT_NAMES[k] || ('npm run ' + k), hint: sc[k].length > 80 ? sc[k].slice(0, 80) + '…' : sc[k] }); });
+    items.push({ sep: true }, { rel: true, label: 'Release…', hint: 'bump the version, write the changelog, build, commit, tag, push, create the GitHub release' });
     items.push({ sep: true }, { act: 'run', label: 'Run in a window', hint: 'the game on its own, outside the viewport' }, { act: 'folder', label: 'Open the folder' }, { act: 'dist', label: 'Open dist/', hint: 'where installers land' });
-    m.innerHTML = items.map(function (it) { return it.sep ? '<hr>' : '<button ' + (it.act ? 'data-act="' + it.act + '"' : 'data-script="' + esc(it.script) + '"') + '><b>' + esc(it.label) + '</b>' + (it.hint ? '<small>' + esc(it.hint) + '</small>' : '') + '</button>'; }).join('');
+    m.innerHTML = items.map(function (it) { return it.sep ? '<hr>' : '<button ' + (it.rel ? 'data-rel="1"' : it.act ? 'data-act="' + it.act + '"' : 'data-script="' + esc(it.script) + '"') + '><b>' + esc(it.label) + '</b>' + (it.hint ? '<small>' + esc(it.hint) + '</small>' : '') + '</button>'; }).join('');
   }
   $('bmenuBtn').addEventListener('click', function (e) { e.stopPropagation(); $('bmenu').hidden = !$('bmenu').hidden; });
   document.addEventListener('click', function () { $('bmenu').hidden = true; });
-  $('bmenu').addEventListener('click', function (e) { var b = e.target.closest('[data-script]'); if (!b || !current) return; var name = b.getAttribute('data-script'); logRow({ t: Date.now(), kind: 'cmd', text: 'npm run ' + name }); window.co.script(current.dir, name); });
+  $('bmenu').addEventListener('click', function (e) { if (e.target.closest('[data-rel]')) { openRelease(); return; } var b = e.target.closest('[data-script]'); if (!b || !current) return; var name = b.getAttribute('data-script'); logRow({ t: Date.now(), kind: 'cmd', text: 'npm run ' + name }); window.co.script(current.dir, name); });
   // ── the side panels resize like the dock ──
   (function () { var cols = { l: 280, r: 330 }; try { var c = JSON.parse(localStorage.getItem('co-cols') || 'null'); if (c && c.l && c.r) cols = c; } catch (e) {} function apply() { document.body.style.gridTemplateColumns = cols.l + 'px 1fr ' + cols.r + 'px'; } apply();
     function hook(id, side) { var el = $(id), drag = null; el.addEventListener('mousedown', function (e) { drag = { x: e.clientX, v: cols[side] }; el.classList.add('on'); e.preventDefault(); }); window.addEventListener('mousemove', function (e) { if (!drag) return; var d = side === 'l' ? e.clientX - drag.x : drag.x - e.clientX; cols[side] = Math.max(180, Math.min(window.innerWidth - 600, drag.v + d)); apply(); }); window.addEventListener('mouseup', function () { if (!drag) return; drag = null; el.classList.remove('on'); try { localStorage.setItem('co-cols', JSON.stringify(cols)); } catch (e) {} }); }
     hook('splitL', 'l'); hook('splitR', 'r'); })();
+  // ── Release…: the version, the title, the notes; the main process bumps, writes the changelog, builds, commits, tags, pushes, creates the release ──
+  var rel = { pre: null, busy: false };
+  function openRelease() { if (!current) return; $('rel-status').textContent = 'looking at the repo…'; $('rel-name').textContent = current.name; $('rel').showModal(); window.co.releasePreflight(current.dir).then(function (p) { rel.pre = p; if (p.error) { $('rel-status').textContent = p.error; $('rel-go').disabled = true; return; } $('rel-go').disabled = false; $('rel-version').value = p.next.patch; $('rel-title').value = ''; $('rel-notes').value = ''; $('rel-installer').checked = !!p.canInstaller; $('rel-installer').disabled = !p.canInstaller; $('rel-files').textContent = (p.dirty.length ? 'These uncommitted changes go into the release commit:\n' + p.dirty.join('\n') : 'The working tree is clean.') + '\nBranch ' + p.branch + (p.remote ? ' · ' + p.remote : ' · no remote') + (p.lastTag ? ' · last tag ' + p.lastTag : '') + (p.gh ? ' · gh found, the release gets your notes at once' : ' · gh not found, the release notes come from the workflow'); $('rel-status').textContent = 'version ' + p.version + ' now · next patch ' + p.next.patch + ', minor ' + p.next.minor + ', major ' + p.next.major; }); }
+  function doRelease(q) { if (rel.busy) return Promise.resolve({ error: 'a release is running' }); rel.busy = true; $('rel-go').disabled = true; $('rel-status').textContent = 'releasing… (the console shows each step)'; return window.co.release(q).then(function (r) { rel.busy = false; $('rel-go').disabled = false; if (r.error) { $('rel-status').textContent = r.error; logRow({ t: Date.now(), kind: 'err', text: 'release: ' + r.error }); return r; } $('rel-status').innerHTML = 'released ' + esc(r.tag) + (r.urls && r.urls.release ? ' · <a href="#" data-url="' + esc(r.urls.release) + '">the release</a>' : '') + (r.urls && r.urls.actions ? ' · <a href="#" data-url="' + esc(r.urls.actions) + '">the workflow</a>' : '') + (r.installer ? ' · installer on the Desktop' : ''); logRow({ t: Date.now(), kind: 'ok', text: 'release: ' + r.tag + (r.urls && r.urls.release ? ' ' + r.urls.release : '') }); window.co.describe(current.dir).then(function (d) { var i = projects.findIndex(function (x) { return x.dir === d.dir; }); if (i >= 0) projects[i] = d; select(d); }); return r; }); }
+  $('rel-go').addEventListener('click', function () { var v = $('rel-version').value.trim(); if (!/^\d+\.\d+\.\d+$/.test(v)) { $('rel-status').textContent = 'the version must be three numbers, like 1.2.3'; return; } doRelease({ dir: current.dir, version: v, title: $('rel-title').value.trim(), notes: $('rel-notes').value, publish: $('rel-publish').checked, installer: $('rel-installer').checked }); });
+  $('rel-status').addEventListener('click', function (e) { var a = e.target.closest('[data-url]'); if (a) { e.preventDefault(); window.co.openUrl(a.getAttribute('data-url')); } });
   // ── the Pack tab: a prop definition's build code, edited live, saved into the game's src/ ──
   var pk = { type: null, src: null, timer: null, isNew: false };
   function pkStatus(t, bad) { $('pk-status').textContent = t || ''; $('pk-status').style.color = bad ? 'var(--red)' : ''; }

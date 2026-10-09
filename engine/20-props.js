@@ -10,15 +10,26 @@
   // canEdit() gates build mode. Hooks on the bus: 'propCtx' (ctx, g, id), 'propBuilt' (id, inst, def), 'propRemoved' (id, inst),
   // 'propPlaced' (id, inst, def), 'propDeleted' (id, def), 'editBought' (custom record).
   var PROPS = {}, PROP_ORDER = [], propInst = {};
+  // The layout a game ships: where its props stand (over what the definitions say) and the copies the editor placed. The editor writes it
+  // into src/00-layout.js as CO.layout({ props: { id: { x, z, rot, h, hidden } }, placed: [{ id, type, x, z, rot, h }] }), the first part
+  // in the build so the boot sees it. A player's save still wins over it, as it wins over the definitions.
+  var LAYOUT = { props: {}, placed: [] };
+  CO.layout = function (L) { if (!L) return LAYOUT; if (L.props) for (var k in L.props) LAYOUT.props[k] = L.props[k]; if (L.placed) L.placed.forEach(function (p) { if (p && p.id && !placedById(p.id)) LAYOUT.placed.push(p); }); return LAYOUT; };
+  function placedById(id) { for (var i = 0; i < LAYOUT.placed.length; i++) if (LAYOUT.placed[i].id === id) return LAYOUT.placed[i]; return null; }
+  function numOr(v, d) { return typeof v === 'number' ? v : d; }
   function defProp(id, def) { if (CO.game && CO.game.resolveDef) CO.game.resolveDef(id, def); def.id = id; PROPS[id] = def; PROP_ORDER.push(id); return def; }
   function propAllowed(id) { var d = PROPS[id]; if (!d) return true; if (d.extra) return true; if (CO.game && CO.game.propAllowed && !CO.game.propAllowed(id, d)) return false; return true; }
-  function propDef(id) { if (PROPS[id]) return PROPS[id]; var c = customById(id); return c ? PROPS[c.type] : null; }
+  function propDef(id) { if (PROPS[id]) return PROPS[id]; var c = customById(id); if (c) return PROPS[c.type]; var p = placedById(id); return p ? PROPS[p.type] : null; }
   function customById(id) { return (S && S.custom || []).filter(function (c) { return c.id === id; })[0] || null; }
+  // where a prop stands: the save's override, else the shipped layout, else the definition (a custom copy: the save over its own record)
   function propPlacement(id) {
-    var d = PROPS[id], c = customById(id), o = (S && S.layout && S.layout[id]) || {};
-    if (c) return { x: typeof o.x === 'number' ? o.x : c.x, z: typeof o.z === 'number' ? o.z : c.z, rot: typeof o.rot === 'number' ? o.rot : (c.rot || 0), h: typeof o.h === 'number' ? o.h : (c.h || 0), hidden: !!o.hidden, custom: true };
-    return { x: typeof o.x === 'number' ? o.x : d.x, z: typeof o.z === 'number' ? o.z : d.z, rot: typeof o.rot === 'number' ? o.rot : (d.rot || 0), h: o.h || 0, hidden: !!o.hidden, custom: false };
+    var d = PROPS[id], c = customById(id), p = placedById(id), o = (S && S.layout && S.layout[id]) || {}, L = LAYOUT.props[id] || {};
+    if (c) return { x: numOr(o.x, c.x), z: numOr(o.z, c.z), rot: numOr(o.rot, c.rot || 0), h: numOr(o.h, c.h || 0), hidden: !!o.hidden, custom: true };
+    if (p && !d) return { x: numOr(o.x, p.x), z: numOr(o.z, p.z), rot: numOr(o.rot, p.rot || 0), h: numOr(o.h, p.h || 0), hidden: !!o.hidden, custom: false, placed: true };
+    return { x: numOr(o.x, numOr(L.x, d.x)), z: numOr(o.z, numOr(L.z, d.z)), rot: numOr(o.rot, numOr(L.rot, d.rot || 0)), h: numOr(o.h, L.h || 0), hidden: o.hidden !== undefined ? !!o.hidden : !!L.hidden, custom: false };
   }
+  // the shipped place of a prop, with no save over it: what the layout file says, else the definition
+  function propDefault(id) { var d = PROPS[id], p = placedById(id), L = LAYOUT.props[id] || {}; if (p && !d) return { x: p.x, z: p.z, rot: p.rot || 0, h: p.h || 0, hidden: false }; return { x: numOr(L.x, d.x), z: numOr(L.z, d.z), rot: numOr(L.rot, d.rot || 0), h: L.h || 0, hidden: !!L.hidden }; }
   function propLabel(id) { var d = propDef(id); return d ? d.label : id; }
   function rotAABB(o, rot) {
     var pts = [[o.x0, o.z0], [o.x1, o.z0], [o.x0, o.z1], [o.x1, o.z1]], a = rot * Math.PI / 2, c = Math.cos(a), s = Math.sin(a), xs = [], zs = [];
@@ -73,7 +84,7 @@
     scene.add(g); NAV.dirty = true; shadowDirty = true;
     return inst;
   }
-  function buildProps() { PROP_ORDER.forEach(function (id) { if (!PROPS[id].extra && propAllowed(id) && (!PROPS[id].when || PROPS[id].when())) buildProp(id); }); (S && S.custom || []).forEach(function (c) { if (PROPS[c.type]) buildProp(c.id); }); }
+  function buildProps() { PROP_ORDER.forEach(function (id) { if (!PROPS[id].extra && propAllowed(id) && (!PROPS[id].when || PROPS[id].when())) buildProp(id); }); LAYOUT.placed.forEach(function (p) { if (PROPS[p.type] && !PROPS[p.id]) buildProp(p.id); }); (S && S.custom || []).forEach(function (c) { if (PROPS[c.type]) buildProp(c.id); }); }
   function propIdOf(obj) { for (var o = obj; o; o = o.parent) if (o.userData && o.userData.propId) return o.userData.propId; return null; }
   function propWorld(prop, lx, lz) { var P = propPlacement(prop), a = P.rot * Math.PI / 2; return { x: P.x + lx * Math.cos(a) + lz * Math.sin(a), z: P.z - lx * Math.sin(a) + lz * Math.cos(a), a: a }; }
 
@@ -163,7 +174,7 @@
     else { if (!S.layout) S.layout = {}; S.layout[id] = S.layout[id] || {}; S.layout[id].hidden = true; buildProp(id); toast('Removed the ' + propLabel(id) + ' (the catalogue brings it back)', ''); }
     editHelper(null); sfx('bad'); save();
   }
-  function editRestore(id) { if (S.layout && S.layout[id]) { delete S.layout[id].hidden; } buildProp(id); sfx('ok'); toast('The ' + propLabel(id) + ' is back', 'good'); save(); }
+  function editRestore(id) { if (!S.layout) S.layout = {}; S.layout[id] = S.layout[id] || {}; S.layout[id].hidden = false; buildProp(id); sfx('ok'); toast('The ' + propLabel(id) + ' is back', 'good'); save(); }
   function editBuy(type) {
     var def = PROPS[type]; if (!def || !def.extra) return; if (typeof def.lvl === 'number' && S.level !== undefined && S.level < def.lvl) { toast('That comes at level ' + def.lvl + '.', 'bad'); return; }
     if (def.price && S.bank < def.price) { toast('That costs ' + money(def.price) + ' and you have ' + money(S.bank), 'bad'); return; }
@@ -175,7 +186,7 @@
   }
   // the catalogue's data: removed props to bring back, and extras to buy, grouped by category (the game draws it)
   function catalogueData() {
-    var hidden = PROP_ORDER.filter(function (id) { return !PROPS[id].extra && propPlacement(id).hidden; }), groups = {};
+    var hidden = PROP_ORDER.filter(function (id) { return !PROPS[id].extra && propPlacement(id).hidden; }).concat(LAYOUT.placed.filter(function (p) { return !PROPS[p.id] && propPlacement(p.id).hidden; }).map(function (p) { return p.id; })), groups = {};
     PROP_ORDER.forEach(function (id) { var d = PROPS[id]; if (!d.extra) return; (groups[d.cat || 'other'] = groups[d.cat || 'other'] || []).push(id); });
     return { hidden: hidden, groups: groups };
   }

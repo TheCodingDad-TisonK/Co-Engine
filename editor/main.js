@@ -46,7 +46,7 @@ const pending = new Map(); let pendingSeq = 0;
 function askEditor(action, args) {
   return new Promise((resolve, reject) => {
     if (!win || win.isDestroyed()) { reject(new Error('the editor window is not open')); return; }
-    const id = ++pendingSeq, ms = action === 'test' ? 600000 : (action === 'build' || action === 'check' || action === 'play' || action === 'open_game' || action === 'reload') ? 180000 : 30000;
+    const id = ++pendingSeq, ms = (action === 'test' || action === 'release' || action === 'run_script') ? 900000 : (action === 'build' || action === 'check' || action === 'play' || action === 'open_game' || action === 'reload') ? 180000 : 30000;
     const timer = setTimeout(() => { pending.delete(id); reject(new Error('the editor did not answer ' + action + ' in time')); }, ms);
     pending.set(id, { resolve, reject, timer });
     send('editor-act', { id, action, args: args || {} });
@@ -125,6 +125,73 @@ ipcMain.handle('act', async (e, dir, what) => {
   return false;
 });
 ipcMain.handle('cmd', (e, name, arg) => { if (!srv) return false; srv.send(name, arg); return true; });
+// the layout file the editor keeps in step with the scene: src/00-layout.js, written only when it changed
+ipcMain.handle('layout-write', (e, q) => {
+  const d = describe(q.dir), srcDir = path.join(q.dir, (d.co && d.co.src) || 'src'); if (!fs.existsSync(srcDir)) return { error: 'no src/ folder in ' + q.dir };
+  const file = path.join(srcDir, '00-layout.js'), exists = fs.existsSync(file);
+  if (!exists && q.onlyIfExists) return { ok: true, skipped: true };
+  const cur = exists ? fs.readFileSync(file, 'utf8') : null; if (cur === q.code) return { ok: true, same: true, file: 'src/00-layout.js' };
+  fs.writeFileSync(file, q.code); return { ok: true, wrote: true, file: 'src/00-layout.js' };
+});
+ipcMain.handle('open-url', (e, url) => { if (/^https:\/\//.test(String(url))) { shell.openExternal(url); return true; } return false; });
+// ── Release: bump, changelog, build, commit, tag, push, the GitHub release ──
+const { execFileSync } = require('child_process');
+function git(dir, args) { return execFileSync('git', args, { cwd: dir, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }).trim(); }
+function findExe(name) { const names = process.platform === 'win32' ? [name + '.exe', name + '.cmd', name] : [name]; for (const d of (process.env.PATH || '').split(path.delimiter)) for (const n of names) { const p = path.join(d, n); try { if (fs.statSync(p).isFile()) return p; } catch (e2) {} } return null; }
+function bump(v, part) { const a = v.split('.').map((x) => +x || 0); while (a.length < 3) a.push(0); if (part === 'major') return (a[0] + 1) + '.0.0'; if (part === 'minor') return a[0] + '.' + (a[1] + 1) + '.0'; return a[0] + '.' + a[1] + '.' + (a[2] + 1); }
+ipcMain.handle('release-preflight', (e, dir) => {
+  try {
+    const d = describe(dir); if (d.kind === 'none') return { error: 'not a game folder' };
+    const pkgPath = path.join(dir, 'package.json'); if (!fs.existsSync(pkgPath)) return { error: 'no package.json: a release needs one (the version lives there)' };
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')), version = pkg.version || '0.0.0';
+    let branch = null, remote = null, dirty = [], lastTag = null;
+    try { branch = git(dir, ['rev-parse', '--abbrev-ref', 'HEAD']); } catch (e2) { return { error: 'not a git repository (git init, add a remote, then release)' }; }
+    try { remote = git(dir, ['remote', 'get-url', 'origin']); } catch (e2) {}
+    try { dirty = git(dir, ['status', '--porcelain']).split('\n').filter(Boolean); } catch (e2) {}
+    try { lastTag = git(dir, ['describe', '--tags', '--abbrev=0']); } catch (e2) {}
+    return { name: pkg.productName || d.name, version, next: { patch: bump(version, 'patch'), minor: bump(version, 'minor'), major: bump(version, 'major') }, branch, remote, dirty, lastTag, hasChangelog: fs.existsSync(path.join(dir, 'CHANGELOG.md')), canInstaller: !!(d.scripts && d.scripts.installer), gh: !!findExe('gh') };
+  } catch (e2) { return { error: e2.message }; }
+});
+ipcMain.handle('release', async (e, q) => {
+  const dir = q.dir, d = describe(dir), steps = [];
+  const say = (t, kind) => { steps.push(t); log('release: ' + t, kind || 'cmd'); };
+  try {
+    if (!/^\d+\.\d+\.\d+$/.test(q.version || '')) return { error: 'the version must be three numbers, like 1.2.3' };
+    const pkgPath = path.join(dir, 'package.json'), pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')), name = pkg.productName || d.name, tag = 'v' + q.version;
+    try { git(dir, ['rev-parse', '--verify', '--quiet', 'refs/tags/' + tag]); return { error: 'the tag ' + tag + ' exists already; pick another version' }; } catch (e2) {}
+    const title = (q.title || '').trim(), notes = (q.notes || '').trim(), date = new Date().toISOString().slice(0, 10);
+    // 1. the version in package.json (and the lock's top-level copy)
+    const old = pkg.version; pkg.version = q.version; fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n'); say('package.json ' + old + ' to ' + q.version, 'ok');
+    const lockPath = path.join(dir, 'package-lock.json'); if (fs.existsSync(lockPath)) { try { const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')); lock.version = q.version; if (lock.packages && lock.packages['']) lock.packages[''].version = q.version; fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n'); } catch (e2) { say('package-lock.json not updated: ' + e2.message, 'err'); } }
+    // 2. the changelog entry on top
+    const clPath = path.join(dir, 'CHANGELOG.md'); const entry = '## ' + q.version + ' (' + date + ')' + (title ? ': ' + title : '') + '\n\n' + (notes || '- Maintenance release.') + '\n\n';
+    if (fs.existsSync(clPath)) { const cl = fs.readFileSync(clPath, 'utf8'); const m = /^(# [^\n]*\n\n?)/.exec(cl); fs.writeFileSync(clPath, m ? m[1] + (m[1].endsWith('\n\n') ? '' : '\n') + entry + cl.slice(m[1].length) : entry + cl); } else fs.writeFileSync(clPath, '# Changelog\n\n' + entry);
+    say('CHANGELOG.md: ' + q.version + (title ? ': ' + title : ''), 'ok');
+    // 3. build (stamps game/version.js) and check
+    if (d.kind === 'engine') { if (!buildEngineGame(dir, false)) return { error: 'the build failed; nothing committed (the version and the changelog are changed on disk, revert them or fix the build and release again)' }; } else if (d.scripts && d.scripts.build) { if (!(await runScript(dir, 'build'))) return { error: 'npm run build failed; nothing committed' }; }
+    if (d.scripts && d.scripts.check) { if (!(await runScript(dir, 'check'))) return { error: 'npm run check failed; nothing committed' }; }
+    let installer = false;
+    if (q.installer && d.scripts && d.scripts.installer) { say('building the installer'); if (!(await runScript(dir, 'installer'))) return { error: 'npm run installer failed; nothing committed' }; const dist = path.join(dir, 'dist'); const exes = fs.existsSync(dist) ? fs.readdirSync(dist).filter((n) => /\.exe$/i.test(n) && !/^__/.test(n)) : []; const desk = app.getPath('desktop'); exes.forEach((n) => { try { fs.copyFileSync(path.join(dist, n), path.join(desk, n)); say('on the Desktop: ' + n, 'ok'); installer = true; } catch (e2) { say('could not copy ' + n + ': ' + e2.message, 'err'); } }); }
+    // 4. commit and tag
+    git(dir, ['add', '-A']);
+    const staged = git(dir, ['status', '--porcelain']);
+    if (staged) { git(dir, ['commit', '-q', '-m', 'Release ' + tag + (title ? ': ' + title : '')]); say('committed: Release ' + tag, 'ok'); } else say('nothing to commit', 'out');
+    const branch = git(dir, ['rev-parse', '--abbrev-ref', 'HEAD']);
+    let urls = {}; let remote = null; try { remote = git(dir, ['remote', 'get-url', 'origin']); } catch (e2) {}
+    const slug = remote && /github\.com[:/]([^/]+\/[^/.]+)/.exec(remote) ? /github\.com[:/]([^/]+\/[^/.]+)/.exec(remote)[1] : null;
+    if (q.publish && remote) {
+      git(dir, ['push', '-q', 'origin', 'HEAD']); say('pushed ' + branch, 'ok');
+      const gh = findExe('gh');
+      if (gh && slug) {
+        const nf = path.join(app.getPath('userData'), 'release-notes.md'); fs.writeFileSync(nf, (notes || '- Maintenance release.') + '\n');
+        try { execFileSync(gh, ['release', 'create', tag, '--repo', slug, '--target', branch, '--title', name + ' ' + q.version + (title ? ': ' + title : ''), '--notes-file', nf], { cwd: dir, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }); say('GitHub release ' + tag + ' created with your notes; the workflow attaches the installer', 'ok'); try { git(dir, ['fetch', '-q', '--tags']); } catch (e3) {} }
+        catch (e2) { say('gh release create failed (' + String(e2.stderr || e2.message).trim().split('\n')[0] + '); tagging and pushing instead', 'err'); git(dir, ['tag', tag]); git(dir, ['push', '-q', 'origin', tag]); say('pushed the tag ' + tag, 'ok'); }
+      } else { git(dir, ['tag', tag]); git(dir, ['push', '-q', 'origin', tag]); say('pushed the tag ' + tag + ' (no gh: the workflow writes the notes)', 'ok'); }
+      if (slug) urls = { release: 'https://github.com/' + slug + '/releases/tag/' + tag, actions: 'https://github.com/' + slug + '/actions' };
+    } else { git(dir, ['tag', tag]); say('tagged ' + tag + ' locally' + (q.publish ? ' (no remote to push to)' : ' (not pushed)'), 'ok'); }
+    return { ok: true, tag, urls, installer, steps };
+  } catch (e2) { const msg = String(e2.stderr || e2.message).trim(); say(msg, 'err'); return { error: msg, steps }; }
+});
 ipcMain.handle('script', (e, dir, name) => { const d = describe(dir); if (!d.scripts || !d.scripts[name]) { log('no such npm script: ' + name, 'err'); return false; } return runScript(dir, name); });
 // the pack writer: a build function's new text replaces its old text in the src/ part that holds it (exact, then allowing for whitespace); a new definition is appended to the part with the most defProp calls
 ipcMain.handle('pack-write', (e, q) => {
