@@ -45,7 +45,7 @@ async function run(opt) {
   await app.whenReady();
   const win = new BrowserWindow({ show: false, width: 1280, height: 720, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, offscreen: true } });
   const pageErrors = [];
-  win.webContents.on('console-message', (e, level, msg, line, src) => { if (level >= 2 && !/Electron Security Warning/.test(msg)) pageErrors.push(msg + ' @ ' + String(src).split('/').pop() + ':' + line); });
+  win.webContents.on('console-message', (e, level, msg, line, src) => { if (level >= 2 && !/Electron Security Warning|GL Driver Message|GPU stall due to ReadPixels/.test(msg)) pageErrors.push(   /* a software GL driver on a CI runner logs performance notes as errors */msg + ' @ ' + String(src).split('/').pop() + ':' + line); });
   win.webContents.on('render-process-gone', (e, d) => { pageErrors.push('renderer gone: ' + d.reason); });
   let total = 0, failed = 0;
   const list = opt.scenarios;

@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('co', {
   forget: (dir) => ipcRenderer.invoke('forget', dir),
   act: (dir, what) => ipcRenderer.invoke('act', dir, what),
   cmd: (name, arg) => ipcRenderer.invoke('cmd', name, arg),
+  script: (dir, name) => ipcRenderer.invoke('script', dir, name),
+  packWrite: (q) => ipcRenderer.invoke('pack-write', q),
   info: () => ipcRenderer.invoke('info'),
   pageUrl: (dir) => ipcRenderer.invoke('page-url', dir),
   onAuto: (fn) => { ipcRenderer.on('auto', (e, d) => fn(d)); },

@@ -55,15 +55,20 @@
     var dt = Math.min(0.05, Math.max(0.001, (nowMs - lastFrame) / 1000)); lastFrame = nowMs;
     // paused by the editor: the world holds, the scene camera still flies, the frame still draws; one step runs a single frame through
     if (CO.paused && !CO.stepOnce) { if (photo.on && CO.game.photo !== false) photoTick(dt); updateLightBudget(); shadowTick(dt); if (!(CO.game.render && CO.game.render(dt))) renderFrame(dt); return; }
-    CO.stepOnce = false;
+    CO.stepOnce = false; profBegin(); var pf = PROF.on ? performance.now() : 0;
     if (!ui.started) { if (CO.game.menuCamera) CO.game.menuCamera(dt); else { var ma = worldTime * 0.07; camera.position.set(Math.cos(ma) * 12, 3.6 + Math.sin(ma * 1.7) * 0.6, Math.sin(ma) * 9.5); camera.lookAt(Math.cos(ma + 1.2) * 4, 1.4, Math.sin(ma + 1.2) * 3); } }
     if (ui.started && !ui.blocked()) { if (photo.on && CO.game.photo !== false) photoTick(dt); else { if (CO.game.tick) CO.game.tick(dt); if (CO.game.weather !== false) tickWeatherState(dt); updatePlayer(dt); } autosaveT += dt; if (autosaveT > 30) { autosaveT = 0; save(); } }
+    profMark('sim', pf); pf = PROF.on ? performance.now() : 0;
     worldTime += dt;
     if (CO.game.lighting !== false) lighting(dt); updateLightBudget(); shadowTick(dt); if (sky.dome || sky.rain) tickSky(dt); tickBursts(dt); doorsTick(dt); drawScreens(dt); editTick(); tickTraffic(dt);
+    profMark('world', pf); pf = PROF.on ? performance.now() : 0;
     if (CO.game.present) CO.game.present(dt); runHooks('frame', dt);
     for (var ai = 0; ai < animated.length; ai++) animated[ai](dt);
+    profMark('present', pf); pf = PROF.on ? performance.now() : 0;
     updateFocus(); updatePrompt(); updateHud(dt); tickCards(dt); tickDevLink(dt);
-    if (!(CO.game.render && CO.game.render(dt))) renderFrame(dt);   // a game may render the frame itself (a security camera view, a picture in picture)
+    profMark('ui', pf); pf = PROF.on ? performance.now() : 0;
+    if (!(CO.game.render && CO.game.render(dt))) renderFrame(dt);
+    profMark('render', pf); profEnd();   // a game may render the frame itself (a security camera view, a picture in picture)
     if (SET.fps) { fpsN++; fpsT += dt; if (fpsT >= 0.5) { var f = $('h-fps'); if (f) f.textContent = Math.round(fpsN / fpsT) + ' fps · ' + (post.calls || renderer.info.render.calls) + ' draws'; fpsN = 0; fpsT = 0; } }
   }
   // ── The handle: the engine's part of window.<handle>.T, for the editor and the smoke tests ──

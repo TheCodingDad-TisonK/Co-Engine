@@ -41,13 +41,23 @@ const TOOLS = [
   { name: 'command', description: 'Run one of the game\'s dev commands in the viewport, as typed in the editor console (the readout lists them: cash 500, setTime 9, tp 2, 3, weather rain, and whatever the game adds).', input: { line: { type: 'string' } }, required: ['line'] },
   { name: 'assets', description: 'What the game can place and paint with: the prop definitions by catalogue group, the materials, the textures, the sounds, the people presets.', input: {} },
   { name: 'screenshot', description: 'A picture of the viewport as it is now (a JPEG). Given a file path it is also written there.', input: { file: { type: 'string', description: 'optional absolute path ending in .jpg' }, quality: { type: 'number', description: '0 to 1, default 0.85' } } },
-  { name: 'console_log', description: 'The last lines of the editor console: build output, the game\'s log, errors from the viewport.', input: { n: { type: 'number', description: 'how many lines, default 60' } } }
+  { name: 'console_log', description: 'The last lines of the editor console: build output, the game\'s log, errors from the viewport.', input: { n: { type: 'number', description: 'how many lines, default 60' } } },
+  { name: 'undo', description: 'Undo the last editor edit in the viewport (a set, a spawn, a remove). The game\'s own play is not on the stack.', input: {} },
+  { name: 'redo', description: 'Redo the last undone editor edit.', input: {} },
+  { name: 'history', description: 'The undo and redo stacks as step labels, newest last.', input: {} },
+  { name: 'prop_source', description: 'A prop definition: its build function\'s source, its fields (label, cat, x, z, rot, extra, price ...), its placed instances, whether a preview is in effect (and the original then), and the kit names a build function may use.', input: { type: { type: 'string', description: 'the prop definition id, as scene_tree and assets list it' } }, required: ['type'] },
+  { name: 'prop_preview', description: 'Compile a new build function for a prop type and rebuild every placed copy in the viewport at once; nothing is written to disk. code is a function expression, function (c, P, inst) { ... }, using the kit (c.box, c.cyl, c.sign, c.solid, MAT, THREE, tex ...). A build that throws is refused and the previous one stays.', input: { type: { type: 'string' }, code: { type: 'string' } }, required: ['type', 'code'] },
+  { name: 'prop_revert', description: 'Drop a previewed build and put the original back.', input: { type: { type: 'string' } }, required: ['type'] },
+  { name: 'prop_define', description: 'Run a whole definition live: defProp(id, { label, cat, x, z, rot, build: function (c) { ... } }). A placed one (x, z, not extra) builds at once; an extra: true one joins the assets to place. A known id redefines it in place. Nothing is written until pack_save.', input: { code: { type: 'string' } }, required: ['code'] },
+  { name: 'pack_save', description: 'Write code into the game\'s src/: with type, the build function replaces that prop\'s build in the part that holds it; with new: true, a whole defProp(...) is appended to the props part. The code is run in the viewport first and refused if it throws. Then call play so the built game carries it.', input: { type: { type: 'string' }, code: { type: 'string' }, new: { type: 'boolean' } }, required: ['code'] },
+  { name: 'profile', description: 'The profiler: fps, frame time (avg, p95, max), the frame\'s phases (sim, world, present, ui, render) in ms, draws, triangles, programs, geometries, textures, heap, the scene counts (props, baked, dynamic, interactive, solids, lights against the budget) and the last 120 frames as samples. on: true starts sampling (call again a second later for numbers), on: false stops it.', input: { on: { type: 'boolean' } } },
+  { name: 'run_script', description: 'Run one of the game\'s npm scripts (installer, brand, zip ... whatever its package.json lists besides build, check and test) and return the log. Can take minutes.', input: { name: { type: 'string' } }, required: ['name'] }
 ];
 
 function post(action, args) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify({ action, args: args || {} });
-    const req = http.request({ host: '127.0.0.1', port: PORT, path: '/editor', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }, timeout: action === 'test' ? 600000 : 120000 }, (res) => {
+    const req = http.request({ host: '127.0.0.1', port: PORT, path: '/editor', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }, timeout: (action === 'test' || action === 'run_script') ? 600000 : 120000 }, (res) => {
       let s = ''; res.on('data', (c) => { s += c; }); res.on('end', () => { try { resolve(JSON.parse(s)); } catch (e) { reject(new Error('the editor answered with something that is not JSON: ' + s.slice(0, 200))); } });
     });
     req.on('timeout', () => { req.destroy(new Error('the editor did not answer in time')); });

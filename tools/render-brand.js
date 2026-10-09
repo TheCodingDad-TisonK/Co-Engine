@@ -9,6 +9,13 @@ const path = require('path'), fs = require('fs');
 const argv = process.argv.slice(2), at = argv.indexOf('--game'), root = path.resolve(at >= 0 ? argv[at + 1] : '.');
 const outDir = path.join(root, 'brand', 'png');
 const ICON_SIZES = [16, 24, 32, 48, 64, 128, 256, 512, 1024];
+// an .ico is a directory of frames; PNG frames are allowed since Windows Vista, so the PNGs go in as they are
+function icoFromPngs(files) {
+  const imgs = files.map((f) => fs.readFileSync(f)), n = imgs.length, head = Buffer.alloc(6), dir = Buffer.alloc(16 * n); let off = 6 + 16 * n;
+  head.writeUInt16LE(0, 0); head.writeUInt16LE(1, 2); head.writeUInt16LE(n, 4);
+  imgs.forEach((b, i) => { const w = b.readUInt32BE(16), h = b.readUInt32BE(20), o = i * 16; dir.writeUInt8(w >= 256 ? 0 : w, o); dir.writeUInt8(h >= 256 ? 0 : h, o + 1); dir.writeUInt8(0, o + 2); dir.writeUInt8(0, o + 3); dir.writeUInt16LE(1, o + 4); dir.writeUInt16LE(32, o + 6); dir.writeUInt32LE(b.length, o + 8); dir.writeUInt32LE(off, o + 12); off += b.length; });
+  return Buffer.concat([head, dir].concat(imgs));
+}
 const SIMPLE_AT_OR_BELOW = 32;
 function url(file, query) { return 'file://' + path.join(root, 'brand', file).replace(/\\/g, '/') + '?' + query; }
 async function shoot(win, address, w, h, outPath) {
@@ -39,9 +46,8 @@ app.whenReady().then(async () => {
   fs.mkdirSync(path.join(root, 'game'), { recursive: true });
   fs.copyFileSync(path.join(outDir, 'icon-512.png'), path.join(root, 'game', 'logo.png'));
   fs.copyFileSync(path.join(outDir, 'icon-256.png'), path.join(root, 'game', 'logo-256.png'));
-  const mod = require('png-to-ico'); const pngToIco = mod.default || mod;
   const icoFrom = [16, 24, 32, 48, 64, 128, 256].map((s) => path.join(outDir, 'icon-' + s + '.png'));
-  const buf = await pngToIco(icoFrom);
+  const buf = icoFromPngs(icoFrom);
   fs.mkdirSync(path.join(root, 'build'), { recursive: true }); fs.writeFileSync(path.join(root, 'build', 'icon.ico'), buf);
   console.log('build/icon.ico  (' + icoFrom.length + ' sizes, ' + buf.length + ' bytes)');
   win.destroy(); app.quit();

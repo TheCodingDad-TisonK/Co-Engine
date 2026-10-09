@@ -121,9 +121,29 @@ ipcMain.handle('act', async (e, dir, what) => {
   if (what === 'test') return d.scripts.test ? runScript(dir, 'test') : (log('no test script in that game', 'err'), false);
   if (what === 'run' || what === 'dev') { if (!d.page) { log('no page to run (game/index.html or index.html)', 'err'); return false; } if (d.kind === 'engine') buildEngineGame(dir, false); openGame(dir, d.page, what === 'dev'); return true; }
   if (what === 'folder') { shell.openPath(dir); return true; }
+  if (what === 'dist') { const dd = path.join(dir, 'dist'); if (!fs.existsSync(dd)) { log('no dist/ yet: build an installer first', 'err'); return false; } shell.openPath(dd); return true; }
   return false;
 });
 ipcMain.handle('cmd', (e, name, arg) => { if (!srv) return false; srv.send(name, arg); return true; });
+ipcMain.handle('script', (e, dir, name) => { const d = describe(dir); if (!d.scripts || !d.scripts[name]) { log('no such npm script: ' + name, 'err'); return false; } return runScript(dir, name); });
+// the pack writer: a build function's new text replaces its old text in the src/ part that holds it (exact, then allowing for whitespace); a new definition is appended to the part with the most defProp calls
+ipcMain.handle('pack-write', (e, q) => {
+  const d = describe(q.dir), srcDir = path.join(q.dir, (d.co && d.co.src) || 'src');
+  if (!fs.existsSync(srcDir)) return { error: 'no src/ folder in ' + q.dir };
+  const files = fs.readdirSync(srcDir).filter((n) => /\.js$/.test(n)).sort();
+  if (q.oldText && typeof q.newText === 'string') {
+    for (const n of files) { const p = path.join(srcDir, n), t = fs.readFileSync(p, 'utf8'), i = t.indexOf(q.oldText); if (i >= 0) { if (t.indexOf(q.oldText, i + 1) >= 0) return { error: 'the old code appears twice in src/' + n + '; edit that file by hand' }; fs.writeFileSync(p, t.slice(0, i) + q.newText + t.slice(i + q.oldText.length)); log('pack: wrote src/' + n, 'ok'); return { ok: true, file: 'src/' + n }; } }
+    const re = new RegExp(q.oldText.trim().split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'));
+    for (const n of files) { const p = path.join(srcDir, n), t = fs.readFileSync(p, 'utf8'), m = re.exec(t); if (m) { fs.writeFileSync(p, t.slice(0, m.index) + q.newText + t.slice(m.index + m[0].length)); log('pack: wrote src/' + n, 'ok'); return { ok: true, file: 'src/' + n, note: 'matched allowing for whitespace' }; } }
+    return { error: 'the original build code was not found in src/ (changed on disk since the game was built?)' };
+  }
+  if (q.append) {
+    let best = null, bestN = 0; for (const n of files) { const c = (fs.readFileSync(path.join(srcDir, n), 'utf8').match(/defProp\(/g) || []).length; if (c > bestN) { bestN = c; best = n; } }
+    if (!best) { best = '50-props.js'; fs.writeFileSync(path.join(srcDir, best), '//@ the props written from the Co Engine editor\n'); }
+    const p = path.join(srcDir, best); let t = fs.readFileSync(p, 'utf8'); if (!/\n$/.test(t)) t += '\n'; fs.writeFileSync(p, t + '  ' + q.append.replace(/\s+$/, '').replace(/\n/g, '\n  ') + '\n'); log('pack: appended to src/' + best, 'ok'); return { ok: true, file: 'src/' + best, appended: true };
+  }
+  return { error: 'nothing to write' };
+});
 const PKG_VERSION = (() => { try { return require('../package.json').version; } catch (e) { return app.getVersion(); } })();
 ipcMain.handle('info', () => ({ version: PACKED ? app.getVersion() : PKG_VERSION, port: PORT, packed: PACKED, engine: ENGINE_DIR, node: process.versions.node, electron: process.versions.electron }));
 // what Claude is told when the panel starts it in a game's folder
@@ -195,8 +215,8 @@ function open() {
   win.loadFile(path.join(__dirname, 'index.html'));
   win.webContents.on('before-input-event', (event, input) => { if (input.type === 'keyDown' && input.control && input.shift && input.key.toLowerCase() === 'i') { win.webContents.toggleDevTools(); event.preventDefault(); } });
   win.on('closed', () => { win = null; });
-  const openDir = ARG('open'), shot = ARG('shot'), demo = !!ARG('demo'), ask = ARG('ask');
-  if (openDir) win.webContents.on('did-finish-load', () => { remember(openDir); setTimeout(() => send('auto', { dir: openDir, demo, ask }), 400); if (shot) setTimeout(async () => { try { const img = await win.webContents.capturePage(); fs.writeFileSync(shot, img.toPNG()); console.log('shot: ' + shot); } catch (e2) { console.error('shot failed: ' + e2.message); } app.quit(); }, +(ARG('after') || 9000)); });
+  const openDir = ARG('open'), shot = ARG('shot'), demo = ARG('demo'), ask = ARG('ask');
+  if (openDir) win.webContents.on('did-finish-load', () => { remember(openDir); setTimeout(() => send('auto', { dir: openDir, demo, ask }), 400); if (shot) setTimeout(async () => { try { const img = await win.webContents.capturePage(); fs.writeFileSync(shot, img.toPNG()); console.log('shot: ' + shot + (img.isEmpty() ? ' (EMPTY: the page did not paint)' : '')); } catch (e2) { console.error('shot failed: ' + e2.message); } try { const text = await askEditor('console_log', { n: 80 }); fs.writeFileSync(shot + '.log', text); } catch (e3) { fs.writeFileSync(shot + '.log', 'no console: ' + e3.message); } app.quit(); }, +(ARG('after') || 9000)); });
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();
