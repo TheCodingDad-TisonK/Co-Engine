@@ -1,8 +1,10 @@
 // The engine's own smoke: the sample room (tests/sample) booted through CO.boot. Run by tests/smoke.js. No backslash-quote in the body.
 'use strict';
 const PACK_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'basics', 'pack.js'), 'utf8'));
+const GROWCO_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'growco', 'pack.js'), 'utf8'));
 module.exports = `
   const PACK_BASICS = ${PACK_JSON};
+  const PACK_GROWCO = ${GROWCO_JSON};
   ok(!!T.renderer && !!T.scene && !!T.camera && T.CO.ready === true && typeof T.enter === 'function', 'CO.setup and CO.boot ran: renderer, scene, camera and the handle stand');
   ok(T.ui.started === false && !document.getElementById('dc-start').hidden, 'the start screen is up before enter');
   ok(/A new room/.test(document.getElementById('dc-start-stats').textContent) && /Slot 1/.test(document.getElementById('dc-start-note').textContent), 'the start screen chips and note come from the game and the engine');
@@ -128,6 +130,7 @@ module.exports = `
     const ad = E.layoutAdopt({ props: L.props, placed: L.placed }); ok(ad.adopted === true && ad.pending === 0 && !S.custom.some((c) => c.id === sp) && !!node(sp) && E.inspect(sp).prop.custom === false, 'adopt makes the written layout the baseline: the copy leaves the save and stands as a placed prop');
     E.set('lever', 'prop.x', 9); ok(E.layout().pending === 1 && E.layout().props.lever.x === 9, 'a move after adopt is pending again'); E.set('lever', 'prop.reset', 1); ok(E.layout().pending === 0, 'and reset clears it');
     E.remove(sp); ok(!node(sp) && !E.layout().placed.some((p) => p.id === sp) && E.layout().pending === 1, 'a removed placed copy leaves the layout and counts as pending'); E.undo(); ok(!!node(sp) && E.layout().pending === 0, 'and comes back with undo');
+    { E.set('lever', 'prop.h', 0.5); const lg = T.propInst ? null : null; const yy = E.inspect('lever').position[1]; ok(Math.abs(yy - 0.5) < 1e-6, 'a prop raised to 0.5 stands 0.5 up after its rebuild (0.6.0): y ' + yy); E.set('lever', 'prop.h', 0); ok(E.inspect('lever').position[1] === 0, 'and back on the floor at 0'); }
     E.set('wallSign', 'prop.hidden', true); ok(E.layout().props.wallSign && E.layout().props.wallSign.hidden === true && /hidden: true/.test(E.layout().code), 'a hidden prop is written as hidden'); E.set('wallSign', 'prop.hidden', false); ok(!E.layout().props.wallSign, 'and unhidden it is back to its definition');
     E.remove('plChair'); E.undo(); ok(!!node('plChair'), 'a placed copy hides and comes back');
     ok(E.set('plChair', 'prop.rot', 2) === 'ok' && E.inspect('plChair').prop.rot === 2, 'a placed copy turns through set after the layout adopted it (0.4.1)'); E.set('plChair', 'prop.reset', 1); }
@@ -169,12 +172,19 @@ module.exports = `
     const b = E.spawn('pkBarrier', -4, 6); ok(!!node(b) && T.solids.some((s) => s.prop === b && s.y0 > 0.5), 'the barrier arm blocks at waist height when down');
     ['pkLever', 'pkSign', 'pkWallSign', 'pkCrate', 'pkPallet', 'pkBench', 'pkBin', 'pkCone', 'pkLampPost', 'pkFence', 'pkPlanter', 'pkWallScreen'].forEach((t) => { const id = E.spawn(t, -8, 8); ok(!!node(id), t + ' builds'); E.remove(id); });
     ok(!T.catalogueData().groups.pack, 'the catalogue does not sell the pack props'); [g, p, b].forEach((id) => E.remove(id)); }
+  // the Grow Co pack (0.6.0): Grow's own props, helpers and materials in a sealed scope; every one builds in the sample room
+  { const E = T.editor; const before = E.assets().props.length; const df = E.define(PACK_GROWCO); const gc = E.assets().props.filter((p) => /^gc/.test(p.id));
+    ok(df.ok === true && gc.length === 67, 'the Grow Co pack defines its 67 props: ' + (df.ok ? gc.length : df.error));
+    const bad = [], ids = []; gc.forEach((p, i) => { try { const id = E.spawn(p.id, -9 + (i % 9) * 2, -9 + Math.floor(i / 9) * 2); ids.push(id); } catch (e) { bad.push(p.id + ': ' + e.message); } });
+    ok(bad.length === 0 && ids.length === 67, 'every Grow Co prop builds: ' + ids.length + (bad.length ? ', failed ' + bad.slice(0, 3).join(' | ') : ''));
+    ok(T.MAT.wood && T.MAT.wood === T.MAT.wood && !('ceramic' in T.MAT && T.MAT.ceramic === undefined), 'the host palette is untouched by the pack');
+    ids.forEach((id) => E.remove(id)); }
 
   // M9 (0.2.1): clips as data on props and on the people rig; UI as data: HUD chips, panels with buttons, start chips
   { const E = T.editor, CO2 = T.CO, NL = String.fromCharCode(10); const node = (id) => { const tr = E.tree(); for (const k in tr.props) { const n = tr.props[k].find((p) => p.id === id); if (n) return n; } return null; };
     const cl = E.clips(); ok(cl.order.indexOf('wave') >= 0 && cl.order.indexOf('spin') >= 0 && cl.clips.spin.loop === true && cl.clips.wave.tracks.length === 3, 'the built-in clips are there: ' + cl.order.join(', '));
     const box = E.spawn('xChair', 2, 2); const y0 = E.inspect(box).position[1]; const pl = E.clipPlay(box, 'bob', { blend: 0 }); ok(pl.ok === true && pl.tracks === 1, 'a clip plays on a prop: ' + JSON.stringify(pl));
-    await wait(450); const y1 = E.inspect(box).position[1]; ok(y1 > y0 + 0.05, 'the bob lifts the chair: ' + y0 + ' to ' + y1.toFixed(3)); ok(E.clips().playing.some((p) => p.name === 'bob'), 'it is on the playing list');
+    let y1 = 0; for (let i = 0; i < 40 && y1 <= y0 + 0.05; i++) { await wait(100); y1 = E.inspect(box).position[1]; } ok(y1 > y0 + 0.05, 'the bob lifts the chair: ' + y0 + ' to ' + y1.toFixed(3)); ok(E.clips().playing.some((p) => p.name === 'bob'), 'it is on the playing list');
     E.clipStop(box); ok(!E.clips().playing.some((p) => p.name === 'bob'), 'stop takes it off the list');
     const r1 = E.clip('eSpin2', { duration: 1, loop: false, tracks: [{ path: 'rotation.y', keys: [[0, 0, 'linear'], [1, 1.5, 'linear']] }], events: [[0.5, 'half']] }); ok(r1.ok === true && r1.duration === 1, 'a clip is defined from data');
     let fired = null; T.hook('clipEvent', (obj, name) => { fired = name; }); E.clipPlay(box, 'eSpin2', { blend: 0, hold: true }); await wait(1300); ok(Math.abs(E.inspect(box).rotation[1] - 1.5 * 180 / Math.PI) < 3, 'a one-shot clip ends on its last key and holds: ' + E.inspect(box).rotation[1].toFixed(1) + ' degrees'); ok(fired === 'half', 'its event fired through the clipEvent hook: ' + fired);

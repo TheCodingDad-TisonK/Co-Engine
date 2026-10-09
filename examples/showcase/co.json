@@ -1,0 +1,6 @@
+{
+  "name": "Co Engine showcase",
+  "out": "game/showcase.js",
+  "src": "src",
+  "engine": "../../engine"
+}

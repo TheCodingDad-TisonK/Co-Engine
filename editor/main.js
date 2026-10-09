@@ -137,7 +137,7 @@ function listPacks(dir) {
   const d = dir ? describe(dir) : null, srcDir = dir ? path.join(dir, (d.co && d.co.src) || 'src') : null;
   return names.map((n) => {
     let meta = {}; try { meta = JSON.parse(fs.readFileSync(path.join(PACKS_DIR, n, 'pack.json'), 'utf8')); } catch (e) {}
-    const code = fs.readFileSync(path.join(PACKS_DIR, n, 'pack.js'), 'utf8'), props = []; const re = /defProp\('(\w+)',\s*\{[^\n]*?label:\s*'([^']*)'/g; let m; while ((m = re.exec(code))) props.push({ id: m[1], label: m[2] });
+    const code = fs.readFileSync(path.join(PACKS_DIR, n, 'pack.js'), 'utf8'), props = meta.props ? meta.props.slice() : []; const re = /defProp\('(\w+)',\s*\{[^\n]*?label:\s*'([^']*)'/g; let m; if (!props.length) while ((m = re.exec(code))) props.push({ id: m[1], label: m[2] });
     const file = srcDir ? path.join(srcDir, '00-pack-' + n + '.js') : null, has = !!(file && fs.existsSync(file)), current = has && fs.readFileSync(file, 'utf8') === code;
     return { name: n, title: meta.title || n, description: meta.description || '', since: meta.since || '', props, file: '00-pack-' + n + '.js', added: has, current };
   });

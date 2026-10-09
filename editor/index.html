@@ -380,6 +380,7 @@
     if (action === 'ui_set') return bridge('CO.editor.uiSet(' + arg(a.data || {}) + ')').then(function (r) { uiLoad(); return r; });
     if (action === 'ui_open') return bridge('CO.editor.uiOpen(' + arg(a.kind) + ')');
     if (action === 'packs') return window.co.packs(current ? current.dir : null);
+    if (action === 'run_js') return bridge('CO.editor.run(' + arg(a.code) + ')').then(function (r) { if (r && r.__err) throw new Error(r.__err); return r; });
     if (action === 'tables') return bridge('CO.editor.tables()');
     if (action === 'table_set') return bridge('CO.editor.tableSet(' + arg(a.table) + ', ' + arg(a.path) + ', ' + arg(a.value) + ')').then(function (r) { if (r && r.error) throw new Error(r.error); stLoad(); return r; });
     if (action === 'files') { if (!current) return Promise.reject(new Error('no game open')); return window.co.files(current.dir); }
@@ -400,7 +401,7 @@
     if (action === 'material_shot') return bridge('CO.editor.materialShot(' + arg(a.name) + ', ' + arg(a.size || 160) + ')');
     if (action === 'save') return saveAll();
     if (action === 'profile') return bridge('CO.editor.profile(' + (a.on === undefined ? '' : arg(!!a.on)) + ')');
-    if (action === 'camera') return new Promise(function (res) { setMode(a.mode === 'scene' ? 'scene' : 'game'); setTimeout(function () { res(statusObj()); }, 300); });
+    if (action === 'camera') return new Promise(function (res) { setMode(a.mode === 'scene' || a.mode === 'top' ? a.mode : 'game'); setTimeout(function () { res(statusObj()); }, 300); });
     if (action === 'pause') return bridge('CO.editor.pause(' + arg(!!a.on) + ')').then(function (r) { paused = !!r; $('pause').classList.toggle('on', paused); $('pause').textContent = paused ? '▶ Resume' : '❚❚'; return statusObj(); });
     if (action === 'command') { var raw = String(a.line || '').trim(), sp = raw.indexOf(' '), nm = sp < 0 ? raw : raw.slice(0, sp), av = sp < 0 ? undefined : raw.slice(sp + 1).trim(); if (av !== undefined && av !== '' && !isNaN(av)) av = +av; if (!nm) return Promise.reject(new Error('an empty command')); return bridge('CO.editor.command(' + arg(nm) + ', ' + arg(av) + ')').then(function (r) { if (r && r.__err) throw new Error(r.__err); logRow({ t: Date.now(), kind: 'cmd', text: raw + (r ? ': ' + (typeof r === 'string' ? r : JSON.stringify(r)) : '') }); return r; }); }
     var pass = { scene_tree: 'tree', inspect: 'inspect', set: 'set', select: 'select', frame: 'frame', spawn: 'spawn', remove: 'remove', step: 'step', assets: 'assets', screenshot: 'shot' }, fn = pass[action];

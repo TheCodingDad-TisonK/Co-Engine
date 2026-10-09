@@ -1,0 +1,276 @@
+{
+  "name": "growco",
+  "title": "Grow Co.",
+  "description": "Every prop from Grow Co.: the till, the tip jar and the desk bell, goods shelves, the cigarette cabinet, the drinks fridge, the vending and coffee machines, the coffee bar, sofas and lounge tables, the office desk, filing cabinets, bookshelves, ferns, racks and curing shelves, the bin, lockers, the vault, the arcade cabinet and more, drawn with Grow Co.’s own materials. Shop logic stays in Grow Co.: what fills from its stock stands empty.",
+  "since": "0.6.0",
+  "props": [
+    {
+      "id": "gcOfficeDesk",
+      "label": "office desk"
+    },
+    {
+      "id": "gcTabletDock",
+      "label": "tablet dock"
+    },
+    {
+      "id": "gcRack",
+      "label": "supply rack"
+    },
+    {
+      "id": "gcCabinet",
+      "label": "filing cabinet"
+    },
+    {
+      "id": "gcBookshelf",
+      "label": "bookshelf"
+    },
+    {
+      "id": "gcFernOffice",
+      "label": "fern"
+    },
+    {
+      "id": "gcFernHall",
+      "label": "fern"
+    },
+    {
+      "id": "gcFernLobby",
+      "label": "fern"
+    },
+    {
+      "id": "gcSofa",
+      "label": "sofa + coffee table"
+    },
+    {
+      "id": "gcFridge",
+      "label": "drinks fridge"
+    },
+    {
+      "id": "gcCoffeeBar",
+      "label": "coffee bar"
+    },
+    {
+      "id": "gcWaterCooler",
+      "label": "water cooler"
+    },
+    {
+      "id": "gcBench",
+      "label": "workbench"
+    },
+    {
+      "id": "gcTrash",
+      "label": "bin"
+    },
+    {
+      "id": "gcCrates",
+      "label": "crates"
+    },
+    {
+      "id": "gcCureShelf",
+      "label": "curing shelf"
+    },
+    {
+      "id": "gcDryRack",
+      "label": "drying line"
+    },
+    {
+      "id": "gcDryTable",
+      "label": "scale table"
+    },
+    {
+      "id": "gcJarBoxes",
+      "label": "jar boxes"
+    },
+    {
+      "id": "gcHose",
+      "label": "hose reel + watering can"
+    },
+    {
+      "id": "gcFan",
+      "label": "floor fan"
+    },
+    {
+      "id": "gcSoilSacks",
+      "label": "soil sacks"
+    },
+    {
+      "id": "gcBucket",
+      "label": "bucket"
+    },
+    {
+      "id": "gcPotShelf",
+      "label": "pot shelf"
+    },
+    {
+      "id": "gcTent",
+      "label": "grow tent"
+    },
+    {
+      "id": "gcLobbyBenchL",
+      "label": "lobby bench"
+    },
+    {
+      "id": "gcLobbyBenchR",
+      "label": "lobby bench"
+    },
+    {
+      "id": "gcMagTable",
+      "label": "magazine table"
+    },
+    {
+      "id": "gcQueueRope",
+      "label": "rope line"
+    },
+    {
+      "id": "gcLobbyPlant",
+      "label": "lobby plant"
+    },
+    {
+      "id": "gcLobbyCoffee",
+      "label": "lobby coffee machine"
+    },
+    {
+      "id": "gcVending",
+      "label": "vending machine"
+    },
+    {
+      "id": "gcMenuScreen",
+      "label": "menu screen"
+    },
+    {
+      "id": "gcGoodsShelf",
+      "label": "goods shelf"
+    },
+    {
+      "id": "gcStockCabinet",
+      "label": "stock cabinet"
+    },
+    {
+      "id": "gcStoreRack",
+      "label": "storage racking"
+    },
+    {
+      "id": "gcBagLine",
+      "label": "trim & bag line"
+    },
+    {
+      "id": "gcVipTable",
+      "label": "lounge table + armchairs"
+    },
+    {
+      "id": "gcCellarHatch",
+      "label": "basement hatch"
+    },
+    {
+      "id": "gcCigCabinet",
+      "label": "cigarette cabinet"
+    },
+    {
+      "id": "gcGunLocker",
+      "label": "weapon locker"
+    },
+    {
+      "id": "gcVault",
+      "label": "vault"
+    },
+    {
+      "id": "gcArcade",
+      "label": "arcade cabinet"
+    },
+    {
+      "id": "gcProcShelf",
+      "label": "storage shelf"
+    },
+    {
+      "id": "gcHallClockTable",
+      "label": "side table"
+    },
+    {
+      "id": "gcFloorLamp",
+      "label": "floor lamp"
+    },
+    {
+      "id": "gcGuardBoard",
+      "label": "notice board"
+    },
+    {
+      "id": "gcDining",
+      "label": "dining set"
+    },
+    {
+      "id": "gcCouchUp",
+      "label": "couch + coffee table"
+    },
+    {
+      "id": "gcBed",
+      "label": "bed"
+    },
+    {
+      "id": "gcUpBooks",
+      "label": "bookshelf"
+    },
+    {
+      "id": "gcWindowSeat",
+      "label": "window seat"
+    },
+    {
+      "id": "gcUpPlant1",
+      "label": "plant"
+    },
+    {
+      "id": "gcUpPlant2",
+      "label": "plant"
+    },
+    {
+      "id": "gcUpPlant3",
+      "label": "plant"
+    },
+    {
+      "id": "gcUpRug",
+      "label": "rug"
+    },
+    {
+      "id": "gcUpDresser",
+      "label": "dresser"
+    },
+    {
+      "id": "gcBreedBench",
+      "label": "breeding bench"
+    },
+    {
+      "id": "gcTrophyCase",
+      "label": "trophy cabinet"
+    },
+    {
+      "id": "gcHydroBay",
+      "label": "hydroponics bay"
+    },
+    {
+      "id": "gcMerchStand",
+      "label": "merch stand"
+    },
+    {
+      "id": "gcCounterTill",
+      "label": "till"
+    },
+    {
+      "id": "gcTipJar",
+      "label": "tip jar"
+    },
+    {
+      "id": "gcBizCards",
+      "label": "business cards"
+    },
+    {
+      "id": "gcDeskBell",
+      "label": "desk bell"
+    },
+    {
+      "id": "gcKeyHook",
+      "label": "key hook"
+    },
+    {
+      "id": "gcRoster",
+      "label": "staff roster"
+    }
+  ]
+}
