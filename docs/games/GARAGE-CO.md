@@ -1,6 +1,6 @@
 # Garage Co.
 
-A first-person car workshop. Cars come in broken, you find the fault, get the part, fix it on the lift, take the money, and the car drives off. The lock-up grows into a dealership. A candidate for the third or fourth game on Co Engine, written 2026-10-08.
+A first-person car workshop. Cars come in broken, you find the fault, get the part, fix it on the lift, take the money, and the car drives off. The lock-up grows into a dealership. Written 2026-10-08 as a candidate; chosen as game three on 2026-10-09 (Garden Co is game four). The first room, the lock-up with the loop from the road to the till, stands in its own repo, Garage Co, since the same day.
 
 ## The pitch
 
