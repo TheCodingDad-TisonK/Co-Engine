@@ -1,12 +1,12 @@
 {
   "name": "co-engine",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "The runtime, editor and template behind Grow Co and Depot Co: one HTML page, one closure, three.js, no bundler.",
   "main": "tools/build-game.js",
   "scripts": {
     "build": "node tools/build-game.js --game tests/sample",
-    "check": "node tools/build-game.js --game tests/sample --check && node tools/lint-gate.js tests/sample/game && node tools/check-syntax.js --game tests/sample && node --check editor/main.js && node --check shell/main.js",
-    "test": "npm run check && electron tests/smoke.js",
+    "check": "node tools/build-game.js --game tests/sample --check && node tools/lint-gate.js tests/sample/game && node tools/check-syntax.js --game tests/sample && node --check editor/main.js && node --check editor/mcp.js && node --check shell/main.js",
+    "test": "npm run check && node tests/mcp.test.js && electron tests/smoke.js",
     "editor": "electron editor/main.js",
     "editor:exe": "electron-builder --win portable --x64 --publish never --config editor/builder.json"
   },

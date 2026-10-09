@@ -23,7 +23,8 @@
   button:disabled { opacity: .4; cursor: default; }
   .seg { display: inline-flex; } .seg button { border-radius: 0; margin-left: -1px; } .seg button:first-child { border-radius: 6px 0 0 6px; } .seg button:last-child { border-radius: 0 6px 6px 0; }
   aside, section, footer { overflow: hidden; display: flex; flex-direction: column; min-height: 0; background: var(--panel2); }
-  aside { border-right: 1px solid var(--line); } section { border-left: 1px solid var(--line); } footer { grid-column: 1 / 4; border-top: 1px solid var(--line); }
+  aside { border-right: 1px solid var(--line); } section { border-left: 1px solid var(--line); } footer { grid-column: 1 / 4; border-top: 1px solid var(--line); position: relative; }
+  #split { position: absolute; left: 0; right: 0; top: -3px; height: 7px; cursor: ns-resize; z-index: 5; } #split:hover, #split.on { background: rgba(245,181,61,0.35); }
   .tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); background: var(--panel); flex: none; align-items: flex-end; }
   .tabs button { border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; background: transparent; color: var(--faint); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 6px 10px; }
   .tabs button.on { background: var(--panel2); border-color: var(--line); color: var(--text); }
@@ -60,6 +61,11 @@
   .dim { opacity: .5; } .hintp { color: var(--faint); font-size: 12px; margin: 6px 0; }
   .chips { display: flex; flex-wrap: wrap; gap: 4px; } .chips button { padding: 3px 8px; font-size: 12px; }
   [hidden] { display: none !important; }
+  /* the Claude panel */
+  #claude.on { display: flex; flex-direction: column; } #cl-out { flex: 1; min-height: 0; overflow: auto; font-size: 12.5px; line-height: 1.45; }
+  .cl-msg { padding: 7px 10px; margin: 4px 0; border-radius: 6px; white-space: pre-wrap; word-break: break-word; } .cl-you { background: #1a2433; border-left: 3px solid var(--amber); } .cl-ai { background: var(--panel); } .cl-err { color: var(--red); background: rgba(255,107,94,0.08); }
+  .cl-tool { color: var(--faint); font-size: 11.5px; padding: 2px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .cl-tool b { color: var(--blue); font-weight: 600; }
+  #cl-line { display: flex; gap: 6px; margin-top: 6px; align-items: flex-end; } #cl-in { flex: 1; resize: vertical; min-height: 40px; font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; } #cl-btns { display: flex; flex-direction: row; gap: 4px; } #cl-status { margin-top: 4px; min-height: 14px; color: var(--faint); font-size: 11.5px; }
 </style>
 </head>
 <body>
@@ -91,20 +97,23 @@
   <div class="pane on insp" id="insp"><div class="hintp">Click a thing in the viewport or the hierarchy.</div></div>
 </section>
 <footer>
+  <div id="split" title="Drag to resize the dock"></div>
   <div class="tabs"><button class="on" data-tab="console">Console</button><button data-tab="assets">Assets</button><button data-tab="readout">Readout</button><button data-tab="claude">Claude</button><span style="flex:1"></span><button id="clear" style="border:none;color:var(--faint)">clear</button></div>
   <div class="pane on" id="console"><div class="log" id="log"></div><div id="cline"><input type="text" id="cin" placeholder="a command: cash 500 · setTime 9 · tp 2, 3 · weather rain · or any the game lists in the Readout"><button id="csend">Run</button></div></div>
   <div class="pane" id="assets"><div class="hintp">Press Play: the game's prop definitions, palette, textures and voices list here.</div></div>
   <div class="pane" id="readout"><h2>Readout <span id="age" class="hintp"></span></h2><div class="kv" id="kv"><i>waiting</i><b>for a linked game</b></div><h2>Commands</h2><div class="chips" id="cmds"><span class="dim">the linked game lists its commands here</span></div><h2>Lists</h2><div id="lists" class="hintp">none</div></div>
-  <div class="pane" id="claude"><div class="hintp">The Claude panel comes with the MCP server in the next step of M6: Claude Code drives this editor (select, move, spawn, build, test, screenshot) and answers here.</div></div>
+  <div class="pane" id="claude"><div id="cl-out"><div class="hintp" id="cl-hint">Claude Code, inside the editor. Ask anything about the open game or tell it what to change: it reads and edits src/, builds and tests, and through this editor it sees the scene, selects and moves props, flies the camera and takes screenshots. Each message runs claude in the game's folder; the conversation continues until you press New. The same editor tools reach a terminal Claude Code through the game's .mcp.json.</div></div><div id="cl-line"><textarea id="cl-in" rows="2" placeholder="Ask Claude about this game, or tell it what to change (Enter sends, Shift+Enter for a new line)"></textarea><div id="cl-btns"><button id="cl-send" class="primary">Send</button><button id="cl-stop" disabled>Stop</button><button id="cl-new" title="Start a new conversation">New</button></div></div><div id="cl-status"></div></div>
 </footer>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); }, current = null, projects = [], games = 0, open = 0, PORT = 8432;
-  var view = $('view'), ready = false, selected = null, treeData = null, mode = 'game', paused = false, assetsLoaded = false, autoDemo = false;
+  var view = $('view'), ready = false, selected = null, treeData = null, mode = 'game', paused = false, assetsLoaded = false, autoDemo = false, autoAsk = null, info = null, logRows = [];
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function money(n) { n = Math.round(n || 0); return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US'); }
-  function logRow(r) { var d = document.createElement('div'); d.className = r.kind || 'out'; d.textContent = (r.t ? new Date(r.t).toLocaleTimeString() + '  ' : '') + r.text; var el = $('log'); el.appendChild(d); while (el.children.length > 2000) el.removeChild(el.firstChild); el.scrollTop = el.scrollHeight; }
+  function logRow(r) { logRows.push(r); if (logRows.length > 2000) logRows.shift(); var d = document.createElement('div'); d.className = r.kind || 'out'; d.textContent = (r.t ? new Date(r.t).toLocaleTimeString() + '  ' : '') + r.text; var el = $('log'); el.appendChild(d); while (el.children.length > 2000) el.removeChild(el.firstChild); el.scrollTop = el.scrollHeight; }
   function linkState() { var el = $('link'); el.className = 'link' + (games ? ' on' : ''); el.textContent = games ? 'LINKED · ' + games + ' game' + (games > 1 ? 's' : '') : (ready ? 'running, not linked' : 'no game'); }
+  // ── the dock's height: drag the bar above it; the height is kept between sessions ──
+  (function () { var h = 230; try { h = +localStorage.getItem('co-dock') || 230; } catch (e) {} function apply(v) { h = Math.max(120, Math.min(window.innerHeight - 260, v)); document.body.style.gridTemplateRows = '44px 1fr ' + h + 'px'; } apply(h); var sp = $('split'), drag = null; sp.addEventListener('mousedown', function (e) { drag = { y: e.clientY, h: h }; sp.classList.add('on'); e.preventDefault(); }); window.addEventListener('mousemove', function (e) { if (drag) apply(drag.h + (drag.y - e.clientY)); }); window.addEventListener('mouseup', function () { if (!drag) return; drag = null; sp.classList.remove('on'); try { localStorage.setItem('co-dock', String(h)); } catch (e) {} }); })();
   // ── tabs ──
   document.querySelectorAll('.tabs').forEach(function (bar) { bar.addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (!b) return; bar.querySelectorAll('[data-tab]').forEach(function (x) { x.classList.toggle('on', x === b); }); var host = bar.parentElement; host.querySelectorAll(':scope > .pane').forEach(function (p) { p.classList.toggle('on', p.id === b.getAttribute('data-tab')); }); if (b.getAttribute('data-tab') === 'assets' && !assetsLoaded) loadAssets(); }); });
   // ── the game in the viewport ──
@@ -117,7 +126,7 @@
     $('play').disabled = true; $('play').textContent = '▶ Playing';
     window.co.act(current.dir, 'build').then(function () { return window.co.pageUrl(current.dir); }).then(function (url) { if (!url) { $('play').disabled = false; $('play').textContent = '▶ Play'; return; } view.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'dev=1&editor=1'; });
   }
-  view.addEventListener('dom-ready', function () { ready = true; setRunning(true); $('play').disabled = false; $('play').textContent = '▶ Restart'; logRow({ t: Date.now(), kind: 'ok', text: 'viewport: ' + (current ? current.name : 'the game') + ' loaded' }); setTimeout(function () { bridge('CO.editor.enter()').then(function () { refreshTree(); setMode(mode); if (autoDemo) setTimeout(demo, 1500); }); }, 700); });
+  view.addEventListener('dom-ready', function () { ready = true; setRunning(true); $('play').disabled = false; $('play').textContent = '▶ Restart'; logRow({ t: Date.now(), kind: 'ok', text: 'viewport: ' + (current ? current.name : 'the game') + ' loaded' }); setTimeout(function () { bridge('CO.editor.enter()').then(function () { refreshTree(); setMode(mode); if (autoDemo) setTimeout(demo, 1500); if (autoAsk) { var q = autoAsk; autoAsk = null; setTimeout(function () { document.querySelector('[data-tab="claude"]').click(); $('cl-in').value = q; clSend(); }, 1200); } }); }, 700); });
   // the picture the editor takes of itself (--demo): the first prop selected and framed in the scene camera, the assets open
   function demo() { autoDemo = false; bridge('CO.editor.tree()').then(function (tr) { var first = null; if (tr && tr.props) Object.keys(tr.props).some(function (k) { first = tr.props[k][0]; return !!first; }); if (!first) return; selected = first.id; renderTreeSelection(); bridge('CO.editor.select(' + arg(first.id) + ')').then(function (r) { renderInspector(r); return bridge('CO.editor.frame(' + arg(first.id) + ')'); }).then(function () { setMode('scene'); document.querySelector('[data-tab="assets"]').click(); }); }); }
   view.addEventListener('did-fail-load', function (e) { if (e.errorCode !== -3) logRow({ t: Date.now(), kind: 'err', text: 'viewport: the page did not load (' + e.errorDescription + ')' }); });
@@ -217,10 +226,59 @@
     document.querySelectorAll('[data-act]').forEach(function (b) { var a = b.getAttribute('data-act'); b.disabled = !(p && p.kind !== 'none' && (a === 'folder' || a === 'build' || a === 'check' || (a === 'test' && p.scripts && p.scripts.test))); });
     $('play').disabled = !(p && p.page); $('window').disabled = !(p && p.page);
   }
-  window.co.info().then(function (i) { PORT = i.port; $('about').textContent = 'editor v' + i.version + (i.packed ? '' : ' · from the repo') + ' · dev link 127.0.0.1:' + i.port; connect(); });
+  window.co.info().then(function (i) { info = i; PORT = i.port; $('about').textContent = 'editor v' + i.version + (i.packed ? '' : ' · from the repo') + ' · dev link 127.0.0.1:' + i.port; connect(); });
+  // ── the editor's actions, for the MCP server (editor/mcp.js) through the main process: the same things the panels do ──
+  function statusObj() { return { project: current ? { dir: current.dir, name: current.name, version: current.version || null, kind: current.kind } : null, running: ready, started: !!(treeData && treeData.started), camera: mode, paused: paused, selected: selected, linkedGames: games, editor: info ? 'v' + info.version : null, hint: ready ? null : (current ? 'the game is not playing: call play' : 'no game open: call open_game with a folder') }; }
+  function waitStarted(ms) { var t0 = Date.now(); return new Promise(function (res) { (function tick() { if (Date.now() - t0 > ms) return res(false); if (!ready || Date.now() - t0 < 1200) return setTimeout(tick, 300); bridge('CO.editor.tree()').then(function (tr) { if (tr && tr.started) res(true); else setTimeout(tick, 300); }); })(); }); }
+  function rowsSince(t0) { return logRows.filter(function (r) { return r.t >= t0; }).map(function (r) { return (r.kind === 'err' ? 'ERR ' : '') + r.text; }).join('\n'); }
+  function editorAct(action, a) {
+    a = a || {};
+    if (action === 'status') return Promise.resolve(statusObj());
+    if (action === 'console_log') return Promise.resolve(logRows.slice(-(a.n || 60)).map(function (r) { return new Date(r.t).toLocaleTimeString() + ' ' + (r.kind === 'err' ? 'ERR ' : '') + r.text; }).join('\n'));
+    if (action === 'open_game') return window.co.describe(a.dir).then(function (q) { if (!q || q.kind === 'none') throw new Error('not a game folder (no co.json or package.json): ' + a.dir); projects = projects.filter(function (x) { return x.dir !== q.dir; }); projects.unshift(q); select(q); return editorAct('play'); });
+    if (action === 'build' || action === 'check' || action === 'test') { if (!current) return Promise.reject(new Error('no game open')); var tb = Date.now(); return window.co.act(current.dir, action).then(function (okv) { return { ok: !!okv, log: rowsSince(tb) }; }); }
+    if (action === 'play') { if (!current || !current.page) return Promise.reject(new Error('no game with a page is open')); var tp = Date.now(); play(); return waitStarted(120000).then(function (st) { if (!st) throw new Error('the game did not start in the viewport. ' + rowsSince(tp)); return statusObj(); }); }
+    if (action === 'reload') { if (!ready) return Promise.reject(new Error('nothing runs in the viewport')); view.reload(); return waitStarted(60000).then(function () { return statusObj(); }); }
+    if (!ready) return Promise.reject(new Error('nothing runs in the viewport: open a game and press Play (or call play)'));
+    if (action === 'camera') return new Promise(function (res) { setMode(a.mode === 'scene' ? 'scene' : 'game'); setTimeout(function () { res(statusObj()); }, 300); });
+    if (action === 'pause') return bridge('CO.editor.pause(' + arg(!!a.on) + ')').then(function (r) { paused = !!r; $('pause').classList.toggle('on', paused); $('pause').textContent = paused ? '▶ Resume' : '❚❚'; return statusObj(); });
+    if (action === 'command') { var raw = String(a.line || '').trim(), sp = raw.indexOf(' '), nm = sp < 0 ? raw : raw.slice(0, sp), av = sp < 0 ? undefined : raw.slice(sp + 1).trim(); if (av !== undefined && av !== '' && !isNaN(av)) av = +av; if (!nm) return Promise.reject(new Error('an empty command')); return bridge('CO.editor.command(' + arg(nm) + ', ' + arg(av) + ')').then(function (r) { if (r && r.__err) throw new Error(r.__err); logRow({ t: Date.now(), kind: 'cmd', text: raw + (r ? ': ' + (typeof r === 'string' ? r : JSON.stringify(r)) : '') }); return r; }); }
+    var pass = { scene_tree: 'tree', inspect: 'inspect', set: 'set', select: 'select', frame: 'frame', spawn: 'spawn', remove: 'remove', step: 'step', assets: 'assets', screenshot: 'shot' }, fn = pass[action];
+    if (!fn) return Promise.reject(new Error('no such action: ' + action));
+    var args = action === 'inspect' || action === 'frame' || action === 'remove' ? [a.id] : action === 'select' ? [a.id || null] : action === 'set' ? [a.id, a.path, a.value] : action === 'spawn' ? [a.type, a.x, a.z] : action === 'screenshot' ? [a.quality] : [];
+    return bridge('CO.editor.' + fn + '(' + args.map(arg).join(', ') + ')').then(function (r) {
+      if (r && r.__err) throw new Error(r.__err);
+      if (action === 'select') { selected = a.id || null; renderTreeSelection(); renderInspector(r); }
+      if (action === 'remove') { if (selected === a.id) { selected = null; renderInspector(null); } refreshTree(); }
+      if (action === 'spawn' && typeof r === 'string') { selected = r; refreshTree(); inspect(r); }
+      if (action === 'set') { refreshTree(); if (selected === a.id) inspect(a.id); }
+      if (action === 'frame') setMode('scene');
+      return r;
+    });
+  }
+  window.co.onEditorAct(function (m) { Promise.resolve().then(function () { return editorAct(m.action, m.args); }).then(function (r) { window.co.editorReply(m.id, r === undefined ? null : r, null); }, function (e) { window.co.editorReply(m.id, null, (e && e.message) || String(e)); }); });
+  // ── the Claude panel: Claude Code in the game's folder, with this editor as its MCP server ──
+  var cl = { session: null, busy: false };
+  function clMsg(cls, text) { var h = $('cl-hint'); if (h) h.remove(); var d = document.createElement('div'); d.className = 'cl-msg ' + cls; d.textContent = text; $('cl-out').appendChild(d); $('cl-out').scrollTop = $('cl-out').scrollHeight; return d; }
+  function clTool(name, input) { var d = document.createElement('div'); d.className = 'cl-tool'; var s = ''; try { s = JSON.stringify(input); } catch (e) {} if (s.length > 160) s = s.slice(0, 160) + '…'; d.innerHTML = '<b>' + esc(name.replace(/^mcp__co-editor__/, 'editor.')) + '</b> ' + esc(s); $('cl-out').appendChild(d); $('cl-out').scrollTop = $('cl-out').scrollHeight; }
+  function clDone() { cl.busy = false; $('cl-send').disabled = false; $('cl-stop').disabled = true; }
+  function clSend() { var q = $('cl-in').value.trim(); if (!q || cl.busy) return; $('cl-in').value = ''; clMsg('cl-you', q); cl.busy = true; $('cl-send').disabled = true; $('cl-stop').disabled = false; $('cl-status').textContent = 'starting claude' + (current ? ' in ' + current.name : '') + '…'; window.co.claudeAsk({ dir: current ? current.dir : null, prompt: q, session: cl.session }).then(function (r) { if (r && r.error) { clMsg('cl-err', r.error); clDone(); $('cl-status').textContent = ''; } }); }
+  window.co.onClaude(function (m) {
+    if (m.kind === 'init') { cl.session = m.session || cl.session; $('cl-status').textContent = 'working · ' + (m.model || '') + (m.tools ? ' · ' + m.tools + ' editor tools' : ' · no editor tools reached it (' + (m.mcp || 'no MCP server') + ')'); return; }
+    if (m.kind === 'text') { clMsg('cl-ai', m.text); return; }
+    if (m.kind === 'tool') { clTool(m.name, m.input); $('cl-status').textContent = 'working · ' + m.name.replace(/^mcp__co-editor__/, 'editor.'); return; }
+    if (m.kind === 'tool_result') { if (m.error) clMsg('cl-err', (m.text || 'the tool failed').slice(0, 500)); return; }
+    if (m.kind === 'err' || m.kind === 'raw') { clMsg(m.kind === 'err' ? 'cl-err' : 'cl-ai', String(m.text).slice(0, 800)); return; }
+    if (m.kind === 'result') { cl.session = m.session || cl.session; if (!m.ok && m.text) clMsg('cl-err', m.text); $('cl-status').textContent = (m.ok ? 'done' : 'stopped') + (m.turns ? ' · ' + m.turns + ' turn' + (m.turns > 1 ? 's' : '') : '') + (typeof m.cost === 'number' ? ' · $' + m.cost.toFixed(3) : '') + (m.ms ? ' · ' + Math.round(m.ms / 1000) + ' s' : '') + (cl.session ? ' · the conversation continues' : ''); return; }
+    if (m.kind === 'done') { cl.session = m.session || cl.session; clDone(); if (m.code && !/done|stopped/.test($('cl-status').textContent)) $('cl-status').textContent = 'claude exited with code ' + m.code; }
+  });
+  $('cl-send').addEventListener('click', clSend); $('cl-in').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); clSend(); } });
+  $('cl-stop').addEventListener('click', function () { window.co.claudeStop(); $('cl-status').textContent = 'stopped'; clDone(); });
+  $('cl-new').addEventListener('click', function () { if (cl.busy) window.co.claudeStop(); cl.session = null; clDone(); $('cl-out').innerHTML = ''; $('cl-status').textContent = 'a new conversation'; });
+  window.co.claudeWhere().then(function (p) { if (!p) $('cl-status').textContent = 'Claude Code is not installed on this machine (npm install -g @anthropic-ai/claude-code). The editor tools still reach a terminal Claude Code through .mcp.json.'; });
   window.co.onLog(logRow);
   window.co.onGames(function (d) { open = d.open; linkState(); });
-  window.co.onAuto(function (d) { autoDemo = !!d.demo; var p = projects.filter(function (q) { return q.dir === d.dir; })[0]; if (!p) { window.co.describe(d.dir).then(function (q) { projects.unshift(q); select(q); play(); }); } else { select(p); play(); } });
+  window.co.onAuto(function (d) { autoDemo = !!d.demo; autoAsk = d.ask || null; var p = projects.filter(function (q) { return q.dir === d.dir; })[0]; if (!p) { window.co.describe(d.dir).then(function (q) { projects.unshift(q); select(q); play(); }); } else { select(p); play(); } });
   window.co.recent().then(function (list) { projects = list; renderProjects(); if (list.length) select(list[0]); });
   $('open').addEventListener('click', function () { window.co.openDialog().then(function (p) { if (!p) return; projects = projects.filter(function (q) { return q.dir !== p.dir; }); projects.unshift(p); select(p); }); });
   $('new').addEventListener('click', function () { window.co.newDialog().then(function (p) { if (!p) return; projects.unshift(p); select(p); }); });

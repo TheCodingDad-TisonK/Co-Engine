@@ -22,7 +22,7 @@ app.setName('Co Engine'); app.setPath('userData', path.join(app.getPath('appData
 
 let win = null, srv = null; const gameWins = [];
 // --open=<dir> opens that game in the viewport at once; --shot=<file.png> then saves a picture of the window after --after=<ms> and quits (the editor's own smoke);
-// --demo=1 selects the first prop, frames it in the scene camera and opens the assets, so the picture shows the editor at work
+// --demo=1 selects the first prop, frames it in the scene camera and opens the assets, so the picture shows the editor at work; --ask=<text> sends that to the Claude panel once the game runs
 const ARG = (name) => { const a = process.argv.find((x) => x.startsWith('--' + name + '=')); return a ? a.slice(name.length + 3) : null; };
 const RECENT = () => path.join(app.getPath('userData'), 'recent.json');
 function readRecent() { try { return JSON.parse(fs.readFileSync(RECENT(), 'utf8')); } catch (e) { return []; } }
@@ -41,6 +41,18 @@ function describe(dir) {
   return out;
 }
 function send(ch, data) { if (win && !win.isDestroyed()) win.webContents.send(ch, data); }
+// the editor's actions for the MCP server (editor/mcp.js, over POST /editor): each is a round trip to the editor page, which answers through 'editor-reply'
+const pending = new Map(); let pendingSeq = 0;
+function askEditor(action, args) {
+  return new Promise((resolve, reject) => {
+    if (!win || win.isDestroyed()) { reject(new Error('the editor window is not open')); return; }
+    const id = ++pendingSeq, ms = action === 'test' ? 600000 : (action === 'build' || action === 'check' || action === 'play' || action === 'open_game' || action === 'reload') ? 180000 : 30000;
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error('the editor did not answer ' + action + ' in time')); }, ms);
+    pending.set(id, { resolve, reject, timer });
+    send('editor-act', { id, action, args: args || {} });
+  });
+}
+ipcMain.on('editor-reply', (e, m) => { const p = pending.get(m.id); if (!p) return; pending.delete(m.id); clearTimeout(p.timer); if (m.error) p.reject(new Error(m.error)); else p.resolve(m.result); });
 function log(text, kind) { send('log', { t: Date.now(), kind: kind || 'out', text }); }
 
 // the engine's own build, in process: no node on the path needed
@@ -88,6 +100,7 @@ function newGame(dir) {
   fs.copyFileSync(path.join(VENDOR_DIR, 'three', 'three.min.js'), path.join(dir, 'vendor', 'three', 'three.min.js'));
   fs.readdirSync(ENGINE_DIR).filter((n) => /^\d\d-.*\.js$/.test(n)).forEach((n) => fs.copyFileSync(path.join(ENGINE_DIR, n), path.join(dir, 'engine', n)));
   fs.writeFileSync(path.join(dir, 'engine', 'VERSION'), app.getVersion() + '\n');
+  try { fs.copyFileSync(mcpConfigPath(), path.join(dir, '.mcp.json')); } catch (e) {}   // Claude Code in that folder gets this editor as its MCP server
   const page = fs.readFileSync(path.join(SAMPLE_DIR, 'index.html'), 'utf8').replace('../../vendor/three/three.min.js', 'vendor/three/three.min.js').replace('game/sample.js', 'game/game.js').replace('<title>Co Engine sample</title>', '<title>' + name.replace(/[<>&]/g, '') + '</title>');
   fs.writeFileSync(path.join(dir, 'index.html'), page);
   fs.writeFileSync(path.join(dir, 'co.json'), JSON.stringify({ name, out: 'game/game.js', src: 'src', engine: 'engine' }, null, 2) + '\n');
@@ -113,6 +126,64 @@ ipcMain.handle('act', async (e, dir, what) => {
 ipcMain.handle('cmd', (e, name, arg) => { if (!srv) return false; srv.send(name, arg); return true; });
 const PKG_VERSION = (() => { try { return require('../package.json').version; } catch (e) { return app.getVersion(); } })();
 ipcMain.handle('info', () => ({ version: PACKED ? app.getVersion() : PKG_VERSION, port: PORT, packed: PACKED, engine: ENGINE_DIR, node: process.versions.node, electron: process.versions.electron }));
+// what Claude is told when the panel starts it in a game's folder
+const SYSTEM_PROMPT = (dir, name) => [
+  'You are working inside the Co Engine editor, on the game in this folder: ' + dir + ' ("' + name + '").',
+  'The editor runs the game in its viewport, and the co-editor MCP tools are your eyes and hands in it: status, scene_tree, inspect, set, select, frame, spawn, remove, camera, pause, step, command, assets, screenshot, console_log, build, check, test, play, reload, open_game. Call status first.',
+  'A game on Co Engine is one HTML page and one closure, built from the engine\'s parts (node_modules/co-engine/engine) and the game\'s own src/ parts; edit src/, never the built game file. After editing src/ call play, so the viewport runs the new code, and screenshot to look at the result. docs/ENGINE.md in the engine package is the contract a game writes against.',
+  'prop.* fields (x, z, rot, h, hidden) persist through the layout and the save; the other inspector fields edit the live object only, so a lasting change to a prop\'s look belongs in its definition in src/.',
+  'Keep answers short and concrete. Never put an em dash in anything that ships (the lint gate refuses it). Do not commit or push unless asked in so many words.'
+].join('\n');
+// Claude Code on this machine: the native exe first (an npm .cmd needs a shell), then whatever the PATH says
+function findClaude() {
+  const names = process.platform === 'win32' ? ['claude.exe', 'claude.cmd', 'claude'] : ['claude'];
+  const dirs = (process.env.PATH || '').split(path.delimiter).filter(Boolean);
+  dirs.push(path.join(app.getPath('home'), '.local', 'bin'), path.join(app.getPath('appData'), 'npm'), path.join(app.getPath('appData'), 'npm', 'node_modules', '@anthropic-ai', 'claude-code', 'bin'));
+  for (const n of names) for (const d of dirs) { const p = path.join(d, n); try { if (fs.statSync(p).isFile()) return p; } catch (e) {} }
+  return null;
+}
+// the MCP config the panel hands Claude: this editor as the server co-editor. From the repo node runs editor/mcp.js; packed, the exe runs a copy of it as node
+function mcpConfigPath() {
+  const dir = app.getPath('userData'); let script = path.join(__dirname, 'mcp.js'), command = 'node'; const env = { CO_DEV_PORT: String(PORT) };
+  if (PACKED) { script = path.join(dir, 'mcp.js'); try { fs.writeFileSync(script, fs.readFileSync(path.join(__dirname, 'mcp.js'))); } catch (e) {} command = process.execPath; env.ELECTRON_RUN_AS_NODE = '1'; }
+  const file = path.join(dir, 'mcp.json'); fs.writeFileSync(file, JSON.stringify({ mcpServers: { 'co-editor': { command, args: [script], env } } }, null, 2)); return file;
+}
+let claudeProc = null;
+// the child's environment: the port, and never the mark of a Claude Code session this editor may have been started from (a nested session refuses to run)
+function childEnv() { const env = Object.assign({}, process.env, { CO_DEV_PORT: String(PORT) }); delete env.CLAUDECODE; delete env.CLAUDE_CODE_ENTRYPOINT; return env; }
+ipcMain.handle('claude-where', () => findClaude());
+ipcMain.handle('mcp-config', () => mcpConfigPath());
+ipcMain.handle('claude-stop', () => { if (!claudeProc) return false; try { claudeProc.kill(); } catch (e) {} claudeProc = null; return true; });
+ipcMain.handle('claude-ask', (e, q) => {
+  const exe = findClaude(); if (!exe) return { error: 'Claude Code is not installed on this machine: npm install -g @anthropic-ai/claude-code (or the installer at claude.com/code), then press Send again.' };
+  if (claudeProc) return { error: 'Claude is still answering; press Stop first.' };
+  const dir = q.dir && fs.existsSync(q.dir) ? q.dir : app.getPath('home'), d = describe(dir);
+  const sys = path.join(app.getPath('userData'), 'claude-system.md'); fs.writeFileSync(sys, SYSTEM_PROMPT(dir, d.name));
+  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--mcp-config', mcpConfigPath(), '--append-system-prompt-file', sys, '--permission-mode', 'acceptEdits',
+    '--allowedTools', 'mcp__co-editor__*', 'Read', 'Edit', 'Write', 'MultiEdit', 'Glob', 'Grep', 'Bash(npm run:*)', 'Bash(npm test:*)', 'Bash(node tools/:*)', 'Bash(git status:*)', 'Bash(git diff:*)', 'Bash(git log:*)'];
+  if (q.session) args.push('--resume', q.session);
+  if (q.model) args.push('--model', q.model);
+  const useShell = /\.cmd$/i.test(exe), quote = (a) => (/[\s"]/.test(a) ? '"' + a.replace(/"/g, '\\"') + '"' : a);
+  let proc;
+  try { proc = spawn(useShell ? quote(exe) : exe, useShell ? args.map(quote) : args, { cwd: dir, shell: useShell, windowsHide: true, env: childEnv() }); }
+  catch (e2) { return { error: 'could not start ' + exe + ': ' + e2.message }; }
+  claudeProc = proc;
+  let buf = '', session = q.session || null;
+  const relay = (m) => {
+    if (m.session_id) session = m.session_id;
+    if (m.type === 'system' && m.subtype === 'init') { send('claude', { kind: 'init', session: m.session_id, model: m.model, mcp: (m.mcp_servers || []).map((s) => s.name + ': ' + s.status).join(', '), tools: (m.tools || []).filter((t) => /^mcp__co-editor__/.test(t)).length }); return; }
+    if (m.type === 'assistant' && m.message && Array.isArray(m.message.content)) { for (const c of m.message.content) { if (c.type === 'text' && c.text) send('claude', { kind: 'text', text: c.text }); else if (c.type === 'tool_use') send('claude', { kind: 'tool', name: c.name, input: c.input }); } return; }
+    if (m.type === 'user' && m.message && Array.isArray(m.message.content)) { for (const c of m.message.content) if (c.type === 'tool_result') send('claude', { kind: 'tool_result', error: !!c.is_error, text: typeof c.content === 'string' ? c.content : (Array.isArray(c.content) ? c.content.filter((x) => x.type === 'text').map((x) => x.text).join('\n') : '') }); return; }
+    if (m.type === 'result') { send('claude', { kind: 'result', ok: m.subtype === 'success', session: m.session_id, cost: m.total_cost_usd, turns: m.num_turns, ms: m.duration_ms, text: m.subtype === 'success' ? '' : (m.result || m.subtype || '') }); }
+  };
+  const line = (s) => { s = s.trim(); if (!s) return; let m; try { m = JSON.parse(s); } catch (e3) { send('claude', { kind: 'raw', text: s }); return; } relay(m); };
+  proc.stdout.on('data', (c) => { buf += c; let i; while ((i = buf.indexOf('\n')) >= 0) { line(buf.slice(0, i)); buf = buf.slice(i + 1); } });
+  proc.stderr.on('data', (c) => { const s = String(c).trim(); if (s) send('claude', { kind: 'err', text: s }); });
+  proc.on('error', (e4) => { send('claude', { kind: 'err', text: e4.message }); });
+  proc.on('close', (code) => { if (buf.trim()) line(buf); if (claudeProc === proc) claudeProc = null; send('claude', { kind: 'done', code, session }); });
+  proc.stdin.on('error', () => {}); proc.stdin.end(q.prompt);
+  return { ok: true, exe };
+});
 // the page the viewport loads: the game's page as a file url
 ipcMain.handle('page-url', (e, dir) => { const d = describe(dir); if (!d.page) return null; return 'file:///' + path.join(dir, d.page).split(path.sep).join('/'); });
 
@@ -124,16 +195,16 @@ function open() {
   win.loadFile(path.join(__dirname, 'index.html'));
   win.webContents.on('before-input-event', (event, input) => { if (input.type === 'keyDown' && input.control && input.shift && input.key.toLowerCase() === 'i') { win.webContents.toggleDevTools(); event.preventDefault(); } });
   win.on('closed', () => { win = null; });
-  const openDir = ARG('open'), shot = ARG('shot'), demo = !!ARG('demo');
-  if (openDir) win.webContents.on('did-finish-load', () => { remember(openDir); setTimeout(() => send('auto', { dir: openDir, demo }), 400); if (shot) setTimeout(async () => { try { const img = await win.webContents.capturePage(); fs.writeFileSync(shot, img.toPNG()); console.log('shot: ' + shot); } catch (e2) { console.error('shot failed: ' + e2.message); } app.quit(); }, +(ARG('after') || 9000)); });
+  const openDir = ARG('open'), shot = ARG('shot'), demo = !!ARG('demo'), ask = ARG('ask');
+  if (openDir) win.webContents.on('did-finish-load', () => { remember(openDir); setTimeout(() => send('auto', { dir: openDir, demo, ask }), 400); if (shot) setTimeout(async () => { try { const img = await win.webContents.capturePage(); fs.writeFileSync(shot, img.toPNG()); console.log('shot: ' + shot); } catch (e2) { console.error('shot failed: ' + e2.message); } app.quit(); }, +(ARG('after') || 9000)); });
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   app.whenReady().then(() => {
-    srv = createServer({ port: PORT });
+    srv = createServer({ port: PORT, editor: askEditor, version: PACKED ? app.getVersion() : PKG_VERSION });
     srv.listen((err) => { if (err) { console.error('co-engine: the port ' + PORT + ' is taken (' + err.message + '). Set CO_DEV_PORT to another one.'); } open(); setTimeout(() => log(err ? 'dev link: port ' + PORT + ' is taken, no game can link' : 'dev link listening on 127.0.0.1:' + PORT, err ? 'err' : 'ok'), 600); });
   });
-  app.on('window-all-closed', () => { if (srv) srv.close(); app.quit(); });
+  app.on('window-all-closed', () => { if (claudeProc) { try { claudeProc.kill(); } catch (e) {} } if (srv) srv.close(); app.quit(); });
 }

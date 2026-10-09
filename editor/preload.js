@@ -13,5 +13,14 @@ contextBridge.exposeInMainWorld('co', {
   pageUrl: (dir) => ipcRenderer.invoke('page-url', dir),
   onAuto: (fn) => { ipcRenderer.on('auto', (e, d) => fn(d)); },
   onLog: (fn) => { ipcRenderer.on('log', (e, row) => fn(row)); },
-  onGames: (fn) => { ipcRenderer.on('games', (e, d) => fn(d)); }
+  onGames: (fn) => { ipcRenderer.on('games', (e, d) => fn(d)); },
+  // the editor's actions, asked by the MCP server through the main process, answered by the page
+  onEditorAct: (fn) => { ipcRenderer.on('editor-act', (e, m) => fn(m)); },
+  editorReply: (id, result, error) => ipcRenderer.send('editor-reply', { id, result, error }),
+  // the Claude panel
+  claudeAsk: (q) => ipcRenderer.invoke('claude-ask', q),
+  claudeStop: () => ipcRenderer.invoke('claude-stop'),
+  claudeWhere: () => ipcRenderer.invoke('claude-where'),
+  mcpConfig: () => ipcRenderer.invoke('mcp-config'),
+  onClaude: (fn) => { ipcRenderer.on('claude', (e, m) => fn(m)); }
 });

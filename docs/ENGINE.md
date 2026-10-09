@@ -100,6 +100,7 @@ Since 0.1.5 the page carries `CO.editor` (`engine/60-editor.js`), published as `
 - `mode('scene' | 'game')` is the engine's photo camera on or off; `pause(v)` and `step()` drive `CO.paused` and `CO.stepOnce`; `enter()` starts the game from its menu (`GAME.editorEnter` when the game's own menu needs a click, else the engine's `enter`); `command(line)` runs a dev command; `assets()` lists the prop definitions, materials, textures, sounds, people presets and catalogue groups; `shot(q)` returns the viewport as a JPEG data URL; `sfx(name)` plays a sound.
 - In the viewport there is no pointer lock (a locked pointer in an embedded page brings Electron down): a left click picks and selects, and the look follows the mouse while the right button is held, in the scene camera and in the game alike. The game reports a selection with a `console.log('[co-editor] {...}')` line that the editor catches.
 - A game extends the tree and the inspector with `GAME.editorTree(eid)` (extra categories) and `GAME.editorInspect(obj)` (a `game` group of fields), and names its menu's start with `GAME.editorEnter()`.
+- The same bridge is what the editor's MCP server (`editor/mcp.js`) exposes to Claude Code, tool by tool (status, scene_tree, inspect, set, select, frame, spawn, remove, camera, pause, step, command, assets, screenshot, console_log, plus open_game, play, reload, build, check, test on the editor itself). A game folder's `.mcp.json` names it; the template carries one.
 
 ## 8. The test handle
 

@@ -3,6 +3,8 @@
 //   the game    GET  /events   a server-sent event stream; every command the editor sends arrives here as one JSON event
 //               POST /state    the readout of the save, once a second while linked
 //               POST /result   what a command did, by id
+//   the MCP     GET  /editor   whether an editor window answers, the version
+//   server      POST /editor   { action, args }: an editor action (editor/mcp.js sends these), answered { ok, result } or { ok: false, error }
 //   the editor  GET  /state    the last readout the game posted, with how long ago
 //               GET  /ui       a server-sent event stream of readouts, results and log rows, so the panels never poll
 //               POST /cmd      { name, arg }: queued to every linked game, answered with the command id
@@ -13,7 +15,7 @@ const http = require('http');
 function createServer(opts) {
   opts = opts || {};
   const port = opts.port || 8432, host = opts.host || '127.0.0.1';
-  const games = new Set(), uis = new Set();
+  const games = new Set(), uis = new Set(), editor = opts.editor || null;
   let state = null, stateAt = 0, seq = 0;
   const results = [], log = [];
   const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600' };
@@ -28,6 +30,8 @@ function createServer(opts) {
     if (req.method === 'OPTIONS') { res.writeHead(204, CORS); res.end(); return; }
     if (req.method === 'GET' && url === '/events') { sse(res, games); note('link', 'a game linked'); push(uis, 'games', { n: games.size }); res.on('close', () => { note('link', 'a game unlinked'); push(uis, 'games', { n: games.size }); }); return; }
     if (req.method === 'GET' && url === '/ui') { sse(res, uis); if (state) push(uis, 'state', { state, age: Date.now() - stateAt }); push(uis, 'games', { n: games.size }); return; }
+    if (req.method === 'GET' && url === '/editor') { json(res, 200, { ok: true, editor: !!editor, games: games.size, version: opts.version || null }); return; }
+    if (req.method === 'POST' && url === '/editor') { body(req, (err, b) => { if (err || !b || !b.action) { json(res, 400, { ok: false, error: 'an action needs a name' }); return; } if (!editor) { json(res, 503, { ok: false, error: 'the editor window is not open' }); return; } Promise.resolve().then(() => editor(String(b.action), b.args || {})).then((result) => json(res, 200, { ok: true, result: result === undefined ? null : result }), (e) => json(res, 200, { ok: false, error: (e && e.message) || String(e) })); }); return; }
     if (req.method === 'GET' && url === '/state') { json(res, 200, { state, age: state ? Date.now() - stateAt : null, games: games.size, results: results.slice(-20), log: log.slice(-50) }); return; }
     if (req.method === 'POST' && url === '/state') { body(req, (err, b) => { if (err) { json(res, 400, { error: 'bad json' }); return; } state = b; stateAt = Date.now(); push(uis, 'state', { state, age: 0 }); json(res, 200, { ok: true }); }); return; }
     if (req.method === 'POST' && url === '/result') { body(req, (err, b) => { if (err) { json(res, 400, { error: 'bad json' }); return; } results.push(b); if (results.length > 100) results.shift(); note('result', (b.name || '?') + ': ' + (b.result || '')); push(uis, 'result', b); json(res, 200, { ok: true }); }); return; }

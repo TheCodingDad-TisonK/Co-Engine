@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "co-editor": {
+      "command": "node",
+      "args": [
+        "editor/mcp.js"
+      ]
+    }
+  }
+}
