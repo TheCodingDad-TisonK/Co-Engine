@@ -32,9 +32,14 @@
   function removeHinge(obj) { var i = HINGES.findIndex(function (h) { return h.obj === obj; }); if (i >= 0) HINGES.splice(i, 1); if (obj.userData) delete obj.userData.hinge; return i >= 0; }
   function swing(obj, omega) { var H = obj.userData && obj.userData.hinge; if (!H) return false; H.omega += omega; return true; }
   function hingeStep(dt) { HINGES.forEach(function (H) { H.omega += (PHYS.g / H.length) * Math.sin(H.angle) * dt - H.omega * H.damping * dt; H.angle += H.omega * dt; var o = H.obj; if (H.axis === 'z') { o.position.set(H.pivot[0] + Math.sin(H.angle) * H.length, H.pivot[1] - Math.cos(H.angle) * H.length, H.pivot[2]); o.rotation.z = H.angle; } else { o.position.set(H.pivot[0], H.pivot[1] - Math.cos(H.angle) * H.length, H.pivot[2] + Math.sin(H.angle) * H.length); o.rotation.x = -H.angle; } }); }
+  // a spring: a body pulled towards an anchor point with stiffness k and damping, around a rest length; a punch bag, a hanging sign that bounces
+  var SPRINGS = [];
+  function spring(obj, opt) { opt = opt || {}; var B = bodyOf(obj) || body(obj, { mass: opt.mass || 1 }); unspring(obj); var S2 = { B: B, anchor: opt.anchor || [obj.position.x, obj.position.y + 1, obj.position.z], k: opt.k === undefined ? 20 : +opt.k, damping: opt.damping === undefined ? 2 : +opt.damping, rest: opt.rest || 0 }; SPRINGS.push(S2); wake(B); return S2; }
+  function unspring(obj) { var i = SPRINGS.findIndex(function (s) { return s.B.obj === obj; }); if (i >= 0) SPRINGS.splice(i, 1); return i >= 0; }
+  function springStep(dt) { SPRINGS.forEach(function (S2) { var B = S2.B, p = B.obj.position, dx = S2.anchor[0] - p.x, dy = S2.anchor[1] - p.y, dz = S2.anchor[2] - p.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6, f = S2.k * (len - S2.rest) / B.mass; B.vel.x += (dx / len * f - B.vel.x * S2.damping) * dt; B.vel.y += (dy / len * f - B.vel.y * S2.damping - PHYS.g * 0) * dt; B.vel.z += (dz / len * f - B.vel.z * S2.damping) * dt; wake(B); }); }
   function physicsStep(dt) {
     var bodies = PHYS.bodies, i, j, k;
-    hingeStep(dt);
+    hingeStep(dt); springStep(dt);
     for (i = 0; i < bodies.length; i++) {
       var B = bodies[i]; if (B.kinematic || B.asleep) continue; var p = B.obj.position;
       B.vel.y += PHYS.g * dt; p.x += B.vel.x * dt; p.y += B.vel.y * dt; p.z += B.vel.z * dt; B.onGround = false;
@@ -51,7 +56,7 @@
     // spheres roll: the mesh turns with the ground speed
     for (i = 0; i < bodies.length; i++) { var R = bodies[i]; if (R.shape !== 'sphere' || R.asleep) continue; var sp = Math.sqrt(R.vel.x * R.vel.x + R.vel.z * R.vel.z); if (sp > 0.01) { var ax = new THREE.Vector3(R.vel.z, 0, -R.vel.x).normalize(); R.obj.rotateOnWorldAxis(ax, sp * dt / Math.max(0.05, R.hx)); } }
     // sleep when still
-    for (i = 0; i < bodies.length; i++) { var D = bodies[i]; if (D.kinematic || D.asleep) continue; if (D.onGround && D.vel.lengthSq() < 0.0025) { D.still += dt; if (D.still > PHYS.sleepT) { D.asleep = true; D.vel.set(0, 0, 0); } } else D.still = 0; }
+    for (i = 0; i < bodies.length; i++) { var D = bodies[i]; if (D.kinematic || D.asleep || SPRINGS.some(function (s) { return s.B === D; })) continue; if (D.onGround && D.vel.lengthSq() < 0.0025) { D.still += dt; if (D.still > PHYS.sleepT) { D.asleep = true; D.vel.set(0, 0, 0); } } else D.still = 0; }
     PHYS.stepped++;
   }
   function physicsTick(dt) {
@@ -61,4 +66,4 @@
     PHYS.bodies.forEach(function (B) { if (B.obj.userData && B.obj.userData.dynamic === undefined) shadowDirty = true; });
   }
   animate(physicsTick);
-  function physicsState() { return { on: PHYS.on && !(CO.game && CO.game.physics === false), g: PHYS.g, hinges: HINGES.map(function (H) { return { id: H.obj.userData && (H.obj.userData.propId || H.obj.userData.eid) || H.obj.name || null, angle: rnd(H.angle), length: H.length, axis: H.axis }; }), bodies: PHYS.bodies.map(function (B) { return { id: B.id, mass: B.mass, asleep: B.asleep, onGround: B.onGround, x: rnd(B.obj.position.x), y: rnd(B.obj.position.y), z: rnd(B.obj.position.z), vy: rnd(B.vel.y) }; }), stepped: PHYS.stepped, solver: CO.physicsSolver ? 'plugged' : 'built in' }; }
+  function physicsState() { return { on: PHYS.on && !(CO.game && CO.game.physics === false), g: PHYS.g, springs: SPRINGS.length, hinges: HINGES.map(function (H) { return { id: H.obj.userData && (H.obj.userData.propId || H.obj.userData.eid) || H.obj.name || null, angle: rnd(H.angle), length: H.length, axis: H.axis }; }), bodies: PHYS.bodies.map(function (B) { return { id: B.id, mass: B.mass, asleep: B.asleep, onGround: B.onGround, x: rnd(B.obj.position.x), y: rnd(B.obj.position.y), z: rnd(B.obj.position.z), vy: rnd(B.vel.y) }; }), stepped: PHYS.stepped, solver: CO.physicsSolver ? 'plugged' : 'built in' }; }

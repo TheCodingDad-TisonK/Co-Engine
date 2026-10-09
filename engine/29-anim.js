@@ -25,6 +25,7 @@
     else if (p[0] === 'torso' && u.torso) { node = u.torso; i = 1; }
     else if (p[0] === 'head' && u.head) { node = u.head; i = 1; }
     if (!node) return null; var prop = p[i], axis = p[i + 1];
+    if (prop === 'material') { var mm = node.material || (function () { var f = null; node.traverse(function (o) { if (!f && o.isMesh && o.material && !o.material.userData.shared) f = o.material; }); return f; })(); if (!mm) return null; if (axis === 'color' || axis === 'emissive') { var ch = p[i + 2]; if (!mm[axis] || 'rgb'.indexOf(ch) < 0) return null; return { node: node, set: function (v) { mm[axis][ch] = v; }, get: function () { return mm[axis][ch]; } }; } if (typeof mm[axis] !== 'number') return null; return { node: node, set: function (v) { mm[axis] = v; if (axis === 'opacity') mm.transparent = v < 1; }, get: function () { return mm[axis]; } }; }
     if (prop === 'visible' || prop === 'intensity' || prop === 'opacity') return { node: node, set: function (v) { if (prop === 'opacity' && node.material) { node.material.opacity = v; node.material.transparent = v < 1; } else node[prop] = prop === 'visible' ? v >= 0.5 : v; }, get: function () { return prop === 'opacity' && node.material ? node.material.opacity : (prop === 'visible' ? (node.visible ? 1 : 0) : node[prop]); } };
     if (!node[prop] || axis === undefined) return null;
     return { node: node, set: function (v) { node[prop][axis] = v; }, get: function () { return node[prop][axis]; } };

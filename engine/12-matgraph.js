@@ -4,7 +4,8 @@
   // { base, amp }, metalness, bump: { amp, strength } or null, emissive, emissiveIntensity, glow, transparent, opacity }. The layers paint
   // one canvas from the bottom up; the same canvas is the colour map. A game's src/00-materials.js calls CO.material before the boot,
   // so a build function can say MAT.myBrick; the editor calls it again while running and every mesh on that material follows.
-  var MATGRAPH = {}, MATGRAPH_ORDER = [];
+  var MATGRAPH = {}, MATGRAPH_ORDER = [], MAT_TIME = { value: 0 };
+  animate(function (dt) { MAT_TIME.value += dt; });
   var MAT_LAYER_TYPES = ['fill', 'grain', 'blotches', 'cracks', 'noise', 'bricks', 'planks', 'tiles', 'stripes', 'checks', 'rings', 'speckle'];
   function matLayer(ctx, w, h, L, tag, k) {
     var t = L.type || 'fill', a = L.alpha === undefined ? 1 : +L.alpha, c1 = L.color || '#808080', c2 = L.color2 || '#404040', sz = L.size || 32, gap = L.gap === undefined ? 2 : +L.gap, n = L.n === undefined ? 200 : +L.n, i, j;
@@ -35,7 +36,10 @@
     if (m.map && m.map !== map) m.map.dispose(); if (m.roughnessMap && m.roughnessMap !== roughMap) m.roughnessMap.dispose(); if (m.normalMap && m.normalMap !== normalMap) m.normalMap.dispose();
     m.map = map; m.roughnessMap = roughMap; m.normalMap = normalMap; m.color.set(g.tint || '#ffffff'); m.roughness = rough ? 1 : (g.roughness === undefined ? 0.9 : +g.roughness); m.metalness = g.metalness || 0;
     m.emissive.set(g.emissive || '#000000'); m.emissiveIntensity = g.emissiveIntensity === undefined ? 1 : +g.emissiveIntensity; m.transparent = !!g.transparent || (g.opacity !== undefined && g.opacity < 1); m.opacity = g.opacity === undefined ? 1 : +g.opacity;
-    m.userData.glow = !!g.glow; m.userData.graph = true; m.name = name; m.needsUpdate = true;
+    m.userData.glow = !!g.glow; m.userData.graph = true; m.name = name;
+    // a GLSL snippet after the colour map: it may change diffuseColor, with vUv (when the material has a map) and uTime in seconds
+    if (g.glsl) { var src = String(g.glsl); m.onBeforeCompile = function (sh) { sh.uniforms.uTime = MAT_TIME; sh.fragmentShader = 'uniform float uTime;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' + src); }; m.customProgramCacheKey = function () { return 'co-glsl:' + name + ':' + src.length + ':' + src.slice(0, 64); }; } else { m.onBeforeCompile = function () {}; m.customProgramCacheKey = function () { return 'co'; }; }
+    m.needsUpdate = true;
     MAT[name] = m; if (!MATGRAPH[name]) MATGRAPH_ORDER.push(name); MATGRAPH[name] = g; return m;
   }
   CO.material = function (name, graph) { if (!name) return MATGRAPH; return matBuild(String(name), graph); };
