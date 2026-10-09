@@ -54,8 +54,9 @@
   }
   // ── Looking at things ─────────────────────────────────────────────
   function updateFocus() {
+    if (CO.game && CO.game.focusOff && CO.game.focusOff()) return;   // the game keeps its own focus (Grow Co): leave it alone; clearing it here wiped the shop's aim every frame, so E and clicks found nothing
     focus = null; focusText = '';
-    if (!ui.started || ui.blocked() || photo.on || (CO.game && CO.game.focusOff && CO.game.focusOff())) return;
+    if (!ui.started || ui.blocked() || photo.on) return;
     ray.setFromCamera(centre, camera);
     if (edit.on && !(CO.game && CO.game.editMode === false)) {
       if (edit.grabbed) { if (edit.snapText) { focus = { prompt: function () { return edit.snapText; }, use: function () {} }; focusText = edit.snapText; } return; }

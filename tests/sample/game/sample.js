@@ -5,7 +5,7 @@
   // The engine parts come first in the closure, the game's parts after. The engine declares the names both sides share
   // here, unassigned, and fills them when the game calls CO.setup (the renderer, the scene, the palette) and CO.boot (the
   // state, the shell, the frame loop). A game part may use any of them at its top level once CO.setup has run.
-  var CO = { version: '0.5.2', cfg: null, game: null, root: null, flash: 0, ready: false, paused: false, stepOnce: false, editor: null };
+  var CO = { version: '0.5.3', cfg: null, game: null, root: null, flash: 0, ready: false, paused: false, stepOnce: false, editor: null };
   var S, SET, SAVE, SETTINGS_KEY, BOOT_SLOT, BOOT_SAVE;               // 40-state fills these
   var canvas, renderer, scene, camera;                                 // 10-three fills these in CO.setup
   var player = null, focus = null, hudDirty = true;                    // 42-player owns player and focus; the HUD throttle flag is read everywhere
@@ -1886,8 +1886,9 @@
   }
   // ── Looking at things ─────────────────────────────────────────────
   function updateFocus() {
+    if (CO.game && CO.game.focusOff && CO.game.focusOff()) return;   // the game keeps its own focus (Grow Co): leave it alone; clearing it here wiped the shop's aim every frame, so E and clicks found nothing
     focus = null; focusText = '';
-    if (!ui.started || ui.blocked() || photo.on || (CO.game && CO.game.focusOff && CO.game.focusOff())) return;
+    if (!ui.started || ui.blocked() || photo.on) return;
     ray.setFromCamera(centre, camera);
     if (edit.on && !(CO.game && CO.game.editMode === false)) {
       if (edit.grabbed) { if (edit.snapText) { focus = { prompt: function () { return edit.snapText; }, use: function () {} }; focusText = edit.snapText; } return; }
