@@ -13,7 +13,7 @@
   // draws a .dc-crosshair itself), shown while the player plays and hidden behind a panel, the menu or the scene camera
   var crossEl = null, crossShown = null;
   function crosshair() {
-    if (crossEl === null) { crossEl = document.querySelector('.dc-crosshair') ? false : null; if (crossEl === null) { var host = $('dc-hud') || document.body, d = document.createElement('div'); d.id = 'h-cross'; d.style.cssText = 'position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,0.9);box-shadow:0 0 0 1.5px rgba(0,0,0,0.6),0 0 6px rgba(0,0,0,0.5);pointer-events:none;z-index:5'; host.appendChild(d); crossEl = d; } }
+    if (crossEl === null) { crossEl = document.querySelector('[class*="crosshair"], #crosshair') ? false : null;   /* Depot's .dc-crosshair, Grow's .g3-crosshair: a page with its own keeps it */ if (crossEl === null) { var host = $('dc-hud') || document.body, d = document.createElement('div'); d.id = 'h-cross'; d.style.cssText = 'position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,0.9);box-shadow:0 0 0 1.5px rgba(0,0,0,0.6),0 0 6px rgba(0,0,0,0.5);pointer-events:none;z-index:5'; host.appendChild(d); crossEl = d; } }
     if (!crossEl) return; var want = !!(ui.started && !ui.blocked() && !(photo.on && CO.game.photo !== false) && !(CO.game && CO.game.crosshair === false)); if (want !== crossShown) { crossShown = want; crossEl.style.display = want ? '' : 'none'; }
   }
   function updateHud(dt) {
