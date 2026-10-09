@@ -5,7 +5,7 @@
   // The engine parts come first in the closure, the game's parts after. The engine declares the names both sides share
   // here, unassigned, and fills them when the game calls CO.setup (the renderer, the scene, the palette) and CO.boot (the
   // state, the shell, the frame loop). A game part may use any of them at its top level once CO.setup has run.
-  var CO = { version: '0.4.1', cfg: null, game: null, root: null, flash: 0, ready: false, paused: false, stepOnce: false, editor: null };
+  var CO = { version: '0.4.2', cfg: null, game: null, root: null, flash: 0, ready: false, paused: false, stepOnce: false, editor: null };
   var S, SET, SAVE, SETTINGS_KEY, BOOT_SLOT, BOOT_SAVE;               // 40-state fills these
   var canvas, renderer, scene, camera;                                 // 10-three fills these in CO.setup
   var player = null, focus = null, hudDirty = true;                    // 42-player owns player and focus; the HUD throttle flag is read everywhere
@@ -1676,7 +1676,15 @@
   // ── HUD ───────────────────────────────────────────────────────────
   // the HUD redraws when something set hudDirty, or every quarter second; the game fills its own fields in CO.game.hud() and the 'hud' hooks
   var hudT = 0;
+  // the aiming point: a dot with a dark ring in the middle of the view, made by the engine when the page has none of its own (Depot Co
+  // draws a .dc-crosshair itself), shown while the player plays and hidden behind a panel, the menu or the scene camera
+  var crossEl = null, crossShown = null;
+  function crosshair() {
+    if (crossEl === null) { crossEl = document.querySelector('.dc-crosshair') ? false : null; if (crossEl === null) { var host = $('dc-hud') || document.body, d = document.createElement('div'); d.id = 'h-cross'; d.style.cssText = 'position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,0.9);box-shadow:0 0 0 1.5px rgba(0,0,0,0.6),0 0 6px rgba(0,0,0,0.5);pointer-events:none;z-index:5'; host.appendChild(d); crossEl = d; } }
+    if (!crossEl) return; var want = !!(ui.started && !ui.blocked() && !(photo.on && CO.game.photo !== false) && !(CO.game && CO.game.crosshair === false)); if (want !== crossShown) { crossShown = want; crossEl.style.display = want ? '' : 'none'; }
+  }
   function updateHud(dt) {
+    crosshair();
     hudT += dt; if (!hudDirty && hudT < 0.25) return; hudT = 0; hudDirty = false;
     if (S && !(CO.game && CO.game.hudFields === false)) { var d = $('h-day'); if (d && S.day !== undefined) d.textContent = 'Day ' + S.day + (isSunday() ? ' · Sunday' : ''); var c = $('h-clock'); if (c && S.time !== undefined) c.textContent = fmtTime(S.time); var b = $('h-cash'); if (b && S.bank !== undefined) { b.textContent = money(S.bank); b.style.color = S.bank < 0 ? 'var(--red)' : ''; } }
     if (CO.game && CO.game.hud) CO.game.hud(); uiHudFill(); runHooks('hud');

@@ -7,6 +7,7 @@ module.exports = `
   ok(T.ui.started === false && !document.getElementById('dc-start').hidden, 'the start screen is up before enter');
   ok(/A new room/.test(document.getElementById('dc-start-stats').textContent) && /Slot 1/.test(document.getElementById('dc-start-note').textContent), 'the start screen chips and note come from the game and the engine');
   T.enter(); ok(T.ui.started === true && document.getElementById('dc-start').hidden && !document.getElementById('dc-hud').hidden, 'enter hides the start screen and shows the HUD');
+  T.updateHud(1); { const cr = document.getElementById('h-cross'); ok(!!cr && cr.style.display !== 'none', 'the engine draws an aiming point once the player plays (0.4.2)'); T.openPanel('info'); T.updateHud(1); ok(cr.style.display === 'none', 'and hides it behind a panel'); T.closePanel(); T.updateHud(1); ok(cr.style.display !== 'none', 'and shows it again'); }
   await wait(500);
   ok(T.counts().draws > 0 && T.counts().baked >= 2, 'frames draw with the bake in: ' + JSON.stringify(T.counts()));
   // state, settings and the HUD
