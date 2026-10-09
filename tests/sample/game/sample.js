@@ -5,7 +5,7 @@
   // The engine parts come first in the closure, the game's parts after. The engine declares the names both sides share
   // here, unassigned, and fills them when the game calls CO.setup (the renderer, the scene, the palette) and CO.boot (the
   // state, the shell, the frame loop). A game part may use any of them at its top level once CO.setup has run.
-  var CO = { version: '0.1.9', cfg: null, game: null, root: null, flash: 0, ready: false, paused: false, stepOnce: false, editor: null };
+  var CO = { version: '0.2.0', cfg: null, game: null, root: null, flash: 0, ready: false, paused: false, stepOnce: false, editor: null };
   var S, SET, SAVE, SETTINGS_KEY, BOOT_SLOT, BOOT_SAVE;               // 40-state fills these
   var canvas, renderer, scene, camera;                                 // 10-three fills these in CO.setup
   var player = null, focus = null, hudDirty = true;                    // 42-player owns player and focus; the HUD throttle flag is read everywhere
@@ -495,6 +495,65 @@
   // calls unbakeStatic, changes, then bakeStatic again.
   function unbakeStatic() { baked.meshes.forEach(function (m) { scene.remove(m); m.geometry.dispose(); }); baked.meshes = []; baked.draws = 0; baked.hidden = 0; scene.traverse(function (o) { if (o.userData.bakedAway) { o.visible = true; o.userData.bakedAway = false; } }); }
   function rebake() { unbakeStatic(); bakeStatic(); }
+  // ── Materials from a layer graph ───────────────────────────────────
+  // A graph: { size, repeat: [rx, ry], layers: [{ type, color, color2, alpha, blend, n, size, gap, angle, dark }], roughness: 0.9 or
+  // { base, amp }, metalness, bump: { amp, strength } or null, emissive, emissiveIntensity, glow, transparent, opacity }. The layers paint
+  // one canvas from the bottom up; the same canvas is the colour map. A game's src/00-materials.js calls CO.material before the boot,
+  // so a build function can say MAT.myBrick; the editor calls it again while running and every mesh on that material follows.
+  var MATGRAPH = {}, MATGRAPH_ORDER = [];
+  var MAT_LAYER_TYPES = ['fill', 'grain', 'blotches', 'cracks', 'noise', 'bricks', 'planks', 'tiles', 'stripes', 'checks', 'rings', 'speckle'];
+  function matLayer(ctx, w, h, L, tag, k) {
+    var t = L.type || 'fill', a = L.alpha === undefined ? 1 : +L.alpha, c1 = L.color || '#808080', c2 = L.color2 || '#404040', sz = L.size || 32, gap = L.gap === undefined ? 2 : +L.gap, n = L.n === undefined ? 200 : +L.n, i, j;
+    ctx.save(); ctx.globalAlpha = a; ctx.globalCompositeOperation = L.blend || 'source-over';
+    var rnd1 = function (q, lo, hi) { return seededF(tag + ':' + k, q, lo, hi); };
+    if (t === 'fill') { ctx.fillStyle = c1; ctx.fillRect(0, 0, w, h); }
+    else if (t === 'grain') { for (i = 0; i < n; i++) { var v = Math.floor(rnd1(i, 0, 255)); ctx.fillStyle = L.dark ? 'rgba(0,0,0,' + rnd1(i + 7, 0.05, 0.3) + ')' : 'rgb(' + v + ',' + v + ',' + v + ')'; ctx.globalAlpha = a * (L.dark ? 1 : 0.18); ctx.fillRect(rnd1(i + 1, 0, w), rnd1(i + 2, 0, h), rnd1(i + 3, 1, 3), rnd1(i + 4, 1, 3)); } }
+    else if (t === 'blotches') { for (i = 0; i < n; i++) { var r = rnd1(i, sz * 0.2, sz), x = rnd1(i + 1, 0, w), y = rnd1(i + 2, 0, h), g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, L.dark ? 'rgba(0,0,0,' + a * 0.35 + ')' : c1); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.globalAlpha = L.dark ? 1 : a * 0.5; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); } }
+    else if (t === 'cracks') { ctx.strokeStyle = c1; ctx.lineWidth = L.width || 1; for (i = 0; i < Math.min(n, 60); i++) { ctx.beginPath(); var cx = rnd1(i, 0, w), cy = rnd1(i + 1, 0, h); ctx.moveTo(cx, cy); for (j = 0; j < 6; j++) { cx += rnd1(i * 10 + j, -sz / 2, sz / 2); cy += rnd1(i * 10 + j + 5, -sz / 2, sz / 2); ctx.lineTo(cx, cy); } ctx.stroke(); } }
+    else if (t === 'noise') { var amp = L.amp === undefined ? 40 : +L.amp; for (i = 0; i < n; i++) { var nv = Math.floor(128 + rnd1(i, -0.5, 0.5) * amp); ctx.fillStyle = 'rgb(' + nv + ',' + nv + ',' + nv + ')'; ctx.fillRect(rnd1(i + 1, 0, w), rnd1(i + 2, 0, h), rnd1(i + 3, 2, sz / 4), rnd1(i + 4, 2, sz / 4)); } }
+    else if (t === 'bricks') { var bw = L.size || 48, bh = L.size2 || 20; ctx.fillStyle = c2; ctx.fillRect(0, 0, w, h); for (j = 0; j * bh < h; j++) for (i = -1; i * bw < w + bw; i++) { var off = (j % 2) * bw / 2, bx = i * bw + off, by = j * bh; ctx.fillStyle = L.vary ? mixHex(c1, c2, rnd1(i * 97 + j, 0, 0.18)) : c1; ctx.fillRect(bx + gap / 2, by + gap / 2, bw - gap, bh - gap); } }
+    else if (t === 'planks') { var pw = L.size || 40; ctx.fillStyle = c2; ctx.fillRect(0, 0, w, h); for (i = 0; i * pw < w; i++) { ctx.fillStyle = mixHex(c1, c2, rnd1(i, 0, 0.15)); ctx.fillRect(i * pw + gap / 2, 0, pw - gap, h); for (j = 0; j < 30; j++) { ctx.fillStyle = 'rgba(0,0,0,' + rnd1(i * 50 + j, 0.03, 0.12) + ')'; ctx.fillRect(i * pw + rnd1(i * 50 + j + 1, 2, pw - 4), rnd1(i * 50 + j + 2, 0, h), 1, rnd1(i * 50 + j + 3, 8, 60)); } } }
+    else if (t === 'tiles') { ctx.fillStyle = c2; ctx.fillRect(0, 0, w, h); for (j = 0; j * sz < h; j++) for (i = 0; i * sz < w; i++) { ctx.fillStyle = L.vary ? mixHex(c1, c2, rnd1(i * 131 + j, 0, 0.12)) : c1; ctx.fillRect(i * sz + gap / 2, j * sz + gap / 2, sz - gap, sz - gap); } }
+    else if (t === 'stripes') { var ang = (L.angle || 0) * Math.PI / 180, sw = L.size || 16; ctx.translate(w / 2, h / 2); ctx.rotate(ang); ctx.translate(-w, -h); for (i = 0; i * sw < w * 3; i++) { ctx.fillStyle = i % 2 ? c2 : c1; ctx.fillRect(i * sw, 0, sw, h * 3); } }
+    else if (t === 'checks') { for (j = 0; j * sz < h; j++) for (i = 0; i * sz < w; i++) { ctx.fillStyle = (i + j) % 2 ? c2 : c1; ctx.fillRect(i * sz, j * sz, sz, sz); } }
+    else if (t === 'rings') { var rc = L.n === undefined ? 12 : n; for (i = rc; i >= 1; i--) { ctx.fillStyle = i % 2 ? c1 : c2; ctx.beginPath(); ctx.arc(w / 2, h / 2, (i / rc) * Math.max(w, h) * 0.72, 0, Math.PI * 2); ctx.fill(); } }
+    else if (t === 'speckle') { for (i = 0; i < n; i++) { ctx.fillStyle = i % 3 ? c1 : c2; ctx.beginPath(); ctx.arc(rnd1(i, 0, w), rnd1(i + 1, 0, h), rnd1(i + 2, 0.5, sz / 8), 0, Math.PI * 2); ctx.fill(); } }
+    ctx.restore();
+  }
+  function matCanvas(name, g) { var sz = g.size || 256, c = document.createElement('canvas'); c.width = sz; c.height = sz; var ctx = c.getContext('2d'); ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, sz, sz); (g.layers || []).forEach(function (L, k) { if (L && L.on !== false) matLayer(ctx, sz, sz, L, name, k); }); return c; }
+  function matBuild(name, g) {
+    g = JSON.parse(JSON.stringify(g || {})); if (!g.layers) g.layers = [{ type: 'fill', color: g.color || '#8a8f96' }];
+    var sz = g.size || 256, rep = g.repeat || [1, 1], canvas = matCanvas(name, g), map = new THREE.CanvasTexture(canvas);
+    map.wrapS = map.wrapT = THREE.RepeatWrapping; map.repeat.set(rep[0], rep[1]); map.encoding = THREE.sRGBEncoding; map.anisotropy = 8;
+    var rough = typeof g.roughness === 'object' && g.roughness ? g.roughness : null, roughMap = rough ? roughTex(sz, sz, rough.base === undefined ? 0.8 : rough.base, rough.amp === undefined ? 0.2 : rough.amp, rep[0], rep[1]) : null;
+    var normalMap = g.bump ? normalTex(sz, sz, function (c, w, h) { heightNoise(c, w, h, '#808080', g.bump.n || 1500, g.bump.amp || 40); }, g.bump.strength || 1, rep[0], rep[1]) : null;
+    var m = MAT[name] && MAT[name].isMeshStandardMaterial ? MAT[name] : new THREE.MeshStandardMaterial();
+    if (m.map && m.map !== map) m.map.dispose(); if (m.roughnessMap && m.roughnessMap !== roughMap) m.roughnessMap.dispose(); if (m.normalMap && m.normalMap !== normalMap) m.normalMap.dispose();
+    m.map = map; m.roughnessMap = roughMap; m.normalMap = normalMap; m.color.set(g.tint || '#ffffff'); m.roughness = rough ? 1 : (g.roughness === undefined ? 0.9 : +g.roughness); m.metalness = g.metalness || 0;
+    m.emissive.set(g.emissive || '#000000'); m.emissiveIntensity = g.emissiveIntensity === undefined ? 1 : +g.emissiveIntensity; m.transparent = !!g.transparent || (g.opacity !== undefined && g.opacity < 1); m.opacity = g.opacity === undefined ? 1 : +g.opacity;
+    m.userData.glow = !!g.glow; m.userData.graph = true; m.name = name; m.needsUpdate = true;
+    MAT[name] = m; if (!MATGRAPH[name]) MATGRAPH_ORDER.push(name); MATGRAPH[name] = g; return m;
+  }
+  CO.material = function (name, graph) { if (!name) return MATGRAPH; return matBuild(String(name), graph); };
+  function matRemove(name) { if (!MATGRAPH[name]) return false; delete MATGRAPH[name]; MATGRAPH_ORDER.splice(MATGRAPH_ORDER.indexOf(name), 1); return true; }
+  function matGraphs() { return { order: MATGRAPH_ORDER.slice(), graphs: JSON.parse(JSON.stringify(MATGRAPH)), types: MAT_LAYER_TYPES.slice(), blends: ['source-over', 'multiply', 'overlay', 'screen', 'soft-light', 'darken', 'lighten'], builtin: Object.keys(MAT).filter(function (k) { return !MATGRAPH[k]; }) }; }
+  // a picture of one material on a sphere and a cube, rendered off screen with the page's own renderer
+  var matPreview = null;
+  function matShot(name, size) {
+    var m = MAT[name]; if (!m || !renderer) return null; size = size || 160;
+    if (!matPreview) { var sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(32, 1, 0.1, 20); cam.position.set(0, 1.1, 4.2); cam.lookAt(0, 0.1, 0); sc.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3328, 0.9)); var sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(2.5, 4, 3); sc.add(sun); var sph = new THREE.Mesh(new THREE.SphereGeometry(0.75, 48, 32), m), cube = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 1.1), m); sph.position.x = -0.95; cube.position.x = 0.95; cube.rotation.y = 0.6; cube.rotation.x = 0.2; sc.add(sph); sc.add(cube); matPreview = { scene: sc, cam: cam, sph: sph, cube: cube, rt: new THREE.WebGLRenderTarget(size, size), size: size, canvas: document.createElement('canvas') }; matPreview.canvas.width = size; matPreview.canvas.height = size; }
+    var P = matPreview; P.sph.material = m; P.cube.material = m; P.scene.background = new THREE.Color(0x0e141b);
+    var was = renderer.getRenderTarget(); renderer.setRenderTarget(P.rt); renderer.render(P.scene, P.cam); var px = new Uint8Array(size * size * 4); renderer.readRenderTargetPixels(P.rt, 0, 0, size, size, px); renderer.setRenderTarget(was);
+    var ctx = P.canvas.getContext('2d'), img = ctx.createImageData(size, size), row = size * 4, y; for (y = 0; y < size; y++) img.data.set(px.subarray(y * row, y * row + row), (size - 1 - y) * row); ctx.putImageData(img, 0, 0);
+    return P.canvas.toDataURL('image/png');
+  }
+  // the part the editor writes
+  function matGraphCode() {
+    if (!MATGRAPH_ORDER.length) return '';
+    var lines = ['//@ the materials the editor saved: each one a layer graph the engine paints into a texture at load. Written by the Co Engine editor; it sorts first in src/ so every build function can say MAT.<name>. Edit them in the editor rather than here.'];
+    MATGRAPH_ORDER.forEach(function (n) { lines.push('  CO.material(' + JSON.stringify(n) + ', ' + JSON.stringify(MATGRAPH[n]) + ');'); });
+    lines.push(''); return lines.join('\n');
+  }
   // ── The prop system ───────────────────────────────────────────────
   // A prop is built by defProp(id, { label, x, z, rot, cat, wall, fixed, extra, price, ico, desc, when(), snap(), build(ctx, P, inst), after }).
   // Its placement is the default from the definition unless S.layout[id] overrides it ({ x, z, rot, h, hidden }). Bought extras
@@ -562,7 +621,7 @@
     runHooks('propRemoved', id, inst);
     delete propInst[id]; NAV.dirty = true;
   }
-  function propGroundY(x, z) { return CO.game && CO.game.groundY ? CO.game.groundY(x, z) : 0; }
+  function propGroundY(x, z) { var g = CO.game && CO.game.groundY ? CO.game.groundY(x, z) : 0; return TERRAIN.on ? Math.max(g, terrainY(x, z)) : g; }
   function buildProp(id) {
     removePropInst(id);
     var def = propDef(id); if (!def) return null; if (!propAllowed(id)) return null;
@@ -683,7 +742,7 @@
   // the catalogue's data: removed props to bring back, and extras to buy, grouped by category (the game draws it)
   function catalogueData() {
     var hidden = PROP_ORDER.filter(function (id) { return !PROPS[id].extra && propPlacement(id).hidden; }).concat(LAYOUT.placed.filter(function (p) { return !PROPS[p.id] && propPlacement(p.id).hidden; }).map(function (p) { return p.id; })), groups = {};
-    PROP_ORDER.forEach(function (id) { var d = PROPS[id]; if (!d.extra) return; (groups[d.cat || 'other'] = groups[d.cat || 'other'] || []).push(id); });
+    PROP_ORDER.forEach(function (id) { var d = PROPS[id]; if (!d.extra || d.shop === false) return; (groups[d.cat || 'other'] = groups[d.cat || 'other'] || []).push(id); });
     return { hidden: hidden, groups: groups };
   }
   // ── Touch screens: a canvas drawn in the world, tapped where the crosshair points ─
@@ -938,10 +997,118 @@
   // a walker record on the grid: { x, z, yaw, path, speed } moved along its route; returns true at the end of it
   function walkerStep(rec, dt) { if (!rec.path || !rec.path.length) return true; return walkAlong(rec, rec.path, rec.speed || 1.6, dt); }
   function walkerGo(rec, x, z) { rec.path = route({ x: rec.x, z: rec.z }, { x: x, z: z }); return rec.path; }
+  // ── The terrain ───────────────────────────────────────────────────
+  // CO.terrain({ w, d, cell, x0, z0, heights, paint, palette, maxH }) stores the data (a game's src/00-terrain.js calls it before the
+  // boot); terrainBuild() makes the mesh when the world builds. heights has (w + 1) * (d + 1) corners, row by row from z0; paint has
+  // w * d cells, each an index into palette. The flat world outside the terrain stays at 0.
+  var TERRAIN = { on: false, w: 0, d: 0, cell: 1, x0: 0, z0: 0, heights: null, paint: null, palette: ['grass', 'dirt', 'gravel', 'sand', 'road'], maxH: 8, mesh: null, geo: null, canvas: null, ctx: null, texture: null, px: 16 };
+  // the painters for the ground: a base colour and a scatter of dots, per name; a game adds its own with CO.terrainPaint(name, spec)
+  var TERRAIN_PAINT = {
+    grass: { base: '#4d7a39', dots: ['#5b8c45', '#3f682e', '#6a9a4f'], n: 26, r: [1, 2.6] },
+    dirt: { base: '#6b5239', dots: ['#7a5f44', '#5a432e', '#86684b'], n: 22, r: [1, 3] },
+    gravel: { base: '#7b7d80', dots: ['#8f9195', '#65676b', '#a3a5a8'], n: 40, r: [0.8, 2] },
+    sand: { base: '#c9b07a', dots: ['#d6bf8c', '#b89d6a', '#e0cb9c'], n: 18, r: [1, 2.4] },
+    road: { base: '#3b3e43', dots: ['#45484d', '#33363a', '#505358'], n: 30, r: [0.6, 1.6] },
+    snow: { base: '#e6ecf1', dots: ['#f3f6f9', '#d5dde4'], n: 10, r: [1, 3] },
+    water: { base: '#2f6f9a', dots: ['#3a7fae', '#28618a'], n: 14, r: [1.5, 3.5] }
+  };
+  CO.terrainPaint = function (name, spec) { TERRAIN_PAINT[name] = spec; return spec; };
+  CO.terrain = function (cfg) {
+    if (!cfg) return TERRAIN;
+    var w = Math.max(1, Math.round(cfg.w || 32)), d = Math.max(1, Math.round(cfg.d || 32));
+    TERRAIN.on = true; TERRAIN.w = w; TERRAIN.d = d; TERRAIN.cell = cfg.cell || 1; TERRAIN.x0 = typeof cfg.x0 === 'number' ? cfg.x0 : -w * TERRAIN.cell / 2; TERRAIN.z0 = typeof cfg.z0 === 'number' ? cfg.z0 : -d * TERRAIN.cell / 2;
+    if (cfg.palette) TERRAIN.palette = cfg.palette.slice(); if (cfg.maxH) TERRAIN.maxH = cfg.maxH;
+    var nC = (w + 1) * (d + 1), nP = w * d; TERRAIN.heights = new Float32Array(nC); TERRAIN.paint = new Uint8Array(nP);
+    if (cfg.heights) for (var i = 0; i < nC && i < cfg.heights.length; i++) TERRAIN.heights[i] = +cfg.heights[i] || 0;
+    if (cfg.paint) for (var j = 0; j < nP && j < cfg.paint.length; j++) TERRAIN.paint[j] = cfg.paint[j] | 0;
+    if (TERRAIN.mesh) terrainRebuild();   // called again while running (the editor makes a new one): the mesh follows
+    return TERRAIN;
+  };
+  // the ground height at a world point: bilinear between the four corners of the cell; 0 off the terrain
+  function terrainY(x, z) {
+    var T = TERRAIN; if (!T.on) return 0;
+    var u = (x - T.x0) / T.cell, v = (z - T.z0) / T.cell; if (u < 0 || v < 0 || u > T.w || v > T.d) return 0;
+    var i = Math.min(T.w - 1, Math.floor(u)), j = Math.min(T.d - 1, Math.floor(v)), fu = u - i, fv = v - j, W = T.w + 1, H = T.heights;
+    var h00 = H[j * W + i], h10 = H[j * W + i + 1], h01 = H[(j + 1) * W + i], h11 = H[(j + 1) * W + i + 1];
+    return (h00 * (1 - fu) + h10 * fu) * (1 - fv) + (h01 * (1 - fu) + h11 * fu) * fv;
+  }
+  function terrainPaintAt(x, z) { var T = TERRAIN; if (!T.on) return null; var i = Math.floor((x - T.x0) / T.cell), j = Math.floor((z - T.z0) / T.cell); if (i < 0 || j < 0 || i >= T.w || j >= T.d) return null; return T.palette[T.paint[j * T.w + i]] || null; }
+  function terrainPaintCell(i, j) {
+    var T = TERRAIN, spec = TERRAIN_PAINT[T.palette[T.paint[j * T.w + i]]] || TERRAIN_PAINT.dirt, c = T.ctx, px = T.px, x = i * px, y = j * px, k;
+    c.fillStyle = spec.base; c.fillRect(x, y, px, px);
+    for (k = 0; k < spec.n; k++) { var r = seededF('t' + i + ',' + j, k, spec.r[0], spec.r[1]) * px / 16; c.fillStyle = spec.dots[seededI('tc' + i + ',' + j, k, 0, spec.dots.length - 1)]; c.beginPath(); c.arc(x + seededF('tx' + i + ',' + j, k, 0, px), y + seededF('tz' + i + ',' + j, k, 0, px), r, 0, Math.PI * 2); c.fill(); }
+  }
+  function terrainBuild() {
+    var T = TERRAIN; if (!T.on || T.mesh) return T.mesh;
+    var W = T.w + 1, D = T.d + 1, pos = new Float32Array(W * D * 3), uv = new Float32Array(W * D * 2), idx = [], i, j;
+    for (j = 0; j < D; j++) for (i = 0; i < W; i++) { var k = j * W + i; pos[k * 3] = T.x0 + i * T.cell; pos[k * 3 + 1] = T.heights[k]; pos[k * 3 + 2] = T.z0 + j * T.cell; uv[k * 2] = i / T.w; uv[k * 2 + 1] = 1 - j / T.d; }
+    for (j = 0; j < T.d; j++) for (i = 0; i < T.w; i++) { var a = j * W + i, b = a + 1, c2 = a + W, d2 = c2 + 1; idx.push(a, c2, b, b, c2, d2); }
+    var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    T.canvas = document.createElement('canvas'); T.canvas.width = T.w * T.px; T.canvas.height = T.d * T.px; T.ctx = T.canvas.getContext('2d');
+    for (j = 0; j < T.d; j++) for (i = 0; i < T.w; i++) terrainPaintCell(i, j);
+    T.texture = new THREE.CanvasTexture(T.canvas); T.texture.encoding = THREE.sRGBEncoding; T.texture.anisotropy = 8;
+    var mat = new THREE.MeshStandardMaterial({ map: T.texture, roughness: 0.96, metalness: 0 }); mat.userData.noBake = true;
+    T.geo = geo; T.mesh = new THREE.Mesh(geo, mat); T.mesh.name = 'terrain'; T.mesh.receiveShadow = true; T.mesh.userData.noBake = true; T.mesh.userData.terrain = true;
+    (CO.root || scene).add(T.mesh); shadowDirty = true; return T.mesh;
+  }
+  function terrainRebuild() { var T = TERRAIN; if (T.mesh) { if (T.mesh.parent) T.mesh.parent.remove(T.mesh); T.geo.dispose(); T.mesh.material.dispose(); T.texture.dispose(); T.mesh = null; } terrainBuild(); NAV.dirty = true; }
+  // the corners in a rectangle moved: the mesh follows, the normals and the shadows too; the cells in it are painted again
+  function terrainUpdate(i0, j0, i1, j1) {
+    var T = TERRAIN; if (!T.mesh) return; var W = T.w + 1, p = T.geo.attributes.position.array, i, j;
+    for (j = Math.max(0, j0); j <= Math.min(T.d, j1); j++) for (i = Math.max(0, i0); i <= Math.min(T.w, i1); i++) p[(j * W + i) * 3 + 1] = T.heights[j * W + i];
+    T.geo.attributes.position.needsUpdate = true; T.geo.computeVertexNormals(); T.geo.computeBoundingSphere();
+    for (j = Math.max(0, j0); j < Math.min(T.d, j1 + 1); j++) for (i = Math.max(0, i0); i < Math.min(T.w, i1 + 1); i++) terrainPaintCell(i, j);
+    T.texture.needsUpdate = true; shadowDirty = true; NAV.dirty = true;
+  }
+  // a brush at a world point: raise, lower, smooth or flatten the corners within the radius (a soft falloff), or paint the cells
+  function terrainBrush(x, z, mode, radius, strength, texIndex) {
+    var T = TERRAIN; if (!T.on) return { changed: 0, error: 'no terrain: make one first' };
+    radius = Math.max(0.3, +radius || 2); strength = Math.max(0, +strength || 0.5); var W = T.w + 1, H = T.heights, n = 0;
+    var ci = (x - T.x0) / T.cell, cj = (z - T.z0) / T.cell, rc = radius / T.cell, i0 = Math.floor(ci - rc), i1 = Math.ceil(ci + rc), j0 = Math.floor(cj - rc), j1 = Math.ceil(cj + rc), i, j;
+    if (mode === 'paint') {
+      var tex = Math.max(0, Math.min(T.palette.length - 1, texIndex | 0));
+      for (j = Math.max(0, j0); j < Math.min(T.d, j1 + 1); j++) for (i = Math.max(0, i0); i < Math.min(T.w, i1 + 1); i++) { var dx = (i + 0.5) - ci, dz = (j + 0.5) - cj; if (dx * dx + dz * dz <= rc * rc && T.paint[j * T.w + i] !== tex) { T.paint[j * T.w + i] = tex; n++; } }
+      if (n) terrainUpdate(i0, j0, i1, j1); return { changed: n };
+    }
+    var centre = terrainY(x, z), hs = [];
+    for (j = Math.max(0, j0); j <= Math.min(T.d, j1); j++) for (i = Math.max(0, i0); i <= Math.min(T.w, i1); i++) {
+      var ddx = i - ci, ddz = j - cj, dist = Math.sqrt(ddx * ddx + ddz * ddz) / rc; if (dist > 1) continue;
+      var k = (1 - dist) * (1 - dist), at = j * W + i, h = H[at], nh = h;
+      if (mode === 'raise') nh = h + strength * k; else if (mode === 'lower') nh = h - strength * k;
+      else if (mode === 'flatten') nh = h + (centre - h) * Math.min(1, strength * k * 2);
+      else if (mode === 'smooth') { var sum = 0, cnt = 0, di, dj; for (dj = -1; dj <= 1; dj++) for (di = -1; di <= 1; di++) { var ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii > T.w || jj > T.d) continue; sum += H[jj * W + ii]; cnt++; } nh = h + (sum / cnt - h) * Math.min(1, strength * k * 2); }
+      nh = Math.max(-T.maxH, Math.min(T.maxH, nh)); if (nh !== h) { hs.push([at, nh]); n++; }
+    }
+    hs.forEach(function (e) { H[e[0]] = e[1]; });
+    if (n) terrainUpdate(i0, j0, i1, j1); return { changed: n };
+  }
+  // the terrain point under a viewport position, for the editor's brushes
+  function terrainPick(nx, ny) { var T = TERRAIN; if (!T.mesh) return null; eRay.setFromCamera({ x: nx || 0, y: ny || 0 }, camera); eRay.far = 400; var hits = eRay.intersectObject(T.mesh, false); return hits.length ? { x: rnd(hits[0].point.x), y: rnd(hits[0].point.y), z: rnd(hits[0].point.z), paint: terrainPaintAt(hits[0].point.x, hits[0].point.z) } : null; }
+  // flora and props scattered over the ground: copies of a definition on the cells painted with one name (or anywhere), seeded, placed through the shipped layout
+  function terrainScatter(type, count, onPaint, seed) {
+    var T = TERRAIN; if (!T.on) return { error: 'no terrain' }; if (!PROPS[type]) return { error: 'no prop definition ' + type };
+    var cells = [], i, j; for (j = 0; j < T.d; j++) for (i = 0; i < T.w; i++) if (onPaint == null || onPaint === '' || T.palette[T.paint[j * T.w + i]] === onPaint) cells.push([i, j]);
+    if (!cells.length) return { error: 'no cells painted ' + onPaint };
+    var placed = [], n = Math.max(1, Math.min(500, count | 0)), tag = String(seed || Date.now()), k;
+    for (k = 0; k < n; k++) { var c = cells[seededI(tag, k, 0, cells.length - 1)], id = 'sc' + tag.slice(-4) + '-' + k; placed.push({ id: id, type: type, x: Math.round((T.x0 + (c[0] + seededF(tag, k + 1000, 0.15, 0.85)) * T.cell) * 20) / 20, z: Math.round((T.z0 + (c[1] + seededF(tag, k + 2000, 0.15, 0.85)) * T.cell) * 20) / 20, rot: seededI(tag, k + 3000, 0, 3), h: 0 }); }
+    CO.layout({ placed: placed }); placed.forEach(function (p) { buildProp(p.id); });
+    return { placed: placed.map(function (p) { return p.id; }), count: placed.length };
+  }
+  function terrainState() { var T = TERRAIN; return { on: T.on, w: T.w, d: T.d, cell: T.cell, x0: T.x0, z0: T.z0, palette: T.palette.slice(), paints: Object.keys(TERRAIN_PAINT), maxH: T.maxH, cells: T.w * T.d }; }
+  // the part the editor writes: the whole terrain as data, the heights to two decimals, a row per line so a diff reads
+  function terrainCode() {
+    var T = TERRAIN; if (!T.on) return '';
+    var W = T.w + 1, lines = ['//@ the terrain the editor saved: the ground as a grid of heights and a paint per cell. Written by the Co Engine editor; it sorts first in src/ so the boot sees it. Sculpt and paint in the editor rather than here.', '  CO.terrain({', '    w: ' + T.w + ', d: ' + T.d + ', cell: ' + T.cell + ', x0: ' + T.x0 + ', z0: ' + T.z0 + ', maxH: ' + T.maxH + ',', '    palette: ' + JSON.stringify(T.palette) + ',', '    heights: ['], j, i, row;
+    for (j = 0; j < T.d + 1; j++) { row = []; for (i = 0; i < W; i++) row.push(Math.round(T.heights[j * W + i] * 100) / 100); lines.push('      ' + row.join(',') + ','); }
+    lines.push('    ],', '    paint: [');
+    for (j = 0; j < T.d; j++) { row = []; for (i = 0; i < T.w; i++) row.push(T.paint[j * T.w + i]); lines.push('      ' + row.join(',') + ','); }
+    lines.push('    ]', '  });', '');
+    return lines.join('\n');
+  }
   // ── Floors and walkable ground ────────────────────────────────────
   // Where the player stands. A game answers CO.game.floorY(x, z, y) with decks, ramps and trailers; the default is a flat 0.
   // insideWalk(x, z) says whether a point is ground the crew may walk on; CO.game.insideWalk overrides it, the default is everywhere.
-  function floorY(x, z, y) { return CO.game && CO.game.floorY ? CO.game.floorY(x, z, y) : 0; }
+  function floorY(x, z, y) { var g = CO.game && CO.game.floorY ? CO.game.floorY(x, z, y) : 0; return TERRAIN.on ? Math.max(g, terrainY(x, z)) : g; }
   function insideWalk(x, z) { return CO.game && CO.game.insideWalk ? CO.game.insideWalk(x, z) : true; }
   var lampMeshes = [];   // every lens that goes dark with the power: the troffers, the high bays, whatever a game adds
   // take the openings out of a 1D span: [[a0, a1]] minus every [o0, o1] (and an optional o2, the opening's height, left to the caller)
@@ -1865,13 +2032,18 @@
   function editorShot(quality) { renderFrame(0.016); try { return canvas.toDataURL('image/jpeg', quality || 0.8); } catch (e) { return null; } }
   // in the editor's viewport there is no pointer lock (a locked pointer in an embedded page is not safe): a left click selects what it
   // is on, and the look follows the mouse while the right button is held, in the scene camera and in the game alike
+  var editorTool = { mode: null, radius: 3, strength: 0.5, tex: 0 }, toolDown = false;
+  function editorSetTool(t) { if (!t || !t.mode) { editorTool.mode = null; return editorTool; } editorTool.mode = t.mode; if (t.radius) editorTool.radius = +t.radius; if (t.strength !== undefined) editorTool.strength = +t.strength; if (t.tex !== undefined) editorTool.tex = t.tex | 0; return editorTool; }
+  function toolApply(e) { var r = canvas.getBoundingClientRect(), nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1, pt = terrainPick(nx, ny); if (!pt) return; var res = terrainBrush(pt.x, pt.z, editorTool.mode, editorTool.radius, editorTool.mode === 'paint' ? 1 : editorTool.strength * 0.25, editorTool.tex); if (res && res.changed) console.log('[co-editor] ' + JSON.stringify({ terrain: res.changed })); }
   function editorBind() {
     canvas.addEventListener('mousedown', function (e) {
       if (!CO.editor.on || !ui.started) return;
+      if (e.button === 0 && editorTool.mode && TERRAIN.on) { toolDown = true; toolApply(e); e.preventDefault(); return; }
       if (e.button === 0) { var r = canvas.getBoundingClientRect(), nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1, hit = editorPick(nx, ny); editorSelect(hit ? hit.id : null); console.log('[co-editor] ' + JSON.stringify({ select: hit ? hit.id : null, point: hit ? hit.point : null })); }
       if (e.button === 2) { CO.editor.drag = true; e.preventDefault(); }
     });
-    document.addEventListener('mouseup', function (e) { if (e.button === 2) CO.editor.drag = false; });
+    document.addEventListener('mouseup', function (e) { if (e.button === 2) CO.editor.drag = false; if (e.button === 0) toolDown = false; });
+    canvas.addEventListener('mousemove', function (e) { if (toolDown && editorTool.mode && TERRAIN.on) toolApply(e); });
     window.addEventListener('blur', function () { CO.editor.drag = false; });
     canvas.addEventListener('contextmenu', function (e) { if (CO.editor.on) e.preventDefault(); });
     window.addEventListener('keydown', function (e) { if (!CO.editor.on || !(e.ctrlKey || e.metaKey)) return; var k = (e.key || '').toLowerCase(); if (k === 'z' && !e.shiftKey) { e.preventDefault(); console.log('[co-editor] ' + JSON.stringify({ history: editorUndoStep() })); } else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); console.log('[co-editor] ' + JSON.stringify({ history: editorRedoStep() })); } });
@@ -1913,7 +2085,7 @@
       box: box, plane: plane, cyl: cyl, sphere: sphere, sprite: sprite, sign: sign, tex: tex, textTex: textTex, normalTex: normalTex, roughTex: roughTex, std: std, glowMat: glowMat, cachedGeo: cachedGeo, boxGeo: boxGeo, bevelGeo: bevelGeo, taperGeo: taperGeo, roundCylGeo: roundCylGeo,
       groundBlob: groundBlob, hitBox: hitBox, solid: solid, solids: solids, animate: animate, animated: animated, burst: burst, parentOf: parentOf, inter: inter, addInter: addInter, dyn: dyn, scene: scene, camera: camera, player: player, ui: ui,
       clamp: clamp, lerp: lerp, money: money, randi: randi, randf: randf, pick: pick, uid: uid, dist2: dist2, pad2: pad2, fmtTime: fmtTime, floorY: floorY, propSeed: propSeed, seededF: seededF, seededI: seededI, seededPick: seededPick, mixHex: mixHex, hexCss: hexCss,
-      hook: hook, runHooks: runHooks, sfx: sfx, toast: toast, logEvent: logEvent, save: save };
+      hook: hook, runHooks: runHooks, sfx: sfx, toast: toast, logEvent: logEvent, save: save, buildProp: buildProp, removePropInst: removePropInst, touchScreen: touchScreen, screens: screens, screenDirtyAll: screenDirtyAll, scBg: scBg, scHead: scHead, scText: scText, scButton: scButton, openPanel: openPanel, closePanel: closePanel, pay: pay, terrainY: terrainY, TERRAIN: TERRAIN, LAYOUT: LAYOUT };
     if (CO.game && CO.game.editorKit) { var G = typeof CO.game.editorKit === 'function' ? CO.game.editorKit() : CO.game.editorKit; for (var k in G) K[k] = G[k]; }
     return K;
   }
@@ -1946,11 +2118,14 @@
     var n0 = PROP_ORDER.length, known = PROP_ORDER.slice();
     try { new Function('K', 'with (K) { ' + code + '\n }')(editorKit()); } catch (e) { return { ok: false, error: 'the definition does not run: ' + e.message }; }
     var added = PROP_ORDER.slice(n0); if (!added.length) return { ok: false, error: 'the code ran but defined no prop: it should call defProp(id, { ... })' };
-    var id = added[added.length - 1]; PROP_ORDER.length = n0; if (known.indexOf(id) < 0) PROP_ORDER.push(id);   /* a redefinition keeps its place in the order */
-    var def = PROPS[id], built = false, redefined = known.indexOf(id) >= 0;
-    if (redefined) { delete ORIG_BUILD[id]; var rr = rebuildType(id); if (rr.error) return { ok: false, id: id, error: 'the new definition does not build: ' + rr.error }; built = rr.rebuilt > 0; }
-    else if (!def.extra && typeof def.x === 'number' && typeof def.z === 'number') { try { buildProp(id); built = true; } catch (e) { delete PROPS[id]; PROP_ORDER.splice(PROP_ORDER.indexOf(id), 1); return { ok: false, error: 'the new prop does not build: ' + e.message }; } }
-    return { ok: true, id: id, built: built, extra: !!def.extra, redefined: redefined };
+    PROP_ORDER.length = n0; var ids = []; added.forEach(function (k) { if (ids.indexOf(k) < 0) ids.push(k); if (PROP_ORDER.indexOf(k) < 0) PROP_ORDER.push(k); });   /* a redefinition keeps its place in the order; a pack adds many */
+    var id = ids[ids.length - 1], def = PROPS[id], built = 0, redefined = [];
+    for (var q = 0; q < ids.length; q++) {
+      var k2 = ids[q], d2 = PROPS[k2];
+      if (known.indexOf(k2) >= 0) { delete ORIG_BUILD[k2]; var rr = rebuildType(k2); if (rr.error) return { ok: false, id: k2, error: 'the new definition does not build: ' + rr.error }; built += rr.rebuilt; redefined.push(k2); }
+      else if (!d2.extra && typeof d2.x === 'number' && typeof d2.z === 'number') { try { buildProp(k2); built++; } catch (e) { delete PROPS[k2]; PROP_ORDER.splice(PROP_ORDER.indexOf(k2), 1); return { ok: false, id: k2, error: 'the new prop ' + k2 + ' does not build: ' + e.message }; } }
+    }
+    return { ok: true, id: id, ids: ids, built: ids.length === 1 ? built > 0 : built, extra: !!def.extra, redefined: ids.length === 1 ? redefined.length > 0 : redefined };
   }
 
   // ── The layout the game ships: what the editor writes into src/00-layout.js, and the moment it did ──
@@ -2002,6 +2177,12 @@
     source: editorSource, preview: editorPreview, revert: editorRevert, define: editorDefine, kit: function () { return Object.keys(editorKit()); },
     profile: editorProfile, adopt: function (type) { delete ORIG_BUILD[type]; return 'ok'; },
     layout: editorLayout, layoutAdopt: editorLayoutAdopt,
+    setTool: editorSetTool, tool: function () { return editorTool; },
+    setTool: editorSetTool, tool: function () { return editorTool; },
+    terrain: terrainState, terrainY: terrainY, terrainBrush: terrainBrush, terrainPick: terrainPick, terrainCode: terrainCode, terrainScatter: terrainScatter,
+    terrainNew: function (cfg) { cfg = cfg || {}; var T = CO.terrain({ w: cfg.w || 48, d: cfg.d || 48, cell: cfg.cell || 1, x0: cfg.x0, z0: cfg.z0, palette: cfg.palette, maxH: cfg.maxH }); if (!T.mesh) terrainBuild(); NAV.dirty = true; return terrainState(); },
+    terrainOff: function () { var T = TERRAIN; if (T.mesh) { if (T.mesh.parent) T.mesh.parent.remove(T.mesh); T.mesh = null; } T.on = false; T.heights = null; T.paint = null; NAV.dirty = true; shadowDirty = true; return terrainState(); },
+    materials: matGraphs, material: function (name, graph) { matBuild(name, graph); return { ok: true, name: name, shot: matShot(name) }; }, materialShot: matShot, materialCode: matGraphCode, materialRemove: matRemove,
     ids: function () { return { props: Object.keys(propInst), objects: Object.keys(EOBJ) }; }
   };
   // ── Boot ──────────────────────────────────────────────────────────
@@ -2023,6 +2204,7 @@
     loaded = loadSave(GAME.freshState || function () { return { day: 1, time: CAL.dayStart, bank: 0, log: [], ledger: [], stats: { earned: 0, spent: 0 }, layout: {}, custom: [], hdoors: {} }; }, GAME.migrate);
     if (GAME.afterLoad) GAME.afterLoad(loaded);
     runHooks('beforeBuild', loaded);
+    terrainBuild();
     if (GAME.buildWorld) GAME.buildWorld(loaded);
     runHooks('afterBuild', loaded);
     if (GAME.afterBuild) GAME.afterBuild(loaded);

@@ -152,13 +152,18 @@
   function editorShot(quality) { renderFrame(0.016); try { return canvas.toDataURL('image/jpeg', quality || 0.8); } catch (e) { return null; } }
   // in the editor's viewport there is no pointer lock (a locked pointer in an embedded page is not safe): a left click selects what it
   // is on, and the look follows the mouse while the right button is held, in the scene camera and in the game alike
+  var editorTool = { mode: null, radius: 3, strength: 0.5, tex: 0 }, toolDown = false;
+  function editorSetTool(t) { if (!t || !t.mode) { editorTool.mode = null; return editorTool; } editorTool.mode = t.mode; if (t.radius) editorTool.radius = +t.radius; if (t.strength !== undefined) editorTool.strength = +t.strength; if (t.tex !== undefined) editorTool.tex = t.tex | 0; return editorTool; }
+  function toolApply(e) { var r = canvas.getBoundingClientRect(), nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1, pt = terrainPick(nx, ny); if (!pt) return; var res = terrainBrush(pt.x, pt.z, editorTool.mode, editorTool.radius, editorTool.mode === 'paint' ? 1 : editorTool.strength * 0.25, editorTool.tex); if (res && res.changed) console.log('[co-editor] ' + JSON.stringify({ terrain: res.changed })); }
   function editorBind() {
     canvas.addEventListener('mousedown', function (e) {
       if (!CO.editor.on || !ui.started) return;
+      if (e.button === 0 && editorTool.mode && TERRAIN.on) { toolDown = true; toolApply(e); e.preventDefault(); return; }
       if (e.button === 0) { var r = canvas.getBoundingClientRect(), nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1, hit = editorPick(nx, ny); editorSelect(hit ? hit.id : null); console.log('[co-editor] ' + JSON.stringify({ select: hit ? hit.id : null, point: hit ? hit.point : null })); }
       if (e.button === 2) { CO.editor.drag = true; e.preventDefault(); }
     });
-    document.addEventListener('mouseup', function (e) { if (e.button === 2) CO.editor.drag = false; });
+    document.addEventListener('mouseup', function (e) { if (e.button === 2) CO.editor.drag = false; if (e.button === 0) toolDown = false; });
+    canvas.addEventListener('mousemove', function (e) { if (toolDown && editorTool.mode && TERRAIN.on) toolApply(e); });
     window.addEventListener('blur', function () { CO.editor.drag = false; });
     canvas.addEventListener('contextmenu', function (e) { if (CO.editor.on) e.preventDefault(); });
     window.addEventListener('keydown', function (e) { if (!CO.editor.on || !(e.ctrlKey || e.metaKey)) return; var k = (e.key || '').toLowerCase(); if (k === 'z' && !e.shiftKey) { e.preventDefault(); console.log('[co-editor] ' + JSON.stringify({ history: editorUndoStep() })); } else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); console.log('[co-editor] ' + JSON.stringify({ history: editorRedoStep() })); } });
@@ -200,7 +205,7 @@
       box: box, plane: plane, cyl: cyl, sphere: sphere, sprite: sprite, sign: sign, tex: tex, textTex: textTex, normalTex: normalTex, roughTex: roughTex, std: std, glowMat: glowMat, cachedGeo: cachedGeo, boxGeo: boxGeo, bevelGeo: bevelGeo, taperGeo: taperGeo, roundCylGeo: roundCylGeo,
       groundBlob: groundBlob, hitBox: hitBox, solid: solid, solids: solids, animate: animate, animated: animated, burst: burst, parentOf: parentOf, inter: inter, addInter: addInter, dyn: dyn, scene: scene, camera: camera, player: player, ui: ui,
       clamp: clamp, lerp: lerp, money: money, randi: randi, randf: randf, pick: pick, uid: uid, dist2: dist2, pad2: pad2, fmtTime: fmtTime, floorY: floorY, propSeed: propSeed, seededF: seededF, seededI: seededI, seededPick: seededPick, mixHex: mixHex, hexCss: hexCss,
-      hook: hook, runHooks: runHooks, sfx: sfx, toast: toast, logEvent: logEvent, save: save };
+      hook: hook, runHooks: runHooks, sfx: sfx, toast: toast, logEvent: logEvent, save: save, buildProp: buildProp, removePropInst: removePropInst, touchScreen: touchScreen, screens: screens, screenDirtyAll: screenDirtyAll, scBg: scBg, scHead: scHead, scText: scText, scButton: scButton, openPanel: openPanel, closePanel: closePanel, pay: pay, terrainY: terrainY, TERRAIN: TERRAIN, LAYOUT: LAYOUT };
     if (CO.game && CO.game.editorKit) { var G = typeof CO.game.editorKit === 'function' ? CO.game.editorKit() : CO.game.editorKit; for (var k in G) K[k] = G[k]; }
     return K;
   }
@@ -233,11 +238,14 @@
     var n0 = PROP_ORDER.length, known = PROP_ORDER.slice();
     try { new Function('K', 'with (K) { ' + code + '\n }')(editorKit()); } catch (e) { return { ok: false, error: 'the definition does not run: ' + e.message }; }
     var added = PROP_ORDER.slice(n0); if (!added.length) return { ok: false, error: 'the code ran but defined no prop: it should call defProp(id, { ... })' };
-    var id = added[added.length - 1]; PROP_ORDER.length = n0; if (known.indexOf(id) < 0) PROP_ORDER.push(id);   /* a redefinition keeps its place in the order */
-    var def = PROPS[id], built = false, redefined = known.indexOf(id) >= 0;
-    if (redefined) { delete ORIG_BUILD[id]; var rr = rebuildType(id); if (rr.error) return { ok: false, id: id, error: 'the new definition does not build: ' + rr.error }; built = rr.rebuilt > 0; }
-    else if (!def.extra && typeof def.x === 'number' && typeof def.z === 'number') { try { buildProp(id); built = true; } catch (e) { delete PROPS[id]; PROP_ORDER.splice(PROP_ORDER.indexOf(id), 1); return { ok: false, error: 'the new prop does not build: ' + e.message }; } }
-    return { ok: true, id: id, built: built, extra: !!def.extra, redefined: redefined };
+    PROP_ORDER.length = n0; var ids = []; added.forEach(function (k) { if (ids.indexOf(k) < 0) ids.push(k); if (PROP_ORDER.indexOf(k) < 0) PROP_ORDER.push(k); });   /* a redefinition keeps its place in the order; a pack adds many */
+    var id = ids[ids.length - 1], def = PROPS[id], built = 0, redefined = [];
+    for (var q = 0; q < ids.length; q++) {
+      var k2 = ids[q], d2 = PROPS[k2];
+      if (known.indexOf(k2) >= 0) { delete ORIG_BUILD[k2]; var rr = rebuildType(k2); if (rr.error) return { ok: false, id: k2, error: 'the new definition does not build: ' + rr.error }; built += rr.rebuilt; redefined.push(k2); }
+      else if (!d2.extra && typeof d2.x === 'number' && typeof d2.z === 'number') { try { buildProp(k2); built++; } catch (e) { delete PROPS[k2]; PROP_ORDER.splice(PROP_ORDER.indexOf(k2), 1); return { ok: false, id: k2, error: 'the new prop ' + k2 + ' does not build: ' + e.message }; } }
+    }
+    return { ok: true, id: id, ids: ids, built: ids.length === 1 ? built > 0 : built, extra: !!def.extra, redefined: ids.length === 1 ? redefined.length > 0 : redefined };
   }
 
   // ── The layout the game ships: what the editor writes into src/00-layout.js, and the moment it did ──
@@ -289,5 +297,11 @@
     source: editorSource, preview: editorPreview, revert: editorRevert, define: editorDefine, kit: function () { return Object.keys(editorKit()); },
     profile: editorProfile, adopt: function (type) { delete ORIG_BUILD[type]; return 'ok'; },
     layout: editorLayout, layoutAdopt: editorLayoutAdopt,
+    setTool: editorSetTool, tool: function () { return editorTool; },
+    setTool: editorSetTool, tool: function () { return editorTool; },
+    terrain: terrainState, terrainY: terrainY, terrainBrush: terrainBrush, terrainPick: terrainPick, terrainCode: terrainCode, terrainScatter: terrainScatter,
+    terrainNew: function (cfg) { cfg = cfg || {}; var T = CO.terrain({ w: cfg.w || 48, d: cfg.d || 48, cell: cfg.cell || 1, x0: cfg.x0, z0: cfg.z0, palette: cfg.palette, maxH: cfg.maxH }); if (!T.mesh) terrainBuild(); NAV.dirty = true; return terrainState(); },
+    terrainOff: function () { var T = TERRAIN; if (T.mesh) { if (T.mesh.parent) T.mesh.parent.remove(T.mesh); T.mesh = null; } T.on = false; T.heights = null; T.paint = null; NAV.dirty = true; shadowDirty = true; return terrainState(); },
+    materials: matGraphs, material: function (name, graph) { matBuild(name, graph); return { ok: true, name: name, shot: matShot(name) }; }, materialShot: matShot, materialCode: matGraphCode, materialRemove: matRemove,
     ids: function () { return { props: Object.keys(propInst), objects: Object.keys(EOBJ) }; }
   };

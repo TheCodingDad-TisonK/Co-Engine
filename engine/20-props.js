@@ -66,7 +66,7 @@
     runHooks('propRemoved', id, inst);
     delete propInst[id]; NAV.dirty = true;
   }
-  function propGroundY(x, z) { return CO.game && CO.game.groundY ? CO.game.groundY(x, z) : 0; }
+  function propGroundY(x, z) { var g = CO.game && CO.game.groundY ? CO.game.groundY(x, z) : 0; return TERRAIN.on ? Math.max(g, terrainY(x, z)) : g; }
   function buildProp(id) {
     removePropInst(id);
     var def = propDef(id); if (!def) return null; if (!propAllowed(id)) return null;
@@ -187,6 +187,6 @@
   // the catalogue's data: removed props to bring back, and extras to buy, grouped by category (the game draws it)
   function catalogueData() {
     var hidden = PROP_ORDER.filter(function (id) { return !PROPS[id].extra && propPlacement(id).hidden; }).concat(LAYOUT.placed.filter(function (p) { return !PROPS[p.id] && propPlacement(p.id).hidden; }).map(function (p) { return p.id; })), groups = {};
-    PROP_ORDER.forEach(function (id) { var d = PROPS[id]; if (!d.extra) return; (groups[d.cat || 'other'] = groups[d.cat || 'other'] || []).push(id); });
+    PROP_ORDER.forEach(function (id) { var d = PROPS[id]; if (!d.extra || d.shop === false) return; (groups[d.cat || 'other'] = groups[d.cat || 'other'] || []).push(id); });
     return { hidden: hidden, groups: groups };
   }

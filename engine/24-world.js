@@ -2,7 +2,7 @@
   // ── Floors and walkable ground ────────────────────────────────────
   // Where the player stands. A game answers CO.game.floorY(x, z, y) with decks, ramps and trailers; the default is a flat 0.
   // insideWalk(x, z) says whether a point is ground the crew may walk on; CO.game.insideWalk overrides it, the default is everywhere.
-  function floorY(x, z, y) { return CO.game && CO.game.floorY ? CO.game.floorY(x, z, y) : 0; }
+  function floorY(x, z, y) { var g = CO.game && CO.game.floorY ? CO.game.floorY(x, z, y) : 0; return TERRAIN.on ? Math.max(g, terrainY(x, z)) : g; }
   function insideWalk(x, z) { return CO.game && CO.game.insideWalk ? CO.game.insideWalk(x, z) : true; }
   var lampMeshes = [];   // every lens that goes dark with the power: the troffers, the high bays, whatever a game adds
   // take the openings out of a 1D span: [[a0, a1]] minus every [o0, o1] (and an optional o2, the opening's height, left to the caller)

@@ -1,0 +1,6 @@
+{
+  "name": "basics",
+  "title": "Basics",
+  "description": "Props every game can use, built from the engine's kit alone: a control panel with a touch screen that opens and closes the gates, a sliding gate, a boom barrier, a lever, signs, a crate, a pallet, a bench, a bin, a cone, a lamp post, a fence section, a planter.",
+  "since": "0.2.0"
+}

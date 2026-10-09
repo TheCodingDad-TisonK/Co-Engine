@@ -126,6 +126,34 @@ ipcMain.handle('act', async (e, dir, what) => {
 });
 ipcMain.handle('cmd', (e, name, arg) => { if (!srv) return false; srv.send(name, arg); return true; });
 // the layout file the editor keeps in step with the scene: src/00-layout.js, written only when it changed
+// the prop packs that ship with the engine (packs/<name>/pack.js + pack.json): what each holds, and whether a game has it
+const PACKS_DIR = path.join(__dirname, '..', 'packs');
+function listPacks(dir) {
+  let names = []; try { names = fs.readdirSync(PACKS_DIR).filter((n) => fs.existsSync(path.join(PACKS_DIR, n, 'pack.js'))); } catch (e) { return []; }
+  const d = dir ? describe(dir) : null, srcDir = dir ? path.join(dir, (d.co && d.co.src) || 'src') : null;
+  return names.map((n) => {
+    let meta = {}; try { meta = JSON.parse(fs.readFileSync(path.join(PACKS_DIR, n, 'pack.json'), 'utf8')); } catch (e) {}
+    const code = fs.readFileSync(path.join(PACKS_DIR, n, 'pack.js'), 'utf8'), props = []; const re = /defProp\('(\w+)',\s*\{[^\n]*?label:\s*'([^']*)'/g; let m; while ((m = re.exec(code))) props.push({ id: m[1], label: m[2] });
+    const file = srcDir ? path.join(srcDir, '00-pack-' + n + '.js') : null, has = !!(file && fs.existsSync(file)), current = has && fs.readFileSync(file, 'utf8') === code;
+    return { name: n, title: meta.title || n, description: meta.description || '', since: meta.since || '', props, file: '00-pack-' + n + '.js', added: has, current };
+  });
+}
+ipcMain.handle('packs-list', (e, dir) => listPacks(dir || null));
+ipcMain.handle('pack-add', (e, q) => {
+  const d = describe(q.dir); if (d.kind === 'none') return { error: 'not a game folder' };
+  const src = path.join(PACKS_DIR, q.name, 'pack.js'); if (!fs.existsSync(src)) return { error: 'no such pack: ' + q.name };
+  const srcDir = path.join(q.dir, (d.co && d.co.src) || 'src'); if (!fs.existsSync(srcDir)) return { error: 'no src/ folder in ' + q.dir };
+  const file = path.join(srcDir, '00-pack-' + q.name + '.js'); fs.copyFileSync(src, file); log('pack: ' + q.name + ' is in src/00-pack-' + q.name + '.js', 'ok'); return { ok: true, file: 'src/00-pack-' + q.name + '.js' };
+});
+ipcMain.handle('part-write', (e, q) => {
+  const d = describe(q.dir), srcDir = path.join(q.dir, (d.co && d.co.src) || 'src'); if (!fs.existsSync(srcDir)) return { error: 'no src/ folder in ' + q.dir };
+  if (!/^00-[a-z]+\.js$/.test(q.name || '')) return { error: 'a part the editor writes is named 00-<name>.js' };
+  const file = path.join(srcDir, q.name), exists = fs.existsSync(file);
+  if (!exists && q.onlyIfExists) return { ok: true, skipped: true };
+  const cur = exists ? fs.readFileSync(file, 'utf8') : null; if (cur === q.code) return { ok: true, same: true, file: 'src/' + q.name };
+  if (q.code === '' && exists) { fs.unlinkSync(file); return { ok: true, wrote: true, removed: true, file: 'src/' + q.name }; }
+  fs.writeFileSync(file, q.code); return { ok: true, wrote: true, file: 'src/' + q.name };
+});
 ipcMain.handle('layout-write', (e, q) => {
   const d = describe(q.dir), srcDir = path.join(q.dir, (d.co && d.co.src) || 'src'); if (!fs.existsSync(srcDir)) return { error: 'no src/ folder in ' + q.dir };
   const file = path.join(srcDir, '00-layout.js'), exists = fs.existsSync(file);

@@ -1,6 +1,8 @@
 // The engine's own smoke: the sample room (tests/sample) booted through CO.boot. Run by tests/smoke.js. No backslash-quote in the body.
 'use strict';
+const PACK_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'basics', 'pack.js'), 'utf8'));
 module.exports = `
+  const PACK_BASICS = ${PACK_JSON};
   ok(!!T.renderer && !!T.scene && !!T.camera && T.CO.ready === true && typeof T.enter === 'function', 'CO.setup and CO.boot ran: renderer, scene, camera and the handle stand');
   ok(T.ui.started === false && !document.getElementById('dc-start').hidden, 'the start screen is up before enter');
   ok(/A new room/.test(document.getElementById('dc-start-stats').textContent) && /Slot 1/.test(document.getElementById('dc-start-note').textContent), 'the start screen chips and note come from the game and the engine');
@@ -125,4 +127,42 @@ module.exports = `
     E.remove(sp); ok(!node(sp) && !E.layout().placed.some((p) => p.id === sp) && E.layout().pending === 1, 'a removed placed copy leaves the layout and counts as pending'); E.undo(); ok(!!node(sp) && E.layout().pending === 0, 'and comes back with undo');
     E.set('wallSign', 'prop.hidden', true); ok(E.layout().props.wallSign && E.layout().props.wallSign.hidden === true && /hidden: true/.test(E.layout().code), 'a hidden prop is written as hidden'); E.set('wallSign', 'prop.hidden', false); ok(!E.layout().props.wallSign, 'and unhidden it is back to its definition');
     E.remove('plChair'); E.undo(); ok(!!node('plChair'), 'a placed copy hides and comes back'); }
+
+  // M8 (0.2.0): the terrain and the material graph
+  { const E = T.editor, CO2 = T.CO; const node = (id) => { const tr = E.tree(); for (const k in tr.props) { const n = tr.props[k].find((p) => p.id === id); if (n) return n; } return null; };
+    ok(E.terrain().on === false && T.floorY(30, 30) === 0, 'no terrain to begin with: the flat world');
+    const ts = E.terrainNew({ w: 20, d: 20, cell: 1, x0: 20, z0: 20 }); ok(ts.on === true && ts.w === 20 && ts.cells === 400 && T.scene.getObjectByName('terrain'), 'terrainNew makes a 20 by 20 mesh at x 20, z 20');
+    ok(E.terrainY(30, 30) === 0 && T.floorY(30, 30) === 0, 'a new terrain is flat');
+    const br = E.terrainBrush(30, 30, 'raise', 3, 1); ok(br.changed > 0 && E.terrainY(30, 30) > 0.8 && E.terrainY(30, 30) <= 1.01 && E.terrainY(30, 33) < E.terrainY(30, 30), 'raise lifts the ground under the brush with a soft edge: ' + E.terrainY(30, 30).toFixed(2) + ' at the centre, ' + E.terrainY(30, 33).toFixed(2) + ' three out');
+    ok(Math.abs(T.floorY(30, 30) - E.terrainY(30, 30)) < 1e-6, 'floorY follows the terrain'); ok(T.floorY(5, 5) === 0, 'and the flat world off the terrain is still 0');
+    E.terrainBrush(30, 30, 'lower', 3, 1); ok(Math.abs(E.terrainY(30, 30)) < 0.01, 'lower takes it back down');
+    E.terrainBrush(25, 25, 'raise', 2, 2); E.terrainBrush(25, 25, 'flatten', 4, 1); ok(E.terrainY(25, 25) > 0 && Math.abs(E.terrainY(26, 25) - E.terrainY(25, 25)) < Math.abs(E.terrainY(26, 25)) + 0.5, 'flatten pulls the neighbours towards the centre');
+    E.terrainBrush(30, 30, 'raise', 3, 1); const before = E.terrainY(30, 30); E.terrainBrush(30, 30, 'smooth', 3, 1); ok(E.terrainY(30, 30) < before, 'smooth lowers a peak');
+    ok(E.terrainBrush(39, 39, 'raise', 2, 100).changed > 0 && E.terrainY(39, 39) <= ts.maxH + 1e-6, 'the height is capped at maxH');
+    const pt = E.terrainBrush(35, 35, 'paint', 2, 1, 1); ok(pt.changed > 0 && E.terrainPick && true, 'paint changes cells: ' + pt.changed);
+    const code = E.terrainCode(); ok(code.indexOf('CO.terrain({') >= 0 && code.indexOf('w: 20, d: 20') >= 0 && code.indexOf('//@') === 0 && code.split(String.fromCharCode(10)).length > 40, 'terrainCode is the part to write: ' + code.split(String.fromCharCode(10)).length + ' lines');
+    const sc = E.terrainScatter('xChair', 5, 'dirt', 'seed1'); ok(sc.count === 5 && sc.placed.every((id) => !!node(id)), 'scatter places five chairs on the dirt cells through the shipped layout');
+    const lay = E.layout(); ok(sc.placed.every((id) => lay.placed.some((p) => p.id === id)), 'the scattered copies are in the layout the editor writes');
+    const sc2 = E.terrainScatter('xChair', 3, 'snow', 'seed2'); ok(!!sc2.error, 'scatter on a paint nobody used says so');
+    E.terrainOff(); ok(E.terrain().on === false && !T.scene.getObjectByName('terrain') && T.floorY(30, 30) === 0, 'terrainOff takes the ground away again');
+    // materials
+    const g0 = E.materials(); ok(Array.isArray(g0.types) && g0.types.indexOf('bricks') >= 0 && g0.builtin.indexOf('wood') >= 0 && g0.order.length === 0, 'materials() lists the layer types and the built-in palette');
+    const mk = E.material('eBrick', { size: 128, repeat: [2, 2], layers: [{ type: 'bricks', color: '#9a4b3a', color2: '#5a4a44', size: 32, size2: 14, gap: 2, vary: true }, { type: 'grain', n: 300, alpha: 0.5, dark: true }], roughness: { base: 0.85, amp: 0.2 }, bump: { amp: 30, strength: 0.8 } });
+    ok(mk.ok === true && typeof mk.shot === 'string' && mk.shot.indexOf('data:image/png') === 0 && T.MAT.eBrick && T.MAT.eBrick.map && T.MAT.eBrick.roughnessMap && T.MAT.eBrick.normalMap, 'a material from a graph: colour, roughness and normal maps, and a picture');
+    const df = E.define("defProp('eBrickBox', { label: 'brick box', x: 5, z: 5, rot: 0, cat: 'room', build: function (c) { c.box(1, 1, 1, MAT.eBrick, 0, 0.5, 0); } })"); ok(df.ok === true && !!node('eBrickBox'), 'a build function can use the graph material by name');
+    const m1 = T.MAT.eBrick; E.material('eBrick', { size: 128, layers: [{ type: 'fill', color: '#204080' }], roughness: 0.3, emissive: '#102040', emissiveIntensity: 0.5 }); ok(T.MAT.eBrick === m1 && m1.roughness === 0.3 && !m1.roughnessMap && m1.emissive.getHex() === 0x102040, 'defining it again updates the same material in place');
+    ok(E.materials().order.indexOf('eBrick') >= 0 && E.materialCode().indexOf('CO.material("eBrick"') >= 0, 'the material is in the order and in the part to write');
+    ok(E.materialRemove('eBrick') === true && E.materials().order.indexOf('eBrick') < 0 && E.materialCode() === '', 'materialRemove takes it out of the graph list');
+    ['grain', 'blotches', 'cracks', 'noise', 'planks', 'tiles', 'stripes', 'checks', 'rings', 'speckle'].forEach((t) => { const r = E.material('eT_' + t, { size: 64, layers: [{ type: 'fill', color: '#777' }, { type: t, color: '#a55', color2: '#335', n: 40, size: 16 }] }); ok(r.ok === true && T.MAT['eT_' + t].map, 'layer type ' + t + ' paints'); E.materialRemove('eT_' + t); }); }
+
+  // the basics pack (0.2.0): defined live from its file, the gate and the barrier open and close, the panel draws a screen that lists them
+  { const E = T.editor; const node = (id) => { const tr = E.tree(); for (const k in tr.props) { const n = tr.props[k].find((p) => p.id === id); if (n) return n; } return null; };
+    const df = E.define(PACK_BASICS); ok(df.ok === true && E.assets().props.some((p) => p.id === 'pkGate') && E.assets().props.some((p) => p.id === 'pkPanel'), 'the pack defines its props: ' + E.assets().props.filter((p) => /^pk/.test(p.id)).length + ' of them');
+    const g = E.spawn('pkGate', 0, 6); ok(!!node(g), 'a gate stands'); const solidsClosed = T.solids.filter((s) => s.prop === g).length; ok(solidsClosed >= 3, 'closed, the gate blocks the way: ' + solidsClosed + ' solids');
+    T.player.x = 0; T.player.z = 7.5; T.lookAt(0, 1, 6); T.updateFocus(); ok(/Open the gate/.test(T.focusText()), 'looking at it offers to open it: ' + T.focusText()); T.useFocus(); ok(S.pack && S.pack.gates[g] === true, 'use opens it in the save');
+    ok(T.solids.filter((s) => s.prop === g && s.x0 < 0.5 && s.x1 > -0.5).length === 0, 'open, the middle of the way is free');
+    const p = E.spawn('pkPanel', 3, 6); ok(!!node(p) && E.tree().screens.length >= 2, 'the panel stands with a screen: ' + E.tree().screens.length + ' screens');
+    const b = E.spawn('pkBarrier', -4, 6); ok(!!node(b) && T.solids.some((s) => s.prop === b && s.y0 > 0.5), 'the barrier arm blocks at waist height when down');
+    ['pkLever', 'pkSign', 'pkWallSign', 'pkCrate', 'pkPallet', 'pkBench', 'pkBin', 'pkCone', 'pkLampPost', 'pkFence', 'pkPlanter', 'pkWallScreen'].forEach((t) => { const id = E.spawn(t, -8, 8); ok(!!node(id), t + ' builds'); E.remove(id); });
+    ok(!T.catalogueData().groups.pack, 'the catalogue does not sell the pack props'); [g, p, b].forEach((id) => E.remove(id)); }
 `;

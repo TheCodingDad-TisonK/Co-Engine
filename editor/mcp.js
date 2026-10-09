@@ -55,6 +55,17 @@ const TOOLS = [
   { name: 'layout_save', description: 'Write the scene\'s layout into the game\'s src/00-layout.js now: every prop that stands away from its definition and every placed copy. The editor does this on its own a moment after each change; call it to be sure before a build or a release.', input: {} },
   { name: 'save', description: 'Save everything pending into src/: the layout, and the Pack tab\'s build code if it was edited. What Ctrl+S does in the editor.', input: {} },
   { name: 'release_preflight', description: 'What a release would do: the current version and the next patch, minor and major, the branch and remote, the uncommitted files that would go into the release commit, whether an installer script and gh exist.', input: {} },
+  { name: 'packs', description: 'The prop packs that ship with the engine (a control panel with a screen, a gate, a barrier, a lever, signs, crates and so on): what each holds and whether the open game has it.', input: {} },
+  { name: 'pack_add', description: 'Copy an engine pack into the open game as src/00-pack-<name>.js, so its props can be placed from Assets (call play afterwards so the game carries them).', input: { name: { type: 'string' } }, required: ['name'] },
+  { name: 'terrain', description: 'The terrain: whether the game has one, its size and cell, the paint palette, the paint names the engine knows.', input: {} },
+  { name: 'terrain_new', description: 'Make a heightmap terrain (or replace the one there): w by d cells of cell metres from x0, z0 (defaults centre a 48 by 48 at the origin). The ground becomes it; the editor saves it into src/00-terrain.js.', input: { w: { type: 'number' }, d: { type: 'number' }, cell: { type: 'number' }, x0: { type: 'number' }, z0: { type: 'number' } } },
+  { name: 'terrain_brush', description: 'One brush stroke at a world point: mode raise, lower, smooth, flatten or paint, within radius metres, with strength (metres for raise and lower; 0 to 1 for smooth and flatten); paint sets the cells to palette index tex. Returns how many corners or cells changed.', input: { x: { type: 'number' }, z: { type: 'number' }, mode: { type: 'string', enum: ['raise', 'lower', 'smooth', 'flatten', 'paint'] }, radius: { type: 'number' }, strength: { type: 'number' }, tex: { type: 'number' } }, required: ['x', 'z', 'mode'] },
+  { name: 'terrain_scatter', description: 'Scatter count copies of a prop definition over the terrain, on the cells painted with one name (grass, dirt ...) or anywhere, with a seed for the same result twice. They ship through the layout.', input: { type: { type: 'string' }, count: { type: 'number' }, on: { type: 'string' }, seed: { type: 'string' } }, required: ['type'] },
+  { name: 'terrain_off', description: 'Take the terrain away; the ground is flat again.', input: {} },
+  { name: 'materials', description: 'The materials: the graph materials (editable, with their graphs), the built-in palette names, the layer types and blends a graph may use.', input: {} },
+  { name: 'material_set', description: 'Define or redefine a graph material: name and graph { size, repeat: [rx, ry], layers: [{ type: fill|grain|blotches|cracks|noise|bricks|planks|tiles|stripes|checks|rings|speckle, color, color2, alpha, blend, n, size, size2, gap, angle, dark, vary }], roughness: 0.9 or { base, amp }, metalness, bump: { amp, strength } or null, emissive, emissiveIntensity, glow, opacity }. Every mesh on it follows at once; a build function says MAT.<name>; the editor saves it into src/00-materials.js.', input: { name: { type: 'string' }, graph: { type: 'object' } }, required: ['name', 'graph'] },
+  { name: 'material_remove', description: 'Take a graph material out of the list (meshes keep it until the next play).', input: { name: { type: 'string' } }, required: ['name'] },
+  { name: 'material_shot', description: 'A picture of a material on a sphere and a cube (PNG).', input: { name: { type: 'string' }, size: { type: 'number' } }, required: ['name'] },
   { name: 'release', description: 'Release the open game: set the version in package.json, write the changelog entry (title and notes), build and check, optionally build the installer and put it on the Desktop, commit everything as "Release vX.Y.Z", and with publish (the default) push, create the GitHub release with the notes and let the repo\'s workflow attach the installer. Only on the user\'s word: it commits and publishes.', input: { version: { type: 'string', description: 'three numbers, like 1.2.3' }, title: { type: 'string' }, notes: { type: 'string', description: 'Markdown, one line per change' }, publish: { type: 'boolean', description: 'default true' }, installer: { type: 'boolean' } }, required: ['version'] }
 ];
 
@@ -75,7 +86,7 @@ async function call(name, args) {
   if (!tool) throw new Error('no such tool: ' + name);
   const r = await post(name, args);
   if (!r || r.ok === false) throw new Error(r && r.error ? r.error : 'the editor refused');
-  if (name === 'screenshot') {
+  if (name === 'screenshot' || name === 'material_shot') {
     const url = typeof r.result === 'string' ? r.result : '';
     const m = /^data:(image\/\w+);base64,(.+)$/.exec(url);
     if (!m) throw new Error('no picture came back' + (url ? ': ' + url.slice(0, 80) : ''));

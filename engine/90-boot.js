@@ -18,6 +18,7 @@
     loaded = loadSave(GAME.freshState || function () { return { day: 1, time: CAL.dayStart, bank: 0, log: [], ledger: [], stats: { earned: 0, spent: 0 }, layout: {}, custom: [], hdoors: {} }; }, GAME.migrate);
     if (GAME.afterLoad) GAME.afterLoad(loaded);
     runHooks('beforeBuild', loaded);
+    terrainBuild();
     if (GAME.buildWorld) GAME.buildWorld(loaded);
     runHooks('afterBuild', loaded);
     if (GAME.afterBuild) GAME.afterBuild(loaded);
