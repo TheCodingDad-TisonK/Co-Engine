@@ -188,4 +188,30 @@ module.exports = `
     T.panelAct('ui', 'board:0'); ok(S.bank === bank0 + 100, 'a button runs a dev command: bank ' + S.bank); T.panelAct('ui', 'board:1'); ok(S.presses >= 1, 'a button runs an expression'); T.panelAct('ui', 'board:2'); ok(T.ui.panelOpen === false, 'a close button closes the panel');
     ok(E.uiEval("'Day ' + S.day + ' in the sample room'") === 'Day 1 in the sample room', 'uiEval runs an expression over the kit'); ok(E.uiCode().indexOf('CO.ui(') >= 0 && E.uiCode().indexOf('"board"') >= 0, 'uiCode writes the part');
     E.uiSet({ hud: [], panels: {}, start: [], menuLine: '' }); T.updateHud(1); ok(E.uiCode() === '' && document.getElementById('h-ui').children.length === 0, 'cleared, the UI part is empty and the chips are gone'); }
+
+  // M10 (0.3.0): the prop modeller writes build code from parts and reads it back; M11: bodies fall, rest, stack, sleep, and Drop writes the layout
+  { const E = T.editor; const node = (id) => { const tr = E.tree(); for (const k in tr.props) { const n = tr.props[k].find((p) => p.id === id); if (n) return n; } return null; };
+    const m0 = E.model('crateStack'); ok(m0.modelled === false && typeof m0.code === 'string' && m0.mats.indexOf('wood') >= 0, 'a hand-written prop is not modelled yet');
+    const st = E.modelStart('crateStack'); ok(st.ok === true && st.model.parts.length === 1 && st.code.indexOf('/*@model') >= 0 && node('crateStack').n >= 1, 'modelStart turns it into a one-box model with the model in a comment');
+    const m1 = E.model('crateStack'); ok(m1.modelled === true && m1.model.parts[0].kind === 'box', 'the model reads back from the build code');
+    const two = { parts: [{ kind: 'box', mat: 'wood', x: 0, y: 0.25, z: 0, w: 1.2, h: 0.5, d: 0.8 }, { kind: 'cyl', mat: 'steel', x: 0, y: 0.9, z: 0, r: 0.1, h: 0.8, seg: 10 }, { kind: 'light', color: '#ffd9a0', intensity: 0.8, dist: 5, x: 0, y: 1.4, z: 0 }], autoSolid: true };
+    const pv = E.modelPreview('crateStack', two); ok(pv.ok === true && node('crateStack').n >= 3 && pv.code.indexOf('c.cyl(0.1, 0.8, MAT.steel') >= 0 && pv.code.indexOf('c.solid(') >= 0, 'a three-part model previews, with an obstacle under the grounded parts: ' + node('crateStack').n + ' children');
+    const code = E.modelCode(two); ok(code.indexOf('p0.userData.part = 0') >= 0 && code.indexOf('p1.userData.part = 1') >= 0, 'every drawn part carries its index for picking');
+    const cw = E.inspect('crateStack').world; T.player.x = cw[0] + 1.5; T.player.z = cw[2] + 3; T.lookAt(cw[0], 0.3, cw[2]); const pk = E.modelPick('crateStack', 0, 0); ok(!!pk && pk.id === 'crateStack' && (pk.part === 0 || pk.part === 1), 'modelPick names the part under the crosshair: ' + JSON.stringify(pk));
+    const mir = E.modelMirror({ parts: [{ kind: 'box', x: 1, y: 0, z: 2, w: 1, h: 1, d: 1, ry: 30 }] }, 'x'); ok(mir.parts[0].x === -1 && mir.parts[0].z === 2 && mir.parts[0].ry === -30, 'mirror flips x and the turn');
+    const rv = E.revert('crateStack'); ok(rv.ok === true && E.model('crateStack').modelled === false, 'revert brings the hand-written build back');
+    // physics
+    const ph0 = E.physics(); ok(ph0.on === true && ph0.bodies.length === 0 && ph0.solver === 'built in', 'physics is on with no bodies');
+    const b = E.spawn('xChair', 3, 3); E.set(b, 'position.y', 3); const ba = E.bodyAdd(b, { mass: 1 }); ok(ba.ok === true && E.physics().bodies.length === 1, 'a prop becomes a body: ' + JSON.stringify(ba.size));
+    await wait(1400); const yb = E.inspect(b).position[1]; ok(yb < 0.2 && yb > -0.05, 'it falls to the floor and rests: y ' + yb.toFixed(3));
+    await wait(900); ok(E.physics().bodies[0].asleep === true, 'and sleeps when still');
+    ok(E.impulse(b, 2, 0, 0) === true && E.physics().bodies[0].asleep === false, 'an impulse wakes it'); await wait(600); ok(E.inspect(b).position[0] > 3.2, 'and it slid along x: ' + E.inspect(b).position[0].toFixed(2)); await wait(1200);
+    const c2 = E.spawn('xChair', E.inspect(b).position[0], 3); E.set(c2, 'position.y', 3); E.bodyAdd(c2, { mass: 1 }); await wait(1500); const top = E.inspect(c2).position[1]; ok(top > 0.6, 'a second body stacks on the first: y ' + top.toFixed(2));
+    ok(E.bodyRemove(b) === true && E.bodyRemove(c2) === true && E.physics().bodies.length === 0, 'bodies come out again'); E.remove(c2); E.remove(b);
+    // a wall stops a body
+    const w = E.spawn('xChair', -8.5, 0); E.set(w, 'position.y', 1.5); E.bodyAdd(w, { mass: 1 }); E.impulse(w, -6, 0, 0); await wait(1500); ok(E.inspect(w).position[0] > -10.5, 'the room wall stops a body thrown at it: x ' + E.inspect(w).position[0].toFixed(2)); E.bodyRemove(w); E.remove(w);
+    // Drop writes the layout
+    const d = E.spawn('xChair', 5, 5); const dr = E.drop(d, 2.5); ok(dr.ok === true && dr.from > 2, 'drop lifts the prop and lets it fall: from ' + dr.from);
+    for (let i = 0; i < 40; i++) { await wait(100); if (E.physics().bodies.length === 0) break; } ok(E.physics().bodies.length === 0, 'the body is gone once it rests');
+    const lay = E.layout(); ok(lay.placed.some((p) => p.id === d) && E.history().undo[E.history().undo.length - 1] === 'drop ' + d, 'the resting place is in the layout and the drop is an undo step'); ok(/undid: drop/.test(E.undo()), 'and undoes'); E.remove(d); }
 `;

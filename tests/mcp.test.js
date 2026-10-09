@@ -39,7 +39,7 @@ function rpc(proc, msg) {
     proc.stdin.write(JSON.stringify(msg) + '\n');
   });
 }
-const EXPECTED = ['status', 'open_game', 'play', 'reload', 'build', 'check', 'test', 'scene_tree', 'inspect', 'set', 'select', 'frame', 'spawn', 'remove', 'camera', 'pause', 'step', 'command', 'assets', 'screenshot', 'console_log', 'undo', 'redo', 'history', 'prop_source', 'prop_preview', 'prop_revert', 'prop_define', 'pack_save', 'profile', 'run_script', 'layout_save', 'save', 'release_preflight', 'release', 'terrain', 'terrain_new', 'terrain_brush', 'terrain_scatter', 'terrain_off', 'materials', 'material_set', 'material_remove', 'material_shot', 'packs', 'pack_add', 'clips', 'clip_set', 'clip_play', 'clip_stop', 'clip_key', 'clip_remove', 'ui', 'ui_set', 'ui_open'];
+const EXPECTED = ['status', 'open_game', 'play', 'reload', 'build', 'check', 'test', 'scene_tree', 'inspect', 'set', 'select', 'frame', 'spawn', 'remove', 'camera', 'pause', 'step', 'command', 'assets', 'screenshot', 'console_log', 'undo', 'redo', 'history', 'prop_source', 'prop_preview', 'prop_revert', 'prop_define', 'pack_save', 'profile', 'run_script', 'layout_save', 'save', 'release_preflight', 'release', 'terrain', 'terrain_new', 'terrain_brush', 'terrain_scatter', 'terrain_off', 'materials', 'material_set', 'material_remove', 'material_shot', 'packs', 'pack_add', 'clips', 'clip_set', 'clip_play', 'clip_stop', 'clip_key', 'clip_remove', 'ui', 'ui_set', 'ui_open', 'model_get', 'model_set', 'model_save', 'physics', 'body_add', 'body_remove', 'impulse', 'drop'];
 
 (async () => {
   await new Promise((res, rej) => srv.listen((e) => (e ? rej(e) : res())));
