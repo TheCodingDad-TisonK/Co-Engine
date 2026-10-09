@@ -4,7 +4,7 @@ This folder is the template: one room, a door, a touch screen, a prop you can ca
 
 ```
 npm install        # fetches the engine at the tag named in package.json, and Electron
-npm run build      # joins the engine parts and src/ into game/game.js
+npm run build      # puts three.js beside the page, joins the engine parts and src/ into game/game.js
 npm start          # the desktop window
 npm run dev        # the same, linked to the Co Engine editor from the first frame
 npm test           # the check script, then the smoke in a hidden window

@@ -65,7 +65,7 @@ module.exports = `
   // the dev link
   ok(T.devCommandList().indexOf('cash') >= 0 && T.devCommandList().indexOf('press') >= 0, 'the command list merges the engine and the game');
   { const b0 = S.bank; ok(/bank/.test(T.devCommand('cash', 5)) && S.bank === b0 + 5 && T.devCommand('press') === 'presses 3' && /unknown/.test(T.devCommand('nope')), 'devCommand runs engine and game commands: bank ' + S.bank); }
-  { const st = T.devState(); ok(st.bank === S.bank && st.presses === 3 && st.people === 2 && st.engine === '0.1.0' && Array.isArray(st.commands), 'devState merges the engine readout and the game readout'); }
+  { const st = T.devState(); ok(st.bank === S.bank && st.presses === 3 && st.people === 2 && st.engine === T.CO.version && Array.isArray(st.commands), 'devState merges the engine readout and the game readout'); }
   // the save round trip
   T.save(); { const raw = JSON.parse(localStorage.getItem('co-sample-slot1')); ok(raw.bank === S.bank && raw.presses === 3, 'save wrote the slot: ' + JSON.stringify({ raw: raw && raw.bank, s: S.bank, rawPresses: raw && raw.presses, failed: !!T.save.failed })); }
   // sound and the log

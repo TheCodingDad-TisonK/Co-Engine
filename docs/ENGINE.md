@@ -1,6 +1,6 @@
 # The engine contract
 
-What a game on Co Engine writes against, as of v0.1.2. One HTML page, one closure: the build script opens the closure, joins the engine's parts (`engine/NN-*.js`) in front of the game's (`src/NN-*.js`), and closes it. A game part may use any engine name at its top level once `CO.setup` has run, which the game's first part does.
+What a game on Co Engine writes against, as of v0.1.3. One HTML page, one closure: the build script opens the closure, joins the engine's parts (`engine/NN-*.js`) in front of the game's (`src/NN-*.js`), and closes it. A game part may use any engine name at its top level once `CO.setup` has run, which the game's first part does.
 
 ## The two calls
 
