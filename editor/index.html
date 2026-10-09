@@ -5,107 +5,229 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:8432 http://127.0.0.1:*; img-src 'self' data:;">
 <title>Co Engine</title>
 <style>
-  :root { --bg: #0b0f14; --panel: #121a24; --line: rgba(255,255,255,0.08); --text: #eef1f5; --muted: #a0acb8; --faint: #6b7784; --amber: #f5b53d; --green: #5fd38d; --red: #ff6b5e; --blue: #78bdf5; }
+  :root { --bg: #0b0f14; --panel: #121a24; --panel2: #0e141b; --line: rgba(255,255,255,0.08); --text: #eef1f5; --muted: #a0acb8; --faint: #6b7784; --amber: #f5b53d; --green: #5fd38d; --red: #ff6b5e; --blue: #78bdf5; }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 Bahnschrift, "Segoe UI", Arial, sans-serif; display: grid; grid-template-columns: 300px 1fr 340px; grid-template-rows: auto 1fr; height: 100vh; }
-  header { grid-column: 1 / 4; display: flex; align-items: center; gap: 14px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  header h1 { margin: 0; font-size: 16px; color: var(--amber); letter-spacing: .04em; }
-  header .hint { color: var(--faint); font-size: 12px; }
-  header .link { margin-left: auto; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--faint); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 Bahnschrift, "Segoe UI", Arial, sans-serif; display: grid; grid-template-columns: 280px 1fr 330px; grid-template-rows: 44px 1fr 230px; height: 100vh; overflow: hidden; }
+  header { grid-column: 1 / 4; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { margin: 0 6px 0 0; font-size: 15px; color: var(--amber); letter-spacing: .06em; }
+  header .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+  header .hint { color: var(--faint); font-size: 12px; margin-left: auto; }
+  header .link { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--faint); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
   header .link.on { border-color: rgba(95,211,141,0.5); color: var(--green); }
-  aside, section, main { overflow: auto; }
-  aside { padding: 12px; border-right: 1px solid var(--line); }
-  main { padding: 12px 14px; display: flex; flex-direction: column; min-height: 0; }
-  section { padding: 12px; border-left: 1px solid var(--line); }
-  h2 { margin: 12px 0 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
-  h2:first-child { margin-top: 0; }
-  button { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,0.05); color: var(--text); font: inherit; cursor: pointer; }
+  select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0,0,0,0.3); color: var(--text); font: inherit; max-width: 220px; }
+  button { padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,0.05); color: var(--text); font: inherit; cursor: pointer; white-space: nowrap; }
   button:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
   button.primary { background: rgba(245,181,61,0.14); border-color: rgba(245,181,61,0.45); color: var(--amber); }
   button.danger { color: var(--red); border-color: rgba(255,107,94,0.4); }
+  button.on { background: rgba(120,189,245,0.16); border-color: rgba(120,189,245,0.5); color: var(--blue); }
   button:disabled { opacity: .4; cursor: default; }
-  .row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; align-items: center; }
+  .seg { display: inline-flex; } .seg button { border-radius: 0; margin-left: -1px; } .seg button:first-child { border-radius: 6px 0 0 6px; } .seg button:last-child { border-radius: 0 6px 6px 0; }
+  aside, section, footer { overflow: hidden; display: flex; flex-direction: column; min-height: 0; background: var(--panel2); }
+  aside { border-right: 1px solid var(--line); } section { border-left: 1px solid var(--line); } footer { grid-column: 1 / 4; border-top: 1px solid var(--line); }
+  .tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); background: var(--panel); flex: none; align-items: flex-end; }
+  .tabs button { border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; background: transparent; color: var(--faint); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 6px 10px; }
+  .tabs button.on { background: var(--panel2); border-color: var(--line); color: var(--text); }
+  .pane { display: none; flex: 1; min-height: 0; overflow: auto; padding: 10px; } .pane.on { display: block; }
+  main { position: relative; background: #05080c; min-width: 0; min-height: 0; }
+  webview { position: absolute; inset: 0; width: 100%; height: 100%; display: flex; }
+  #empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; color: var(--faint); font-size: 14px; pointer-events: none; }
+  #vhint { position: absolute; left: 10px; bottom: 8px; padding: 4px 8px; border-radius: 6px; background: rgba(5,8,12,0.7); border: 1px solid var(--line); color: var(--muted); font-size: 11px; pointer-events: none; }
+  #vmode { position: absolute; right: 10px; top: 8px; padding: 3px 8px; border-radius: 6px; background: rgba(5,8,12,0.7); border: 1px solid var(--line); color: var(--blue); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
+  h2 { margin: 10px 0 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); } h2:first-child { margin-top: 0; }
+  input[type=text], input[type=number], input[type=search] { padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0,0,0,0.3); color: var(--text); font: inherit; }
+  input[type=number] { width: 68px; } input[type=search] { width: 100%; margin-bottom: 6px; }
+  input[type=color] { width: 34px; height: 24px; padding: 0 2px; border: 1px solid var(--line); border-radius: 6px; background: transparent; vertical-align: middle; }
   .proj { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin: 6px 0; cursor: pointer; }
   .proj:hover { border-color: rgba(255,255,255,0.2); } .proj.on { border-color: rgba(245,181,61,0.55); background: rgba(245,181,61,0.06); }
   .proj b { display: block; } .proj small { color: var(--faint); display: block; word-break: break-all; } .proj .kind { color: var(--blue); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
-  .log { flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 8px; background: rgba(0,0,0,0.3); padding: 8px 10px; font: 12px/1.5 Consolas, monospace; color: var(--muted); overflow: auto; white-space: pre-wrap; }
-  .log .err { color: var(--red); } .log .ok { color: var(--green); } .log .cmd { color: var(--blue); } .log .link { color: var(--faint); } .log .result { color: var(--green); }
-  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 13px; }
-  .kv i { color: var(--faint); font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; align-self: center; }
-  .kv b { font-weight: 600; } .kv b.cash { color: var(--green); } .kv b.amber { color: var(--amber); }
-  input[type=text] { width: 110px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0,0,0,0.3); color: var(--text); font: inherit; }
-  .dim { opacity: .45; }
-  ul.plain { margin: 0; padding-left: 16px; color: var(--muted); } ul.plain li { margin: 1px 0; }
+  .tree details { margin: 0 0 2px; } .tree summary { cursor: pointer; color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 4px; list-style: none; } .tree summary::before { content: '▸ '; color: var(--faint); } .tree details[open] > summary::before { content: '▾ '; }
+  .tree .node { padding: 2px 6px 2px 18px; cursor: pointer; border-radius: 4px; display: flex; gap: 6px; align-items: baseline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tree .node:hover { background: rgba(255,255,255,0.05); } .tree .node.on { background: rgba(245,181,61,0.14); color: var(--amber); }
+  .tree .node small { color: var(--faint); } .tree .node .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; align-self: center; }
+  .tree .node.prop .dot { background: var(--amber); } .tree .node.light .dot { background: #ffd27a; } .tree .node.person .dot { background: var(--green); } .tree .node.door .dot { background: var(--blue); } .tree .node.screen .dot { background: #c9a7ff; } .tree .node.vehicle .dot { background: #ff9b6b; }
+  .tree .count { color: var(--faint); padding: 2px 6px 2px 18px; font-size: 12px; }
+  .insp .head { font-size: 15px; margin-bottom: 2px; } .insp .sub { color: var(--faint); font-size: 11px; margin-bottom: 8px; word-break: break-all; }
+  .insp .grp { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; } .insp .grp h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .insp .f { display: grid; grid-template-columns: 74px 1fr; gap: 4px 8px; align-items: center; margin: 3px 0; } .insp .f i { font-style: normal; color: var(--faint); font-size: 11px; } .insp .f .xyz { display: flex; gap: 4px; } .insp .f .xyz input { width: 60px; }
+  .insp .f b { font-weight: 500; color: var(--text); word-break: break-word; } .insp .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .log { height: 100%; overflow: auto; font: 12px/1.5 Consolas, monospace; color: var(--muted); white-space: pre-wrap; padding-right: 6px; }
+  .log .err { color: var(--red); } .log .ok { color: var(--green); } .log .cmd { color: var(--blue); } .log .link { color: var(--faint); } .log .result { color: var(--green); } .log .game { color: #c9d4de; }
+  #console.on { display: flex; flex-direction: column; } #console .log { flex: 1; min-height: 0; } #cline { display: flex; gap: 6px; margin-top: 6px; } #cline input { flex: 1; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; } .tile { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; min-height: 58px; }
+  .tile b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .tile small { color: var(--faint); } .tile .act { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 4px; } .tile .price { color: var(--amber); font-size: 12px; }
+  .sw { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; border: 1px solid var(--line); border-radius: 999px; margin: 2px; font-size: 12px; } .sw i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; } .kv i { color: var(--faint); font-style: normal; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; align-self: center; } .kv b { font-weight: 600; } .kv b.cash { color: var(--green); }
+  .dim { opacity: .5; } .hintp { color: var(--faint); font-size: 12px; margin: 6px 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; } .chips button { padding: 3px 8px; font-size: 12px; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-<header><h1>CO ENGINE</h1><span class="hint" id="about">editor</span><span class="link" id="link">no game linked</span></header>
+<header>
+  <h1>CO ENGINE</h1>
+  <select id="proj"><option value="">No game open</option></select>
+  <button id="open">Open…</button><button id="new">New…</button>
+  <span class="sep"></span>
+  <button data-act="build" disabled>Build</button><button data-act="check" disabled>Check</button><button data-act="test" disabled>Test</button><button data-act="folder" disabled title="Open the folder">Folder</button>
+  <span class="sep"></span>
+  <button id="play" class="primary" disabled>▶ Play</button><button id="pause" disabled title="Pause the world">❚❚</button><button id="step" disabled title="Step one frame">⏭</button><button id="reload" disabled title="Rebuild and reload">↻ Reload</button><button id="window" disabled title="Open the game in a window of its own">⧉</button>
+  <span class="sep"></span>
+  <span class="seg"><button id="mScene" disabled>Scene</button><button id="mGame" class="on" disabled>Game</button></span>
+  <span class="hint" id="about">editor</span><span class="link" id="link">no game</span>
+</header>
 <aside>
-  <h2>Games</h2>
-  <div class="row"><button class="primary" id="open">Open a game folder</button><button id="new">New game from the sample</button></div>
-  <div id="projects"></div>
+  <div class="tabs"><button class="on" data-tab="hier">Hierarchy</button><button data-tab="projp">Project</button></div>
+  <div class="pane on" id="hier"><input type="search" id="find" placeholder="filter by name"><div class="tree" id="tree"><div class="hintp">Press Play: the running game's scene lists here.</div></div></div>
+  <div class="pane" id="projp"><div id="projects"></div></div>
 </aside>
 <main>
-  <h2 id="title">No game open</h2>
-  <div class="row" id="actions">
-    <button data-act="build" disabled>Build</button><button data-act="check" disabled>Check</button><button data-act="test" disabled>Test</button><button data-act="run" class="primary" disabled>Run</button><button data-act="dev" disabled>Run linked</button><button data-act="folder" disabled>Open folder</button><button id="clear">Clear log</button>
-  </div>
-  <div class="log" id="log"></div>
+  <webview id="view" partition="persist:co-editor" webpreferences="contextIsolation=yes, sandbox=yes, backgroundThrottling=no"></webview>
+  <div id="empty"><div>Open a game and press <b>Play</b></div><div class="hintp">The game runs here. Scene flies a free camera over it; Game plays it.</div></div>
+  <div id="vmode" hidden>game</div>
+  <div id="vhint" hidden></div>
 </main>
 <section>
-  <h2>Readout <span id="age" class="hint"></span></h2>
-  <div class="kv" id="kv"><i>waiting</i><b>for a linked game</b></div>
-  <h2>Commands</h2>
-  <div class="row" id="cmds"><span class="dim">the linked game lists its commands here</span></div>
-  <div class="row"><input type="text" id="arg" placeholder="argument"><span class="hint">goes with the next command you press</span></div>
-  <h2>Lists</h2>
-  <ul class="plain" id="lists"><li class="dim">none</li></ul>
+  <div class="tabs"><button class="on" data-tab="insp">Inspector</button></div>
+  <div class="pane on insp" id="insp"><div class="hintp">Click a thing in the viewport or the hierarchy.</div></div>
 </section>
+<footer>
+  <div class="tabs"><button class="on" data-tab="console">Console</button><button data-tab="assets">Assets</button><button data-tab="readout">Readout</button><button data-tab="claude">Claude</button><span style="flex:1"></span><button id="clear" style="border:none;color:var(--faint)">clear</button></div>
+  <div class="pane on" id="console"><div class="log" id="log"></div><div id="cline"><input type="text" id="cin" placeholder="a command: cash 500 · setTime 9 · tp 2, 3 · weather rain · or any the game lists in the Readout"><button id="csend">Run</button></div></div>
+  <div class="pane" id="assets"><div class="hintp">Press Play: the game's prop definitions, palette, textures and voices list here.</div></div>
+  <div class="pane" id="readout"><h2>Readout <span id="age" class="hintp"></span></h2><div class="kv" id="kv"><i>waiting</i><b>for a linked game</b></div><h2>Commands</h2><div class="chips" id="cmds"><span class="dim">the linked game lists its commands here</span></div><h2>Lists</h2><div id="lists" class="hintp">none</div></div>
+  <div class="pane" id="claude"><div class="hintp">The Claude panel comes with the MCP server in the next step of M6: Claude Code drives this editor (select, move, spawn, build, test, screenshot) and answers here.</div></div>
+</footer>
 <script>
 (function () {
-  var $ = function (id) { return document.getElementById(id); }, current = null, projects = [], games = 0, open = 0;
+  var $ = function (id) { return document.getElementById(id); }, current = null, projects = [], games = 0, open = 0, PORT = 8432;
+  var view = $('view'), ready = false, selected = null, treeData = null, mode = 'game', paused = false, assetsLoaded = false, autoDemo = false;
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function money(n) { n = Math.round(n || 0); return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US'); }
   function logRow(r) { var d = document.createElement('div'); d.className = r.kind || 'out'; d.textContent = (r.t ? new Date(r.t).toLocaleTimeString() + '  ' : '') + r.text; var el = $('log'); el.appendChild(d); while (el.children.length > 2000) el.removeChild(el.firstChild); el.scrollTop = el.scrollHeight; }
-  function linkState() { var el = $('link'); el.className = 'link' + (games ? ' on' : ''); el.textContent = games ? 'LINKED · ' + games + ' game' + (games > 1 ? 's' : '') : (open ? open + ' game window' + (open > 1 ? 's' : '') + ' open, none linked' : 'no game linked'); }
-  function renderProjects() {
-    $('projects').innerHTML = projects.length ? projects.map(function (p, i) { return '<div class="proj' + (current && current.dir === p.dir ? ' on' : '') + '" data-i="' + i + '"><b>' + esc(p.name) + (p.version ? ' <span class="hint">' + esc(p.version) + '</span>' : '') + '</b><span class="kind">' + (p.kind === 'engine' ? 'on the engine' : p.kind === 'npm' ? 'own scripts' : 'not a game') + '</span><small>' + esc(p.dir) + '</small></div>'; }).join('') : '<p class="hint">Open a folder that holds a game: Depot Co, Grow Co, or a game made from the sample.</p>';
+  function linkState() { var el = $('link'); el.className = 'link' + (games ? ' on' : ''); el.textContent = games ? 'LINKED · ' + games + ' game' + (games > 1 ? 's' : '') : (ready ? 'running, not linked' : 'no game'); }
+  // ── tabs ──
+  document.querySelectorAll('.tabs').forEach(function (bar) { bar.addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (!b) return; bar.querySelectorAll('[data-tab]').forEach(function (x) { x.classList.toggle('on', x === b); }); var host = bar.parentElement; host.querySelectorAll(':scope > .pane').forEach(function (p) { p.classList.toggle('on', p.id === b.getAttribute('data-tab')); }); if (b.getAttribute('data-tab') === 'assets' && !assetsLoaded) loadAssets(); }); });
+  // ── the game in the viewport ──
+  function ev(code) { if (!ready) return Promise.resolve(null); return view.executeJavaScript(code, true).catch(function (e) { logRow({ t: Date.now(), kind: 'err', text: 'viewport: ' + e.message }); return null; }); }
+  function bridge(expr) { return ev('(function () { try { var CO = { editor: window.CO_EDITOR }; if (!CO.editor) return { __err: "the game has no editor bridge yet (engine 0.1.5 or later)" }; var r = ' + expr + '; return r === undefined ? null : JSON.parse(JSON.stringify(r)); } catch (e) { return { __err: String(e && e.message || e) }; } })()').then(function (r) { if (r && r.__err) { logRow({ t: Date.now(), kind: 'err', text: 'bridge: ' + r.__err }); return null; } return r; }); }
+  function arg(v) { return JSON.stringify(v === undefined ? null : v); }
+  function setRunning(on) { ['pause', 'step', 'reload', 'mScene', 'mGame'].forEach(function (id) { $(id).disabled = !on; }); $('empty').hidden = on; $('vmode').hidden = !on; $('vhint').hidden = !on; if (!on) { ready = false; selected = null; treeData = null; $('tree').innerHTML = '<div class="hintp">Press Play: the running game’s scene lists here.</div>'; $('insp').innerHTML = '<div class="hintp">Click a thing in the viewport or the hierarchy.</div>'; assetsLoaded = false; } linkState(); }
+  function play() {
+    if (!current || !current.page) return;
+    $('play').disabled = true; $('play').textContent = '▶ Playing';
+    window.co.act(current.dir, 'build').then(function () { return window.co.pageUrl(current.dir); }).then(function (url) { if (!url) { $('play').disabled = false; $('play').textContent = '▶ Play'; return; } view.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'dev=1&editor=1'; });
   }
-  function select(p) {
-    current = p; renderProjects();
-    $('title').textContent = p ? p.name + (p.kind === 'engine' ? ' · on the engine' : p.kind === 'npm' ? ' · own scripts' : '') : 'No game open';
-    document.querySelectorAll('[data-act]').forEach(function (b) { var a = b.getAttribute('data-act'); var can = !!p && p.kind !== 'none' && (a === 'folder' || a === 'build' || a === 'check' || (a === 'test' ? !!(p.scripts && p.scripts.test) : !!p.page)); b.disabled = !can; });
+  view.addEventListener('dom-ready', function () { ready = true; setRunning(true); $('play').disabled = false; $('play').textContent = '▶ Restart'; logRow({ t: Date.now(), kind: 'ok', text: 'viewport: ' + (current ? current.name : 'the game') + ' loaded' }); setTimeout(function () { bridge('CO.editor.enter()').then(function () { refreshTree(); setMode(mode); if (autoDemo) setTimeout(demo, 1500); }); }, 700); });
+  // the picture the editor takes of itself (--demo): the first prop selected and framed in the scene camera, the assets open
+  function demo() { autoDemo = false; bridge('CO.editor.tree()').then(function (tr) { var first = null; if (tr && tr.props) Object.keys(tr.props).some(function (k) { first = tr.props[k][0]; return !!first; }); if (!first) return; selected = first.id; renderTreeSelection(); bridge('CO.editor.select(' + arg(first.id) + ')').then(function (r) { renderInspector(r); return bridge('CO.editor.frame(' + arg(first.id) + ')'); }).then(function () { setMode('scene'); document.querySelector('[data-tab="assets"]').click(); }); }); }
+  view.addEventListener('did-fail-load', function (e) { if (e.errorCode !== -3) logRow({ t: Date.now(), kind: 'err', text: 'viewport: the page did not load (' + e.errorDescription + ')' }); });
+  view.addEventListener('console-message', function (e) {
+    if (e.message.indexOf('[co-editor] ') === 0) { var d = {}; try { d = JSON.parse(e.message.slice(12)); } catch (err) {} if ('select' in d) { selected = d.select; renderTreeSelection(); inspect(d.select); } return; }
+    if (e.level >= 2 || /^hook |^co-engine/.test(e.message)) logRow({ t: Date.now(), kind: e.level >= 2 ? 'err' : 'game', text: 'game: ' + e.message });
+  });
+  view.addEventListener('permissionrequest', function (e) { if (e.permission === 'fullscreen') e.request.allow(); else e.request.deny(); });   // never a pointer lock in the viewport: the engine drags the look with the right button instead
+  $('play').addEventListener('click', play);
+  $('reload').addEventListener('click', play);
+  $('window').addEventListener('click', function () { if (current) window.co.act(current.dir, 'dev'); });
+  $('pause').addEventListener('click', function () { bridge('CO.editor.pause()').then(function (p) { paused = !!p; $('pause').classList.toggle('on', paused); $('pause').textContent = paused ? '▶ Resume' : '❚❚'; }); });
+  $('step').addEventListener('click', function () { bridge('CO.editor.step()'); });
+  function setMode(m) { bridge('CO.editor.mode(' + arg(m) + ')').then(function (r) { mode = r || 'game'; $('mScene').classList.toggle('on', mode === 'scene'); $('mGame').classList.toggle('on', mode !== 'scene'); $('vmode').textContent = mode; $('vhint').textContent = mode === 'scene' ? 'Left click selects · hold the right button and move the mouse to look · W A S D fly, Space up, C down, Shift fast · the wheel zooms the lens' : 'The game as the player sees it · hold the right button to look, W A S D to walk, E to use · Esc for the pause menu'; }); }
+  $('mScene').addEventListener('click', function () { setMode('scene'); }); $('mGame').addEventListener('click', function () { setMode('game'); });
+  // ── hierarchy ──
+  function nodeHtml(n, cls) { return '<div class="node ' + cls + (selected === n.id ? ' on' : '') + '" data-id="' + esc(n.id) + '"><span class="dot"></span><span>' + esc(n.name) + '</span>' + (n.n ? '<small>' + n.n + '</small>' : '') + (n.custom ? '<small>copy</small>' : '') + (n.vis === false ? '<small>hidden</small>' : '') + (n.open ? '<small>open</small>' : '') + (n.locked ? '<small>locked</small>' : '') + '</div>'; }
+  function renderTree() {
+    var tr = treeData; if (!tr) return; var q = ($('find').value || '').toLowerCase(), h = '';
+    var keep = function (n) { return !q || String(n.name).toLowerCase().indexOf(q) >= 0 || String(n.id).toLowerCase().indexOf(q) >= 0; };
+    Object.keys(tr.props).sort().forEach(function (c) { var list = tr.props[c].filter(keep); if (!list.length) return; h += '<details open><summary>props · ' + esc(c) + ' <small>' + list.length + '</small></summary>' + list.map(function (n) { return nodeHtml(n, 'prop'); }).join('') + '</details>'; });
+    [['people', 'person'], ['doors', 'door'], ['screens', 'screen'], ['vehicles', 'vehicle'], ['lights', 'light'], ['other', 'other']].forEach(function (k) { var list = (tr[k[0]] || []).filter(keep); if (!list.length) return; h += '<details' + (k[0] === 'other' ? '' : ' open') + '><summary>' + k[0] + ' <small>' + list.length + '</small></summary>' + list.map(function (n) { return nodeHtml(n, k[1]); }).join('') + '</details>'; });
+    if (tr.extra && typeof tr.extra === 'object') Object.keys(tr.extra).forEach(function (k) { var list = Array.isArray(tr.extra[k]) ? tr.extra[k].filter(keep) : []; if (!list.length) return; h += '<details open><summary>' + esc(k) + ' <small>' + list.length + '</small></summary>' + list.map(function (n) { return nodeHtml(n, n.type || 'other'); }).join('') + '</details>'; });
+    h += '<details><summary>world</summary><div class="count">' + tr.counts.statics + ' static meshes, ' + tr.counts.baked + ' baked draws</div><div class="count">' + tr.counts.inter + ' things to use, ' + tr.counts.solids + ' solids, ' + tr.counts.dyn + ' moving blockers</div></details>';
+    $('tree').innerHTML = h;
   }
+  function renderTreeSelection() { document.querySelectorAll('#tree .node').forEach(function (el) { el.classList.toggle('on', el.getAttribute('data-id') === selected); }); }
+  function refreshTree() { if (!ready) return; bridge('CO.editor.tree()').then(function (tr) { if (!tr) return; treeData = tr; renderTree(); paused = !!tr.paused; $('pause').classList.toggle('on', paused); $('pause').textContent = paused ? '▶ Resume' : '❚❚'; var m = tr.scene ? 'scene' : 'game'; if (m !== mode) { mode = m; $('mScene').classList.toggle('on', mode === 'scene'); $('mGame').classList.toggle('on', mode !== 'scene'); $('vmode').textContent = mode; } }); }
+  setInterval(function () { if (ready && $('hier').classList.contains('on') && !document.hidden) refreshTree(); }, 2500);
+  $('find').addEventListener('input', renderTree);
+  $('tree').addEventListener('click', function (e) { var el = e.target.closest('.node'); if (!el) return; var id = el.getAttribute('data-id'); selected = id; renderTreeSelection(); bridge('CO.editor.select(' + arg(id) + ')').then(renderInspector); });
+  $('tree').addEventListener('dblclick', function (e) { var el = e.target.closest('.node'); if (!el) return; bridge('CO.editor.frame(' + arg(el.getAttribute('data-id')) + ')').then(function () { setMode('scene'); }); });
+  // ── inspector ──
+  function inspect(id) { if (!id) { renderInspector(null); return; } bridge('CO.editor.inspect(' + arg(id) + ')').then(renderInspector); }
+  function num(path, v, step) { return '<input type="number" step="' + (step || 0.05) + '" value="' + (v === null || v === undefined ? '' : v) + '" data-set="' + path + '">'; }
+  function xyz(path, arr, step) { return '<div class="xyz">' + ['x', 'y', 'z'].map(function (a, i) { return num(path + '.' + a, arr[i], step); }).join('') + '</div>'; }
+  function f(label, html) { return '<div class="f"><i>' + label + '</i><div>' + html + '</div></div>'; }
+  function renderInspector(r) {
+    var el = $('insp'); if (!r) { el.innerHTML = '<div class="hintp">Nothing selected. Click a thing in the viewport or the hierarchy.</div>'; return; }
+    var h = '<div class="head">' + esc(r.name) + '</div><div class="sub">' + esc(r.type) + ' · ' + esc(r.id) + (r.parent ? ' · in ' + esc(r.parent) : '') + (r.dynamic ? ' · dynamic' : '') + (r.baked ? ' · baked' : '') + '</div>';
+    if (r.prop) { var p = r.prop; h += '<div class="grp"><h3>Prop · ' + esc(p.type) + (p.custom ? ' (a copy)' : '') + '</h3>' + f('label', '<b>' + esc(p.label) + '</b>') + f('category', '<b>' + esc(p.cat || '') + '</b>' + (p.extra ? ' · in the catalogue' : '') + (p.wall ? ' · wall' : '') + (p.fixed ? ' · fixed' : '')) + (p.price ? f('price', '<b>' + money(p.price) + '</b>') : '') + (p.lvl ? f('level', '<b>' + p.lvl + '</b>') : '') + (p.desc ? f('note', '<b>' + esc(p.desc) + '</b>') : '') +
+      f('x', num('prop.x', p.x)) + f('z', num('prop.z', p.z)) + f('turn', num('prop.rot', p.rot, 1) + ' <small class="dim">quarter turns</small>') + f('height', num('prop.h', p.h)) + f('hidden', '<input type="checkbox" data-set="prop.hidden"' + (p.hidden ? ' checked' : '') + '>') + f('solids', '<b>' + p.obstacles + '</b>' + (p.moved ? ' · moved from its default' : '')) +
+      '<div class="row">' + (p.moved ? '<button data-do="reset">Put it back</button>' : '') + '<button data-do="frame">Frame</button><button data-do="remove" class="danger">' + (p.custom ? 'Remove' : 'Hide') + '</button></div></div>'; }
+    h += '<div class="grp"><h3>Transform' + (r.prop ? ' <small class="dim">(the prop fields above are what the save keeps)</small>' : '') + '</h3>' + f('position', xyz('position', r.position)) + f('rotation °', xyz('rotation', r.rotation, 1)) + f('scale', xyz('scale', r.scale, 0.01)) + f('world', '<b class="dim">' + r.world.map(function (v) { return v.toFixed(2); }).join(', ') + '</b>') + f('visible', '<input type="checkbox" data-set="visible"' + (r.visible ? ' checked' : '') + '>') + (r.prop ? '' : '<div class="row"><button data-do="frame">Frame</button><button data-do="remove" class="danger">Remove</button></div>') + '</div>';
+    if (r.material) { var m = r.material; h += '<div class="grp"><h3>Material' + (m.key ? ' · ' + esc(m.key) : '') + (m.shared ? ' <small class="dim">(shared by every mesh that uses it)</small>' : '') + '</h3>' + f('type', '<b>' + esc(m.type) + (m.map ? ' · textured' : '') + '</b>') + (m.color ? f('colour', '<input type="color" value="' + m.color + '" data-set="material.color"> <small class="dim">' + m.color + '</small>') : '') + (m.emissive ? f('glow', '<input type="color" value="' + m.emissive + '" data-set="material.emissive"> ' + num('material.emissiveIntensity', m.emissiveIntensity, 0.05)) : '') + (m.roughness !== null ? f('roughness', num('material.roughness', m.roughness, 0.05)) : '') + (m.metalness !== null ? f('metalness', num('material.metalness', m.metalness, 0.05)) : '') + f('opacity', num('material.opacity', m.opacity, 0.05)) + '</div>'; }
+    if (r.light) { var l = r.light; h += '<div class="grp"><h3>Light · ' + esc(l.type) + '</h3>' + f('colour', '<input type="color" value="' + l.color + '" data-set="light.color">') + f('intensity', num('light.intensity', l.intensity, 0.05)) + (l.distance !== null ? f('distance', num('light.distance', l.distance, 0.5)) : '') + f('shadows', '<b>' + (l.shadow ? 'cast' : 'none') + '</b>') + '</div>'; }
+    if (r.geometry) h += '<div class="grp"><h3>Geometry · ' + esc(r.geometry.type) + '</h3>' + f('params', '<b class="dim">' + esc(Object.keys(r.geometry.params).filter(function (k) { return typeof r.geometry.params[k] === 'number'; }).map(function (k) { return k + ' ' + Math.round(r.geometry.params[k] * 1000) / 1000; }).join(' · ')) + '</b>') + '</div>';
+    if (r.screen) h += '<div class="grp"><h3>Screen</h3>' + f('title', '<b>' + esc(r.screen.title) + '</b>') + f('size', '<b>' + r.screen.w + ' × ' + r.screen.h + ' · ' + r.screen.zones + ' tap zones</b>') + '</div>';
+    if (r.game) h += '<div class="grp"><h3>Game</h3>' + Object.keys(r.game).map(function (k) { return f(esc(k), '<b>' + esc(typeof r.game[k] === 'object' ? JSON.stringify(r.game[k]) : r.game[k]) + '</b>'); }).join('') + '</div>';
+    el.innerHTML = h;
+  }
+  $('insp').addEventListener('change', function (e) { var inp = e.target.closest('[data-set]'); if (!inp || !selected) return; var v = inp.type === 'checkbox' ? inp.checked : inp.type === 'color' ? inp.value : +inp.value; bridge('CO.editor.set(' + arg(selected) + ', ' + arg(inp.getAttribute('data-set')) + ', ' + arg(v) + ')').then(function (r) { if (r && r !== 'ok') logRow({ t: Date.now(), kind: 'err', text: 'set: ' + r }); inspect(selected); refreshTree(); }); });
+  $('insp').addEventListener('click', function (e) { var b = e.target.closest('[data-do]'); if (!b || !selected) return; var d = b.getAttribute('data-do');
+    if (d === 'frame') bridge('CO.editor.frame(' + arg(selected) + ')').then(function () { setMode('scene'); });
+    else if (d === 'reset') bridge('CO.editor.set(' + arg(selected) + ', "prop.reset", 1)').then(function () { inspect(selected); refreshTree(); });
+    else if (d === 'remove') bridge('CO.editor.remove(' + arg(selected) + ')').then(function (r) { logRow({ t: Date.now(), kind: 'ok', text: String(r) }); selected = null; renderInspector(null); refreshTree(); }); });
+  // the arrow keys nudge the selected prop, R turns it, Delete removes it, while the editor page (not the game) has the focus
+  document.addEventListener('keydown', function (e) { if (!selected || !ready || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'WEBVIEW') return; var d = e.shiftKey ? 0.5 : 0.1, dx = e.code === 'ArrowLeft' ? -d : e.code === 'ArrowRight' ? d : 0, dz = e.code === 'ArrowUp' ? -d : e.code === 'ArrowDown' ? d : 0; if (!dx && !dz && e.code !== 'KeyR' && e.code !== 'Delete') return; e.preventDefault();
+    bridge('CO.editor.inspect(' + arg(selected) + ')').then(function (r) { if (!r || !r.prop) return; if (e.code === 'Delete') return bridge('CO.editor.remove(' + arg(selected) + ')').then(function () { selected = null; renderInspector(null); refreshTree(); }); var path = e.code === 'KeyR' ? 'prop.rot' : dx ? 'prop.x' : 'prop.z', v = e.code === 'KeyR' ? (r.prop.rot + 1) % 4 : Math.round(((dx ? r.prop.x + dx : r.prop.z + dz)) * 100) / 100; return bridge('CO.editor.set(' + arg(selected) + ', ' + arg(path) + ', ' + arg(v) + ')').then(function () { inspect(selected); }); }); });
+  // ── assets ──
+  function loadAssets() {
+    if (!ready) return; bridge('CO.editor.assets()').then(function (a) { if (!a) return; assetsLoaded = true; var h = '';
+      var cats = {}; a.props.forEach(function (p) { (cats[p.cat] = cats[p.cat] || []).push(p); }); var names = {}; (a.catalogue || []).forEach(function (g) { names[g[0]] = g[1]; });
+      Object.keys(cats).sort().forEach(function (c) { h += '<h2>Props · ' + esc(names[c] || c) + ' <small class="dim">' + cats[c].length + '</small></h2><div class="tiles">' + cats[c].map(function (p) { return '<div class="tile"><b>' + esc(p.ico ? p.ico + ' ' : '') + esc(p.label) + '</b><small>' + esc(p.id) + (p.wall ? ' · wall' : '') + (p.fixed ? ' · fixed' : '') + (p.lvl ? ' · level ' + p.lvl : '') + (p.standing ? ' · standing' : '') + '</small><div class="act"><span class="price">' + (p.price ? money(p.price) : (p.extra ? 'free' : '')) + '</span><button data-spawn="' + esc(p.id) + '">Place</button></div></div>'; }).join('') + '</div>'; });
+      h += '<h2>Materials <small class="dim">' + a.materials.length + '</small></h2><div>' + a.materials.map(function (m) { return '<span class="sw" title="' + esc(m.type) + '"><i style="background:' + (m.color || '#555') + (m.map ? ';background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.25) 0 2px,transparent 2px 4px)' : '') + '"></i>' + esc(m.key) + '</span>'; }).join('') + '</div>';
+      h += '<h2>Textures <small class="dim">' + a.textures.length + '</small></h2><div class="chips">' + a.textures.map(function (t) { return '<span class="sw">' + esc(t) + '</span>'; }).join('') + '</div>';
+      h += '<h2>Sounds <small class="dim">' + a.sounds.length + '</small></h2><div class="chips">' + a.sounds.map(function (s) { return '<button data-sfx="' + esc(s) + '">' + esc(s) + '</button>'; }).join('') + '</div>';
+      h += '<h2>People</h2><div>' + a.people.skins.map(function (c) { return '<span class="sw"><i style="background:' + c + '"></i>skin</span>'; }).join('') + a.people.hairs.map(function (c) { return '<span class="sw"><i style="background:' + c + '"></i>hair</span>'; }).join('') + a.people.styles.map(function (s) { return '<span class="sw">' + esc(s) + '</span>'; }).join('') + '</div>';
+      $('assets').innerHTML = h; });
+  }
+  $('assets').addEventListener('click', function (e) { var b = e.target.closest('[data-spawn]'); if (b) { bridge('CO.editor.spawn(' + arg(b.getAttribute('data-spawn')) + ')').then(function (id) { logRow({ t: Date.now(), kind: 'ok', text: 'placed ' + id + ' ahead of the camera' }); selected = id; refreshTree(); inspect(id); }); return; } var s = e.target.closest('[data-sfx]'); if (s) bridge('CO.editor.sfx(' + arg(s.getAttribute('data-sfx')) + ')'); });
+  // ── console ──
+  function runCommand() { var raw = $('cin').value.trim(); if (!raw) return; $('cin').value = ''; var sp = raw.indexOf(' '), name = sp < 0 ? raw : raw.slice(0, sp), a = sp < 0 ? undefined : raw.slice(sp + 1).trim(); if (a !== undefined && a !== '' && !isNaN(+a)) a = +a; logRow({ t: Date.now(), kind: 'cmd', text: '> ' + raw }); if (ready) bridge('CO.editor.command(' + arg(name) + ', ' + arg(a) + ')').then(function (r) { logRow({ t: Date.now(), kind: 'result', text: name + ': ' + r }); }); else window.co.cmd(name, a); }
+  $('csend').addEventListener('click', runCommand); $('cin').addEventListener('keydown', function (e) { if (e.key === 'Enter') runCommand(); });
+  $('clear').addEventListener('click', function () { $('log').innerHTML = ''; });
+  // ── readout (the dev link) ──
   function readout(st, age) {
-    if (!st) return;
-    var rows = [];
-    ['version', 'day', 'clock', 'bank', 'level', 'xp', 'site', 'stageName', 'next', 'weather', 'power', 'orders', 'packed', 'late', 'stock', 'rows', 'intro'].forEach(function (k) { if (st[k] === undefined) return; var v = st[k]; if (k === 'bank') v = '<b class="cash">' + money(v) + '</b>'; else if (k === 'level') v = '<b class="amber">' + esc(v) + (st.cap ? ' / ' + st.cap : '') + '</b>'; else if (k === 'xp') v = esc(v) + (st.xpFor ? ' / ' + st.xpFor : ''); else if (typeof v === 'object') v = esc(JSON.stringify(v)); else v = esc(v); rows.push('<i>' + k + '</i><b>' + v + '</b>'); });
+    if (!st) return; var rows = [];
+    Object.keys(st).forEach(function (k) { var v = st[k]; if (k === 'commands' || k === 'player' || Array.isArray(v) || (v && typeof v === 'object')) return; rows.push('<i>' + esc(k) + '</i>' + (k === 'bank' ? '<b class="cash">' + money(v) + '</b>' : '<b>' + esc(v) + '</b>')); });
     if (st.player) rows.push('<i>player</i><b>' + esc(st.player.x + ', ' + st.player.z) + '</b>');
     $('kv').innerHTML = rows.join('');
-    var lists = []; ['trucks', 'staff', 'up'].forEach(function (k) { if (Array.isArray(st[k]) && st[k].length) lists.push('<li><b>' + k + ':</b> ' + st[k].map(esc).join(', ') + '</li>'); });
-    $('lists').innerHTML = lists.length ? lists.join('') : '<li class="dim">none</li>';
+    var lists = []; Object.keys(st).forEach(function (k) { if (Array.isArray(st[k]) && k !== 'commands' && st[k].length) lists.push('<div><b>' + esc(k) + ':</b> ' + st[k].map(function (x) { return esc(typeof x === 'object' ? JSON.stringify(x) : x); }).join(', ') + '</div>'); });
+    $('lists').innerHTML = lists.length ? lists.join('') : 'none';
     $('age').textContent = age < 3000 ? 'live' : Math.round(age / 1000) + ' s ago';
-    if (Array.isArray(st.commands) && st.commands.length && $('cmds').getAttribute('data-n') !== String(st.commands.length)) { $('cmds').setAttribute('data-n', String(st.commands.length)); $('cmds').innerHTML = st.commands.map(function (c) { var name = typeof c === 'string' ? c : c.name, label = typeof c === 'string' ? c : (c.label || c.name); return '<button data-cmd="' + esc(name) + '">' + esc(label) + '</button>'; }).join(''); }
+    if (Array.isArray(st.commands) && st.commands.length && $('cmds').getAttribute('data-n') !== String(st.commands.length)) { $('cmds').setAttribute('data-n', String(st.commands.length)); $('cmds').innerHTML = st.commands.map(function (c) { var name = typeof c === 'string' ? c : c.name; return '<button data-cmd="' + esc(name) + '">' + esc(name) + '</button>'; }).join(''); }
   }
-  function connect() {
-    var es = new EventSource('http://127.0.0.1:' + PORT + '/ui');
-    es.addEventListener('state', function (ev) { var d = JSON.parse(ev.data); readout(d.state, d.age); });
-    es.addEventListener('games', function (ev) { games = JSON.parse(ev.data).n; linkState(); });
-    es.addEventListener('log', function (ev) { logRow(JSON.parse(ev.data)); });
-    es.onerror = function () { es.close(); setTimeout(connect, 2000); };
+  $('cmds').addEventListener('click', function (e) { var b = e.target.closest('[data-cmd]'); if (!b) return; $('cin').value = b.getAttribute('data-cmd') + ' '; $('cin').focus(); });
+  function connect() { var es = new EventSource('http://127.0.0.1:' + PORT + '/ui'); es.addEventListener('state', function (ev2) { var d = JSON.parse(ev2.data); readout(d.state, d.age); }); es.addEventListener('games', function (ev2) { games = JSON.parse(ev2.data).n; linkState(); }); es.addEventListener('log', function (ev2) { logRow(JSON.parse(ev2.data)); }); es.onerror = function () { es.close(); setTimeout(connect, 2000); }; }
+  // ── projects ──
+  function renderProjects() {
+    $('projects').innerHTML = projects.length ? projects.map(function (p, i) { return '<div class="proj' + (current && current.dir === p.dir ? ' on' : '') + '" data-i="' + i + '"><b>' + esc(p.name) + (p.version ? ' <span class="dim">' + esc(p.version) + '</span>' : '') + '</b><span class="kind">' + (p.kind === 'engine' ? 'on the engine' : p.kind === 'npm' ? 'own scripts' : 'not a game') + '</span><small>' + esc(p.dir) + '</small></div>'; }).join('') : '<div class="hintp">No games yet. Open a folder, or make a new game from the sample.</div>';
+    $('proj').innerHTML = (projects.length ? '' : '<option value="">No game open</option>') + projects.map(function (p, i) { return '<option value="' + i + '"' + (current && current.dir === p.dir ? ' selected' : '') + '>' + esc(p.name) + (p.version ? ' ' + esc(p.version) : '') + '</option>'; }).join('');
   }
-  var PORT = 8432;
-  window.co.info().then(function (i) { PORT = i.port; $('about').textContent = 'editor v' + i.version + (i.packed ? '' : ' · from the repo') + ' · dev link on 127.0.0.1:' + i.port; connect(); });
+  function select(p) {
+    if (current && p && current.dir !== p.dir && ready) { view.src = 'about:blank'; setRunning(false); $('play').textContent = '▶ Play'; }
+    current = p; renderProjects();
+    document.querySelectorAll('[data-act]').forEach(function (b) { var a = b.getAttribute('data-act'); b.disabled = !(p && p.kind !== 'none' && (a === 'folder' || a === 'build' || a === 'check' || (a === 'test' && p.scripts && p.scripts.test))); });
+    $('play').disabled = !(p && p.page); $('window').disabled = !(p && p.page);
+  }
+  window.co.info().then(function (i) { PORT = i.port; $('about').textContent = 'editor v' + i.version + (i.packed ? '' : ' · from the repo') + ' · dev link 127.0.0.1:' + i.port; connect(); });
   window.co.onLog(logRow);
   window.co.onGames(function (d) { open = d.open; linkState(); });
+  window.co.onAuto(function (d) { autoDemo = !!d.demo; var p = projects.filter(function (q) { return q.dir === d.dir; })[0]; if (!p) { window.co.describe(d.dir).then(function (q) { projects.unshift(q); select(q); play(); }); } else { select(p); play(); } });
   window.co.recent().then(function (list) { projects = list; renderProjects(); if (list.length) select(list[0]); });
   $('open').addEventListener('click', function () { window.co.openDialog().then(function (p) { if (!p) return; projects = projects.filter(function (q) { return q.dir !== p.dir; }); projects.unshift(p); select(p); }); });
   $('new').addEventListener('click', function () { window.co.newDialog().then(function (p) { if (!p) return; projects.unshift(p); select(p); }); });
   $('projects').addEventListener('click', function (e) { var el = e.target.closest('.proj'); if (!el) return; select(projects[+el.getAttribute('data-i')]); });
-  $('actions').addEventListener('click', function (e) { var b = e.target.closest('[data-act]'); if (!b || !current || b.disabled) return; b.disabled = true; window.co.act(current.dir, b.getAttribute('data-act')).then(function () { window.co.describe(current.dir).then(function (p) { var i = projects.findIndex(function (q) { return q.dir === p.dir; }); if (i >= 0) projects[i] = p; select(p); }); }); });
-  $('clear').addEventListener('click', function () { $('log').innerHTML = ''; });
-  $('cmds').addEventListener('click', function (e) { var b = e.target.closest('[data-cmd]'); if (!b) return; var raw = $('arg').value.trim(), arg = raw === '' ? undefined : (isNaN(+raw) ? raw : +raw); window.co.cmd(b.getAttribute('data-cmd'), arg); });
-  logRow({ t: Date.now(), kind: 'ok', text: 'Co Engine editor. Open a game folder on the left, or make a new game from the sample.' });
+  $('proj').addEventListener('change', function () { var p = projects[+$('proj').value]; if (p) select(p); });
+  document.querySelector('header').addEventListener('click', function (e) { var b = e.target.closest('[data-act]'); if (!b || !current || b.disabled) return; b.disabled = true; window.co.act(current.dir, b.getAttribute('data-act')).then(function () { window.co.describe(current.dir).then(function (d) { var i = projects.findIndex(function (q) { return q.dir === d.dir; }); if (i >= 0) projects[i] = d; select(d); }); }); });
+  logRow({ t: Date.now(), kind: 'ok', text: 'Co Engine editor. Open a game folder, press Play, and the game runs in the viewport: Scene flies a camera over it, the hierarchy lists what stands in it, the inspector edits what you click.' });
 })();
 </script>
 </body>

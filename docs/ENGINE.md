@@ -56,6 +56,8 @@ Any other field of GAME is a hook (section 3).
 
 Each frame, in order: the menu camera until `enter`; then, when started and not blocked, `photoTick` or `GAME.tick(dt)`, the weather, `updatePlayer(dt)`, the autosave timer; `worldTime` advances; `lighting`, the light budget, the shadow timer, the sky, bursts, doors, screens, build mode, traffic; `GAME.present(dt)` and the `frame` hooks; the `animated` list; focus, prompt, HUD, cards, the dev link; the render; the FPS readout.
 
+While `CO.paused` is true the frame only ticks the scene camera, the light budget and the shadows and renders; nothing in the world moves. `CO.stepOnce = true` lets exactly one full frame through. The editor's pause and step buttons set these.
+
 ## 3. Hooks on CO.game
 
 All optional. Where a hook returns a value the engine uses it; where it returns true the engine treats the thing as handled.
@@ -88,6 +90,17 @@ The engine reads these elements when they exist and does nothing when they do no
 
 `defProp(id, def)`: `label, x, z, rot, y, cat, wall, fixed, extra, price, ico, desc, lvl, noBlob, quietPlace, when(), snap(def, pt, selfId), build(ctx, P, inst), after(ctx, P, inst)`. The ctx: `box, cyl, sphere, plane, sign, hit, solid, light, dynGroup, add, group, obstacles, id`, plus what the `propCtx` hooks add. Placement: `S.layout[id] = {x, z, rot, h, hidden}`; bought copies: `S.custom = [{id, type, x, z, rot, h}]`.
 
-## 7. The test handle
+## 7. The editor bridge
+
+Since 0.1.5 the page carries `CO.editor` (`engine/60-editor.js`), published as `window.CO_EDITOR` and switched on by `?editor=1` in the page's query (the editor's viewport loads the page with `?dev=1&editor=1`). It is the one surface the editor, the MCP server and a test talk to:
+
+- `tree()`: what stands in the scene, by category (props by catalogue group, lights, people, doors, screens, vehicles, other), with counts, the time, the selection, the pause and scene-camera flags. Every object gets a stable id (`e<n>` stamped in `userData.eid`; a placed prop's id is its layout key).
+- `inspect(id)`: the transform, material, geometry, light, screen and prop fields (type, label, category, x, z, turn, height, hidden, moved, solids) of one thing; `set(id, path, value)` edits them (`prop.x`, `prop.z`, `prop.rot`, `prop.h`, `prop.hidden`, `prop.reset` go through the layout and the save; `position.*`, `rotation.*` in degrees, `scale.*`, `visible`, `material.color`, `material.emissive`, any numeric material or light field, `name` edit the live object).
+- `select(id)` draws the selection box, `pick(nx, ny)` raycasts a viewport point (baked merges, helpers, hit volumes and hidden things skipped), `frame(id)` flies the scene camera to a thing, `spawn(type, x, z)` places a copy ahead of the camera, `remove(id)` takes a placed prop out.
+- `mode('scene' | 'game')` is the engine's photo camera on or off; `pause(v)` and `step()` drive `CO.paused` and `CO.stepOnce`; `enter()` starts the game from its menu (`GAME.editorEnter` when the game's own menu needs a click, else the engine's `enter`); `command(line)` runs a dev command; `assets()` lists the prop definitions, materials, textures, sounds, people presets and catalogue groups; `shot(q)` returns the viewport as a JPEG data URL; `sfx(name)` plays a sound.
+- In the viewport there is no pointer lock (a locked pointer in an embedded page brings Electron down): a left click picks and selects, and the look follows the mouse while the right button is held, in the scene camera and in the game alike. The game reports a selection with a `console.log('[co-editor] {...}')` line that the editor catches.
+- A game extends the tree and the inspector with `GAME.editorTree(eid)` (extra categories) and `GAME.editorInspect(obj)` (a `game` group of fields), and names its menu's start with `GAME.editorEnter()`.
+
+## 8. The test handle
 
 `window.<handle>.T` carries the engine's part (`S`, `player`, `ui`, `edit`, `run(sec)`, `setTime`, `lookAt`, the props, doors, screens, panels, menu, cards, photo, dev link, people, vehicles, weather, bake and helpers; see `coHandle` in `engine/90-boot.js`) merged with `GAME.T`. The smoke runner (`tools/smoke-runner.js`) wraps a scenario body with `T`, a live `S`, `ok`, `info`, `near` and `wait`, and fails the run on any page error.

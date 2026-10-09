@@ -2,7 +2,7 @@
 
 The runtime, editor and template behind [Grow Co.](https://github.com/TheCodingDad-TisonK/Grow-Co) and [Depot Co.](https://github.com/TheCodingDad-TisonK/Depot-Co): one HTML page, one closure, three.js, no bundler, no framework. Every texture, figure and sound is generated in code.
 
-**Status:** milestone 2 done, v0.1.0: the runtime stands in seventeen parts (the head, the three.js layer and the base palette, the bake, props and build mode, doors and touch screens, people, the world kit, the route finder, weather and the sky, vehicles, sound, settings and saves, the shell, the player, the dev link, the boot), with the tooling and the workflow templates beside it. The engine's own smoke boots a sample room through the whole loop. The editor shell runs and ships as one exe. Next is milestone 3: Depot Co on the engine. The contract a game writes against is `docs/ENGINE.md`. The plan is `docs/PLAN.md`; the inventory of what the two games share is `docs/M1-INVENTORY.md`; the two candidate games are planned in `docs/games/`.
+**Status:** milestones 1 to 5 done (2026-10-09, v0.1.4): the runtime stands in eighteen parts, Depot Co 1.22 and Grow Co 1.29 run on it, the template installs from a fresh folder and Garage Co's first room stands on it. Milestone 6, the editor, is in progress: since v0.1.5 the game runs inside the editor window with a scene camera, a hierarchy, an inspector, assets, a console and a play bar over the engine's editor bridge (`CO.editor`); the MCP server and the Claude panel are next. The contract a game writes against is `docs/ENGINE.md`. The plan is `docs/PLAN.md`; the inventory of what the two games share is `docs/M1-INVENTORY.md`; the two candidate games are planned in `docs/games/`.
 
 ## Run it
 
@@ -13,7 +13,7 @@ npm run editor      # the editor from the repo
 npm run editor:exe  # the editor as one portable exe in dist/
 ```
 
-The editor opens a game folder (Depot Co, Grow Co, or a game made from the sample), builds it, checks it, runs it in a window, runs its tests, and links to the running game over the dev link on 127.0.0.1:8432 with a readout and the game's own command list. "New game from the sample" copies the sample room, three.js and this engine's parts into an empty folder that then builds on its own.
+The editor opens a game folder (Depot Co, Grow Co, Garage Co, or a game made from the sample), builds it and runs it in the viewport: Scene flies a camera over the running game, the hierarchy lists what stands in it, the inspector edits what you click (a prop's place through the layout and the save, or the live transform, material and light), the assets pane places props, the console runs the game's commands, and the play bar pauses, steps and restarts. Check, Test and the dev link on 127.0.0.1:8432 are there too. "New game from the sample" copies the sample room, three.js and this engine's parts into an empty folder that then builds on its own.
 
 ## What it will be
 

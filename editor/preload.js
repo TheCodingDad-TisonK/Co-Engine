@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('co', {
   act: (dir, what) => ipcRenderer.invoke('act', dir, what),
   cmd: (name, arg) => ipcRenderer.invoke('cmd', name, arg),
   info: () => ipcRenderer.invoke('info'),
+  pageUrl: (dir) => ipcRenderer.invoke('page-url', dir),
+  onAuto: (fn) => { ipcRenderer.on('auto', (e, d) => fn(d)); },
   onLog: (fn) => { ipcRenderer.on('log', (e, row) => fn(row)); },
   onGames: (fn) => { ipcRenderer.on('games', (e, d) => fn(d)); }
 });

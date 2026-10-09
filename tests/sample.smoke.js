@@ -77,4 +77,18 @@ module.exports = `
   ok(T.mixHex(0x000000, 0xffffff, 0.5) === 0x808080 && T.fmtTime(25.5) === '01:30' && T.money(-1234) === '-$1,234', 'colour, time and money helpers');
   { let n = 0; T.hook('smoke', () => { n += 1; }); T.hook('smoke', () => { throw new Error('boom'); }); T.hook('smoke', () => { n += 10; }); const ce = console.error; let logged = 0; console.error = () => { logged++; }; T.runHooks('smoke'); console.error = ce; ok(n === 11 && logged === 1, 'hooks run in order, a throwing one is logged and does not stop the next'); }
   info('draws ' + T.counts().draws + ', baked ' + T.counts().baked + ' from ' + T.counts().hidden + ', solids ' + T.solids.length + ', weather ' + S.weather.kind);
+  // the editor bridge (60-editor): the tree, the inspector, live edits, select, spawn, remove, assets, pause and step, the scene camera, pick, a shot
+  { const E = T.editor; const tr = E.tree(); ok(!!tr && !!tr.props.room && tr.props.room.some((p) => p.id === 'crateStack') && tr.lights.length >= 2 && tr.doors.length === 1 && tr.screens.length === 1 && tr.people.length === 2 && tr.vehicles.length === 1 && tr.counts.statics > 5, 'the editor tree lists the props, the lights, the door, the screen, the people, the car and the static world: ' + JSON.stringify(tr.counts));
+    const r = E.inspect('crateStack'); ok(!!r && !!r.prop && r.prop.label === 'crate stack' && r.position.length === 3 && r.prop.x === -4 && r.prop.z === 2, 'inspect reads a prop: ' + JSON.stringify(r.prop));
+    ok(E.set('crateStack', 'prop.x', -3) === 'ok' && T.propPlacement('crateStack').x === -3 && S.layout.crateStack.x === -3 && !!T.propInst.crateStack, 'a prop placement edit rebuilds the prop and lands in the save');
+    E.set('crateStack', 'prop.reset', 1); ok(!S.layout.crateStack && T.propPlacement('crateStack').x === -4, 'reset puts it back where it started');
+    const sel = E.select('wallSign'); ok(!!sel && sel.id === 'wallSign' && E.selected() === 'wallSign' && T.scene.children.some((o) => o.userData.editor), 'select draws a helper round the thing');
+    const sid = E.spawn('xChair', 1, 1); ok(/^cp-/.test(sid) && !!T.propInst[sid] && S.custom.some((c) => c.id === sid) && E.selected() === sid, 'spawn adds a free copy of a definition: ' + sid);
+    ok(/removed/.test(E.remove(sid)) && !T.propInst[sid] && !S.custom.some((c) => c.id === sid), 'remove takes a spawned copy away');
+    const a = E.assets(); ok(a.props.some((p) => p.id === 'xChair' && p.extra) && a.materials.some((m) => m.key === 'floor') && a.sounds.indexOf('click') >= 0 && a.textures.indexOf('concrete') >= 0, 'assets list the definitions, the palette, the textures and the voices');
+    ok(E.pause(true) === true && T.CO.paused === true, 'pause holds the world'); E.step(); ok(T.CO.stepOnce === true, 'step arms one frame'); E.pause(false); T.CO.stepOnce = false;
+    ok(E.mode('scene') === 'scene' && T.photo.on === true, 'scene mode is the free camera'); ok(/framed/.test(E.frame('panel')) && Math.abs(T.camera.position.x - 8) < 6, 'frame brings the camera to the thing'); E.mode('game'); ok(T.photo.on === false, 'game mode hands the camera back');
+    T.player.x = 0; T.player.z = 5; T.lookAt(-4, 0.5, 2); const pk = E.pick(0, 0); ok(!!pk && pk.id === 'crateStack' && pk.prop === true, 'pick names the prop under the crosshair: ' + JSON.stringify(pk));
+    const shot = E.shot(0.5); ok(typeof shot === 'string' && shot.indexOf('data:image/jpeg') === 0 && shot.length > 1000, 'a screenshot comes back as a data url');
+    E.select(null); ok(E.selected() === null && !T.scene.children.some((o) => o.userData.editor), 'deselect removes the helper'); }
 `;

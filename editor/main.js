@@ -2,7 +2,8 @@
 // game over the dev link. This is the shell every later panel (the scene, the inspector, the packs) plugs into. It runs from the
 // repo with `npm run editor` and ships as one portable exe with `npm run editor:exe`.
 'use strict';
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require('electron');
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';   // dev-only noise in the console pane; the packaged app never prints it
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -20,6 +21,9 @@ const SAMPLE_DIR = path.join(__dirname, '..', 'tests', 'sample');
 app.setName('Co Engine'); app.setPath('userData', path.join(app.getPath('appData'), 'Co Engine'));
 
 let win = null, srv = null; const gameWins = [];
+// --open=<dir> opens that game in the viewport at once; --shot=<file.png> then saves a picture of the window after --after=<ms> and quits (the editor's own smoke);
+// --demo=1 selects the first prop, frames it in the scene camera and opens the assets, so the picture shows the editor at work
+const ARG = (name) => { const a = process.argv.find((x) => x.startsWith('--' + name + '=')); return a ? a.slice(name.length + 3) : null; };
 const RECENT = () => path.join(app.getPath('userData'), 'recent.json');
 function readRecent() { try { return JSON.parse(fs.readFileSync(RECENT(), 'utf8')); } catch (e) { return []; } }
 function writeRecent(list) { try { fs.writeFileSync(RECENT(), JSON.stringify(list.slice(0, 12), null, 2)); } catch (e) {} }
@@ -107,14 +111,21 @@ ipcMain.handle('act', async (e, dir, what) => {
   return false;
 });
 ipcMain.handle('cmd', (e, name, arg) => { if (!srv) return false; srv.send(name, arg); return true; });
-ipcMain.handle('info', () => ({ version: app.getVersion(), port: PORT, packed: PACKED, engine: ENGINE_DIR, node: process.versions.node, electron: process.versions.electron }));
+const PKG_VERSION = (() => { try { return require('../package.json').version; } catch (e) { return app.getVersion(); } })();
+ipcMain.handle('info', () => ({ version: PACKED ? app.getVersion() : PKG_VERSION, port: PORT, packed: PACKED, engine: ENGINE_DIR, node: process.versions.node, electron: process.versions.electron }));
+// the page the viewport loads: the game's page as a file url
+ipcMain.handle('page-url', (e, dir) => { const d = describe(dir); if (!d.page) return null; return 'file:///' + path.join(dir, d.page).split(path.sep).join('/'); });
 
 function open() {
-  win = new BrowserWindow({ width: 1280, height: 820, minWidth: 980, minHeight: 600, backgroundColor: '#0b0f14', title: 'Co Engine', autoHideMenuBar: true, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, preload: path.join(__dirname, 'preload.js') } });
+  // the games in the viewport run in their own session (persist:co-editor): their saves live beside the editor's data, never in a player's install
+  const ses = session.fromPartition('persist:co-editor'); ses.setPermissionRequestHandler((wc, permission, cb) => cb(permission === 'fullscreen'));   // no pointer lock in the viewport: a locked pointer in a webview guest brings the app down
+  win = new BrowserWindow({ width: 1440, height: 900, minWidth: 1100, minHeight: 680, backgroundColor: '#0b0f14', title: 'Co Engine', autoHideMenuBar: true, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, webviewTag: true, preload: path.join(__dirname, 'preload.js') } });
   Menu.setApplicationMenu(null);
   win.loadFile(path.join(__dirname, 'index.html'));
   win.webContents.on('before-input-event', (event, input) => { if (input.type === 'keyDown' && input.control && input.shift && input.key.toLowerCase() === 'i') { win.webContents.toggleDevTools(); event.preventDefault(); } });
   win.on('closed', () => { win = null; });
+  const openDir = ARG('open'), shot = ARG('shot'), demo = !!ARG('demo');
+  if (openDir) win.webContents.on('did-finish-load', () => { remember(openDir); setTimeout(() => send('auto', { dir: openDir, demo }), 400); if (shot) setTimeout(async () => { try { const img = await win.webContents.capturePage(); fs.writeFileSync(shot, img.toPNG()); console.log('shot: ' + shot); } catch (e2) { console.error('shot failed: ' + e2.message); } app.quit(); }, +(ARG('after') || 9000)); });
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();
