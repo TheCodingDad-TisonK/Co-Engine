@@ -11,7 +11,7 @@ Four pillars, built in this order:
 3. **The template.** A starter repo: config, one room, one prop pack, one person, one scenario, one screen. `git clone`, `npm install`, `npm start` and a game runs. Game three starts here.
 4. **The assistant.** Claude inside the editor. The editor publishes its own actions as tools over a local MCP server, and a Claude session attaches to them: it sees the scene, the selection, the console and the logs, and it places, moves, edits, runs and tests through the same channel the inspector uses. Section 6 says how.
 
-What it is not: a general engine. No physics beyond the AABB solids we have, no mesh or animation editor, no shader graph, no platforms beyond the browser and Electron. The editor edits this engine's data, nothing else. That limit is what makes it buildable by one person.
+What it is becoming: a general engine for Tyson's games, grown one milestone at a time and never ahead of a game that needs the next piece. The first day set a narrow guard rail here (no physics, no animation editor, no shader graph); Tyson struck it on 2026-10-09, and by that evening physics, an animation timeline, a material graph and a prop modeller had first versions in. The page and Electron are the platforms today because that is where the games ship; nothing in the engine rules another platform out. Each capability arrives as a first version a game can use, and its row in the milestone list says what it still owes.
 
 ## 2. What exists today
 
