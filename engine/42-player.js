@@ -10,6 +10,7 @@
     var sp = cfg.spawn || { x: 0, z: 0 };
     player = { x: sp.x || 0, y: 0, z: sp.z || 0, yaw: sp.yaw === undefined ? 0 : sp.yaw, pitch: 0, vy: 0, grounded: true, keys: {}, locked: false, tool: null, stepT: 0, bob: 0, jumped: false };
     player.y = floorY(player.x, player.z);
+    if (cfg.input === false) return player;   // the game binds its own keys, mouse and pointer lock
     canvas.addEventListener('click', function () { if (ui.started && !ui.blocked() && !player.locked) lockPointer(); });
     document.addEventListener('pointerlockchange', function () { player.locked = document.pointerLockElement === canvas; if (!player.locked) { player.keys = {}; if (ui.started && !ui.blocked() && !ui.suppressMenu && !ui.testing) openMenu(); } ui.suppressMenu = false; });
     document.addEventListener('mousemove', onMouseMove);
@@ -56,7 +57,7 @@
     focus = null; focusText = '';
     if (!ui.started || ui.blocked() || photo.on || (CO.game && CO.game.focusOff && CO.game.focusOff())) return;
     ray.setFromCamera(centre, camera);
-    if (edit.on) {
+    if (edit.on && !(CO.game && CO.game.editMode === false)) {
       if (edit.grabbed) { if (edit.snapText) { focus = { prompt: function () { return edit.snapText; }, use: function () {} }; focusText = edit.snapText; } return; }
       ray.far = 7; var ph = ray.intersectObjects(scene.children, true); ray.far = 3.4;
       for (var q = 0; q < ph.length; q++) { var pid = propIdOf(ph[q].object); if (!pid) continue; if (ph[q].object.userData.baked || !ph[q].object.visible) continue; var pdef = propDef(pid); if (!pdef || pdef.fixed) continue; focus = { editId: pid, prompt: function () { return ''; }, use: function () {} }; focusText = 'Grab the ' + pdef.label + '  ·  R turn · Backspace put back · Del remove'; return; }
@@ -81,7 +82,7 @@
     }
   }
   function useFocus() {
-    if (edit.on) { if (edit.grabbed) editDrop(false); else if (focus && focus.editId) editGrab(focus.editId); return; }
+    if (edit.on && !(CO.game && CO.game.editMode === false)) { if (edit.grabbed) editDrop(false); else if (focus && focus.editId) editGrab(focus.editId); return; }
     if (CO.game && CO.game.useOverride && CO.game.useOverride()) return;
     if (focus) { focus.use(); sfx('click'); updateFocus(); } else if (CO.game && CO.game.useFallback) CO.game.useFallback();
   }
@@ -107,7 +108,7 @@
     if (ui.blocked()) return;
     if (photo.on) { player.keys[e.code] = true; return; }
     if (e.code === 'F2') { e.preventDefault(); if (editAllowed() && !(CO.game && CO.game.editBlocked && CO.game.editBlocked())) editToggle(); return; }
-    if (edit.on) {
+    if (edit.on && !(CO.game && CO.game.editMode === false)) {
       if (e.code === 'KeyR') { editRotate(); return; }
       if (e.code === 'Backspace') { e.preventDefault(); editReset(); return; }
       if (e.code === 'Delete') { editRemove(); return; }
@@ -133,6 +134,7 @@
   // holds still, and F12 takes the picture. F9 or Esc puts you back where you were standing.
   var photo = { on: false, x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 6, fov: 75 };
   function photoToggle(on) {
+    if (CO.game && CO.game.photo === false) return;   // the game has a photo mode of its own
     if (on === undefined) on = !photo.on; if (on === photo.on) return;
     if (on) {
       if (!ui.started || ui.blocked() || edit.on || (CO.game && CO.game.photoBlocked && CO.game.photoBlocked())) return;

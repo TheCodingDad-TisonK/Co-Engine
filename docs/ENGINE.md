@@ -1,6 +1,6 @@
 # The engine contract
 
-What a game on Co Engine writes against, as of v0.1.3. One HTML page, one closure: the build script opens the closure, joins the engine's parts (`engine/NN-*.js`) in front of the game's (`src/NN-*.js`), and closes it. A game part may use any engine name at its top level once `CO.setup` has run, which the game's first part does.
+What a game on Co Engine writes against, as of v0.1.4. One HTML page, one closure: the build script opens the closure, joins the engine's parts (`engine/NN-*.js`) in front of the game's (`src/NN-*.js`), and closes it. A game part may use any engine name at its top level once `CO.setup` has run, which the game's first part does.
 
 ## The two calls
 
@@ -9,7 +9,7 @@ What a game on Co Engine writes against, as of v0.1.3. One HTML page, one closur
 | cfg | default | what it is |
 |---|---|---|
 | `canvas` | `co-canvas` | the canvas element id (made if missing) |
-| `save` | `co-game` | the save key prefix: `<prefix>-slot` holds the slot number, `<prefix>-slot<n>` the save, `<prefix>-settings` the settings |
+| `save` | `co-game` | the save key prefix: `<prefix>-slot` holds the slot number, `<prefix>-slot<n>` the save, `<prefix>-settings` the settings; `?save=<name>` on the page opens `<prefix>-<name>` instead, a save of its own |
 | `settingsKey`, `slots` | prefix-settings, 3 | |
 | `settings` | | extra settings with their defaults, merged over the engine's (`sens, invertY, quality, sound, vol, fps, fov, film, bob`) |
 | `game` | `{}` | the hook object, `CO.game` (section 3); `CO.boot(GAME)` merges more into it |
@@ -20,6 +20,9 @@ What a game on Co Engine writes against, as of v0.1.3. One HTML page, one closur
 | `sun` | `{color, intensity, box 70, near, far 230, mapSize 4096, target [0,0,-20]}` | the shadow-casting sun |
 | `lightBudget` | 12 | how many point lights stay visible |
 | `post` | true | the post pass (grade, vignette, grain) |
+| `palette` | true | `false` skips the engine's textures, normal maps and materials: the game draws its own |
+| `input` | true | `false` binds none of the engine's keys, mouse or pointer lock: the game has its own |
+| `saveDebounce` | 0 | milliseconds: `save()` coalesces a burst of calls into one write; `saveNow()` writes at once |
 
 **`CO.boot(GAME)`** in the game's last part. It loads the save, builds the world, applies the settings, bakes, fills the start screen, starts the frame loop and publishes the handle.
 
@@ -38,6 +41,9 @@ What a game on Co Engine writes against, as of v0.1.3. One HTML page, one closur
 | `tick(dt)` | the world, once a frame while running (not blocked, not in photo mode) |
 | `weather` | `false` turns the weather state machine off (the game ticks `tickWeatherState` itself) |
 | `autoplay` | `false` leaves the `<prefix>-autoplay` session flag to the game's own front menu |
+| `editMode`, `photo`, `lighting`, `hudFields` | `false` switches that engine pass off: the game brings its own build mode, photo mode, light by the hour, or HUD fields |
+| `render(dt)` | draws the frame itself; return true |
+| `boxSolid(w, h, d, x, y, z, opts)` | takes a `box(..., { solid: true })` footprint into the game's own blockers |
 | `present(dt)` | the game's own per-frame presentation, after the engine's |
 | `menuCamera(dt)` | the camera behind the start screen (default: an orbit) |
 | `hiddenTick(dt)` | what still ticks in a hidden tab beside `tick` and the doors |

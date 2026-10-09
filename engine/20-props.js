@@ -82,6 +82,7 @@
   var ray = new THREE.Raycaster(); ray.far = 3.4; var centre = new THREE.Vector2(0, 0);
   function editAllowed() { return CO.game && CO.game.canEdit ? CO.game.canEdit() : true; }
   function editToggle() {
+    if (CO.game && CO.game.editMode === false) return;   // the game brings its own build mode
     if (!edit.on && !editAllowed()) return;
     if (edit.grabbed) editDrop(true);
     edit.on = !edit.on;
@@ -117,7 +118,7 @@
   }
   function ghostProp(id) { propInst[id].g.traverse(function (o) { if (o.isMesh && o.material && o.material.clone && !o.userData.ghosted) { o.userData.origMat = o.material; o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.5; o.material.depthWrite = false; o.castShadow = false; o.userData.ghosted = true; } }); }
   function editTick() {
-    if (!edit.on) return;
+    if (!edit.on || (CO.game && CO.game.editMode === false)) return;
     if (edit.grabbed) {
       var inst = propInst[edit.grabbed]; if (!inst) { edit.grabbed = null; return; }
       var def = propDef(edit.grabbed), aim = editAim(def);
