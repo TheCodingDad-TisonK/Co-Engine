@@ -153,6 +153,8 @@ Each milestone ends with every suite green and a tag.
 
 **v0.9.0 (2026-10-10):** the world is editable. Everything a game builds straight into its world (walls, floors, lamps, trees, fences, the asphalt) is a world item the editor selects, moves, turns, resizes and removes, kept in `src/00-world.js` and laid on the world before the bake, its solids following it. Ctrl and a click select several things, props and world items alike, and they move together; Ctrl no longer flies the scene camera down.
 
+**v0.9.1 (2026-10-10):** a selection box (Shift and a drag in the scene camera) picks a building and everything in it at once; doors move with the item they are built in; an item can be marked moves-only so a game's rules can follow a building's place.
+
 Each of M8 to M11 is a project of its own, sized like the expansion. They are ordered by what a new game feels first. All four shipped a first version on 2026-10-09 (v0.2.0 to v0.3.0); what each still owes is listed in its row and is the next work when a game asks for it.
 
 M1 to M3 is the big block, the largest piece of work since the expansion. Everything after is incremental.

@@ -128,7 +128,11 @@ An item's key names what it is and where the game built it (`"lamp post@12.5,6"`
 
 In the editor: click an item to select it; drag it in the scene camera (Ctrl and drag in the game view); Ctrl and the wheel turn it a quarter; the arrows nudge it, PageUp and PageDown lift it, R turns it; the inspector's scale fields resize it; Delete removes it. Undo covers all of it.
 
-**Several at once.** Ctrl and a click adds a prop or a world item to the selection, or takes it away again; the last one picked is the one the inspector shows, gold, the others blue. Dragging any selected thing moves them all by the same step, the arrows nudge them all, Delete removes them all, and one undo puts a group move back. In the editor Ctrl no longer flies the scene camera down; C does. The bridge has `selection()`, `moveSel(dx, dz)` and `removeSel()`.
+**Several at once.** Ctrl and a click adds a prop or a world item to the selection, or takes it away again; the last one picked is the one the inspector shows, gold, the others blue. Dragging any selected thing moves them all by the same step, the arrows nudge them all, Delete removes them all, and one undo puts a group move back. In the editor Ctrl no longer flies the scene camera down; C does. The bridge has `selection()`, `selectMany(ids)`, `moveSel(dx, dz)` and `removeSel()`.
+
+**A box round many things (0.9.1).** Shift and a drag in the scene camera draw a selection box: every prop and world item whose footprint on the ground falls inside it is selected (Ctrl and Shift add to the selection). From the Top camera that is a building and everything in it in one go; then any of them drags them all.
+
+**Doors and buildings (0.9.1).** A hinged door is a world item of its own (its frame and its leaf), or part of the item it is built in; its hinge's place, the solid it closes and its prompt follow wherever the item stands (`doorSync`). A game whose rules follow a building's place marks that item `userData.movesOnly = true`: the editor moves it but refuses to turn or resize it. Garage Co.'s lock-up is one such item, and its indoors, roof, walls, doorway and the customer's place at the desk read where it stands.
 
 ## 6h. Physics (0.3.0)
 

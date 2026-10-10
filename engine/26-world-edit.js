@@ -5,6 +5,7 @@
   var WORLD_EDITS = {}, WORLD_ITEMS = [], WORLD_PARENT = null;
   CO.world = function (edits) { if (edits && typeof edits === 'object') for (var k in edits) WORLD_EDITS[k] = edits[k]; return WORLD_EDITS; };
   // a kit call builds into a group of its own, centred on what it built and standing on the ground, so it turns and resizes about itself
+  // a game marks an item movesOnly (o.userData.movesOnly = true) when its rules follow where it stands but not a turn or a new size
   function worldItem(kind, fn, parent) {
     if (parent || WORLD_PARENT) return fn();
     var root = CO.root || scene, g = new THREE.Group(); g.name = kind; g.userData.worldItem = kind; root.add(g);

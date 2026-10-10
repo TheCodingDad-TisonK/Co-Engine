@@ -206,6 +206,15 @@ module.exports = `
     const ap = E.run('(function () { var o = worldByKey(' + JSON.stringify(lamp.key) + '), b = o.userData.worldBase; o.position.set(b.x, b.y, b.z); o.rotation.y = b.ry; o.scale.set(1, 1, 1); worldEditsApply(); return [Math.round(o.position.x * 100) / 100, Math.round(o.rotation.y * 180 / Math.PI), o.scale.y]; })()');
     ok(Math.abs(ap[0] - li.position[0] - 3) < 0.02 && ap[1] === 90 && ap[2] === 1.5, 'a saved edit is laid on the world as it is built: ' + ap.join(', '));
     E.set(lamp.id, 'world.reset', 1); E.set(fence.id, 'world.reset', 1); ok(E.worldCode() === '', 'Put it back leaves nothing to keep'); }
+  // a door is a world item too (0.9.1): moved, its leaf, frame and the solid it closes move with it; an item marked movesOnly will not turn
+  { const E = T.editor, door = E.worldItems().find((i) => /^door/.test(i.name));
+    const dsol = () => E.run('(function () { var out = []; doorSolids(out); return out.length ? Math.round(out[0].x0 * 100) / 100 : null; })()');
+    const x0 = dsol(), di = door ? E.inspect(door.id) : null; if (door) E.set(door.id, 'position.x', di.position[0] + 1);
+    ok(!!door && x0 !== null && Math.abs(dsol() - x0 - 1) < 0.02, 'a door moved as a world item takes its closed solid along: ' + x0 + ' to ' + dsol());
+    if (door) E.set(door.id, 'world.reset', 1);
+    const lamp = E.worldItems().find((i) => /lamp post/.test(i.name)); E.run('(function () { worldByKey(' + JSON.stringify(lamp.key) + ').userData.movesOnly = true; })()');
+    const refused = E.set(lamp.id, 'rotation.y', 90); ok(/does not turn/.test(String(refused)) && E.inspect(lamp.id).rotation[1] === 0, 'an item marked movesOnly will not turn: ' + refused);
+    E.run('(function () { worldByKey(' + JSON.stringify(lamp.key) + ').userData.movesOnly = false; })()'); }
   // several things selected move together (0.9.0): a prop and a world item, one step, one undo; Ctrl and a click takes one out again
   { const E = T.editor, lamp = E.worldItems().find((i) => /lamp post/.test(i.name)), crate = 'crateStack';
     const at = () => [E.inspect(crate).prop.x, E.inspect(lamp.id).position[0]];
