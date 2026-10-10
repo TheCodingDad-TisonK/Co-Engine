@@ -4,11 +4,13 @@ const PACK_JSON = JSON.stringify(require('fs').readFileSync(require('path').join
 const GROWCO_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'growco', 'pack.js'), 'utf8'));
 const DEPOTCO_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'depotco', 'pack.js'), 'utf8'));
 const GARAGECO_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'garageco', 'pack.js'), 'utf8'));
+const NEWPACKS_JSON = JSON.stringify([['buildings', 'bd'], ['cars', 'vh'], ['city', 'ct'], ['nature', 'nt'], ['industrial', 'in'], ['farm', 'fm'], ['park', 'pl'], ['home', 'hm'], ['office', 'of'], ['shop', 'sh'], ['harbour', 'hb'], ['camping', 'cp'], ['roads', 'rd']].map(([n, pre]) => { const dir = require('path').join(__dirname, '..', 'packs', n); return [n, pre, JSON.parse(require('fs').readFileSync(require('path').join(dir, 'pack.json'), 'utf8')).props.map((q) => q.id), require('fs').readFileSync(require('path').join(dir, 'pack.js'), 'utf8')]; }));
 module.exports = `
   const PACK_BASICS = ${PACK_JSON};
   const PACK_GROWCO = ${GROWCO_JSON};
   const PACK_DEPOTCO = ${DEPOTCO_JSON};
   const PACK_GARAGECO = ${GARAGECO_JSON};
+  const NEW_PACKS = ${NEWPACKS_JSON};
   ok(!!T.renderer && !!T.scene && !!T.camera && T.CO.ready === true && typeof T.enter === 'function', 'CO.setup and CO.boot ran: renderer, scene, camera and the handle stand');
   ok(T.ui.started === false && !document.getElementById('dc-start').hidden, 'the start screen is up before enter');
   ok(/A new room/.test(document.getElementById('dc-start-stats').textContent) && /Slot 1/.test(document.getElementById('dc-start-note').textContent), 'the start screen chips and note come from the game and the engine');
@@ -191,6 +193,18 @@ module.exports = `
     ok(bad.length === 0 && ids.length === n, 'every ' + name + ' prop builds: ' + ids.length + (bad.length ? ', failed ' + bad.slice(0, 3).join(' | ') : ''));
     ok(JSON.stringify(Object.keys(T.S)) === save0, 'the ' + name + ' pack leaves the host save alone');
     ids.forEach((id) => E.remove(id)); }
+  // the thirteen packs of 0.10.0 (buildings, cars, city, nature, industrial, farm, park, home, office, shop, harbour, camping, roads): each defines every prop its pack.json lists, adds nothing to the scene, leaves the save alone, and every prop builds
+  { const E = T.editor; let total = 0;
+    for (const [name, pre, want, code] of NEW_PACKS) {
+      const top0 = T.scene.children.length, save0 = JSON.stringify(Object.keys(T.S)); const df = E.define(code); const have = E.assets().props.map((p) => p.id); const missing = want.filter((id) => have.indexOf(id) < 0);
+      ok(df.ok === true && missing.length === 0 && T.scene.children.length === top0, 'the ' + name + ' pack defines its ' + want.length + ' props and adds nothing to the scene' + (df.ok ? (missing.length ? ': missing ' + missing.slice(0, 3).join(', ') : '') : ': ' + df.error));
+      const bad = [], ids = []; want.forEach((id, k) => { try { ids.push(E.spawn(id, -14 + (k % 10) * 3, -12 + Math.floor(k / 10) * 3)); } catch (e) { bad.push(id + ': ' + e.message); } });
+      ok(bad.length === 0 && ids.length === want.length, 'every ' + name + ' prop builds: ' + ids.length + (bad.length ? ', failed ' + bad.slice(0, 3).join(' | ') : ''));
+      ok(JSON.stringify(Object.keys(T.S)) === save0, 'the ' + name + ' pack leaves the host save alone');
+      if (name === 'roads') { const inst = T.propInst[ids[want.indexOf('rdStraight')]]; ok(inst && inst.ctx.obstacles.length === 0, 'a road piece is driven and walked over, not solid'); }
+      if (name === 'city' || name === 'camping') { const id = name === 'city' ? 'ctWalker' : 'cpCampfire', inst = T.propInst[ids[want.indexOf(id)]]; let dyn = false; inst.g.traverse((o) => { if (o.userData && o.userData.dynamic) dyn = true; }); ok(dyn, 'the moving parts of ' + id + ' sit in a dynamic group, so the bake leaves them free to move'); }
+      total += ids.length; ids.forEach((id) => E.remove(id)); }
+    ok(total === 189, 'the thirteen new packs hold 189 props between them: ' + total); }
   // the world as things to edit (0.9.0): kit calls and plain meshes are world items; moved, resized and removed with their solids, kept as code
   { const E = T.editor, items = E.worldItems(), lamp = items.find((i) => /lamp post/.test(i.name)), fence = items.find((i) => /^fence/.test(i.name)), walls = items.filter((i) => /^wall/.test(i.name));
     ok(items.length >= 15 && !!lamp && !!fence && walls.length >= 2, 'the sample world is items: ' + items.length + ' (a lamp post, a fence, ' + walls.length + ' walls)');

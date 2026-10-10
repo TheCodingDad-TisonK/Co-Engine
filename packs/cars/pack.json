@@ -1,0 +1,56 @@
+{
+  "name": "cars",
+  "title": "Cars and vans",
+  "description": "Parked vehicles: three saloons, a hatchback, an estate, an SUV, a pickup, a van, a box truck, a taxi, a police car and a bus, each with its own number plate.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "vhSaloonRed",
+      "label": "red saloon"
+    },
+    {
+      "id": "vhSaloonBlue",
+      "label": "blue saloon"
+    },
+    {
+      "id": "vhSaloonSilver",
+      "label": "silver saloon"
+    },
+    {
+      "id": "vhHatchback",
+      "label": "hatchback"
+    },
+    {
+      "id": "vhEstate",
+      "label": "estate"
+    },
+    {
+      "id": "vhSuv",
+      "label": "SUV"
+    },
+    {
+      "id": "vhPickup",
+      "label": "pickup"
+    },
+    {
+      "id": "vhVan",
+      "label": "van"
+    },
+    {
+      "id": "vhBoxTruck",
+      "label": "box truck"
+    },
+    {
+      "id": "vhTaxi",
+      "label": "taxi"
+    },
+    {
+      "id": "vhPolice",
+      "label": "police car"
+    },
+    {
+      "id": "vhBus",
+      "label": "bus"
+    }
+  ]
+}

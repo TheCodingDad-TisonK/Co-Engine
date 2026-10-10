@@ -1,0 +1,60 @@
+{
+  "name": "nature",
+  "title": "Nature",
+  "description": "Trees, plants and rocks: an oak, a pine, a birch, a palm, a bush, a hedge, a rock, a boulder, a fallen log, a stump, a flower bed, tall grass and a pond. Each one varies a little with where it stands.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "ntOak",
+      "label": "oak tree"
+    },
+    {
+      "id": "ntPine",
+      "label": "pine tree"
+    },
+    {
+      "id": "ntBirch",
+      "label": "birch tree"
+    },
+    {
+      "id": "ntPalm",
+      "label": "palm tree"
+    },
+    {
+      "id": "ntBush",
+      "label": "bush"
+    },
+    {
+      "id": "ntHedge",
+      "label": "hedge"
+    },
+    {
+      "id": "ntRock",
+      "label": "rock"
+    },
+    {
+      "id": "ntBoulder",
+      "label": "boulder"
+    },
+    {
+      "id": "ntLog",
+      "label": "fallen log"
+    },
+    {
+      "id": "ntStump",
+      "label": "tree stump"
+    },
+    {
+      "id": "ntFlowers",
+      "label": "flower bed"
+    },
+    {
+      "id": "ntTallGrass",
+      "label": "tall grass"
+    },
+    {
+      "id": "ntPond",
+      "label": "pond"
+    }
+  ]
+}

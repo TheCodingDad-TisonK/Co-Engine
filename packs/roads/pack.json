@@ -1,0 +1,72 @@
+{
+  "name": "roads",
+  "title": "Roads",
+  "description": "Road pieces that join end to end: 10 m and 20 m straights, a crossroads, a T-junction, a 90 degree bend, a roundabout and a dead end, all 7 m of tarmac between 2 m pavements, plus a pavement strip, parking bays, a bus stop, a speed bump, a crash barrier, cones, lane arrows, a give way line and a sign gantry.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "rdStraight",
+      "label": "road, straight 10 m"
+    },
+    {
+      "id": "rdStraight20",
+      "label": "road, straight 20 m"
+    },
+    {
+      "id": "rdCrossroads",
+      "label": "crossroads"
+    },
+    {
+      "id": "rdTJunction",
+      "label": "T-junction"
+    },
+    {
+      "id": "rdBend",
+      "label": "road, 90 degree bend"
+    },
+    {
+      "id": "rdRoundabout",
+      "label": "roundabout"
+    },
+    {
+      "id": "rdDeadEnd",
+      "label": "road, dead end"
+    },
+    {
+      "id": "rdPavement",
+      "label": "pavement strip"
+    },
+    {
+      "id": "rdParking",
+      "label": "parking bays"
+    },
+    {
+      "id": "rdBusStop",
+      "label": "bus stop"
+    },
+    {
+      "id": "rdSpeedBump",
+      "label": "speed bump"
+    },
+    {
+      "id": "rdCrashBarrier",
+      "label": "crash barrier"
+    },
+    {
+      "id": "rdCones",
+      "label": "traffic cones"
+    },
+    {
+      "id": "rdArrows",
+      "label": "lane arrows"
+    },
+    {
+      "id": "rdGiveWay",
+      "label": "give way line"
+    },
+    {
+      "id": "rdGantry",
+      "label": "motorway sign gantry"
+    }
+  ]
+}

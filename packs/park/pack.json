@@ -1,0 +1,52 @@
+{
+  "name": "park",
+  "title": "Park and play",
+  "description": "A park: swings, a slide, a seesaw, a sandpit, a climbing frame, a picnic table, a football goal, a basketball hoop, a gazebo, a drinking fountain and a park sign.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "plSwings",
+      "label": "swings"
+    },
+    {
+      "id": "plSlide",
+      "label": "slide"
+    },
+    {
+      "id": "plSeesaw",
+      "label": "seesaw"
+    },
+    {
+      "id": "plSandpit",
+      "label": "sandpit"
+    },
+    {
+      "id": "plClimbing",
+      "label": "climbing frame"
+    },
+    {
+      "id": "plPicnicTable",
+      "label": "picnic table"
+    },
+    {
+      "id": "plGoal",
+      "label": "football goal"
+    },
+    {
+      "id": "plHoop",
+      "label": "basketball hoop"
+    },
+    {
+      "id": "plGazebo",
+      "label": "gazebo"
+    },
+    {
+      "id": "plFountain",
+      "label": "drinking fountain"
+    },
+    {
+      "id": "plParkSign",
+      "label": "park sign"
+    }
+  ]
+}

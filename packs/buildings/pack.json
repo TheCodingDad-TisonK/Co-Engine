@@ -1,0 +1,80 @@
+{
+  "name": "buildings",
+  "title": "Buildings",
+  "description": "Small buildings and pre-built city buildings, from the engine's kit alone: a walk-in shed, a carport, a bus shelter, shipping containers, a kiosk, a site office, a lock-up, a house, a shop front, a petrol canopy, a warehouse, and whole city blocks: apartments, an office tower, a terrace, a cafe, a supermarket and a multi-storey car park.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "bdShed",
+      "label": "garden shed"
+    },
+    {
+      "id": "bdCarport",
+      "label": "carport"
+    },
+    {
+      "id": "bdBusShelter",
+      "label": "bus shelter"
+    },
+    {
+      "id": "bdContainerRed",
+      "label": "shipping container (red)"
+    },
+    {
+      "id": "bdContainerBlue",
+      "label": "shipping container (blue)"
+    },
+    {
+      "id": "bdKiosk",
+      "label": "kiosk"
+    },
+    {
+      "id": "bdSiteOffice",
+      "label": "site office cabin"
+    },
+    {
+      "id": "bdLockup",
+      "label": "lock-up garage"
+    },
+    {
+      "id": "bdHouse",
+      "label": "house"
+    },
+    {
+      "id": "bdShopFront",
+      "label": "shop front"
+    },
+    {
+      "id": "bdPetrolCanopy",
+      "label": "petrol station canopy"
+    },
+    {
+      "id": "bdWarehouse",
+      "label": "warehouse"
+    },
+    {
+      "id": "bdApartments",
+      "label": "apartment block"
+    },
+    {
+      "id": "bdOfficeTower",
+      "label": "office tower"
+    },
+    {
+      "id": "bdTerrace",
+      "label": "terraced houses"
+    },
+    {
+      "id": "bdCafe",
+      "label": "cafe"
+    },
+    {
+      "id": "bdSupermarket",
+      "label": "supermarket"
+    },
+    {
+      "id": "bdCarPark",
+      "label": "multi-storey car park"
+    }
+  ]
+}

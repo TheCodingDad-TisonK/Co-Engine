@@ -1,0 +1,64 @@
+{
+  "name": "harbour",
+  "title": "Harbour",
+  "description": "A working waterfront: a jetty, a mooring bollard, a cleat with rope, a lifebuoy, a rowing boat, a motor boat, a fishing boat, a marker buoy, fish crates, lobster pots, a net rack, a lighthouse that lights, a dock crane and a harbour office.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "hbJetty",
+      "label": "jetty"
+    },
+    {
+      "id": "hbBollard",
+      "label": "mooring bollard"
+    },
+    {
+      "id": "hbCleat",
+      "label": "cleat with rope"
+    },
+    {
+      "id": "hbLifebuoy",
+      "label": "lifebuoy stand"
+    },
+    {
+      "id": "hbRowboat",
+      "label": "rowing boat"
+    },
+    {
+      "id": "hbMotorboat",
+      "label": "motor boat"
+    },
+    {
+      "id": "hbFishingBoat",
+      "label": "fishing boat"
+    },
+    {
+      "id": "hbBuoy",
+      "label": "marker buoy"
+    },
+    {
+      "id": "hbFishCrates",
+      "label": "fish crates"
+    },
+    {
+      "id": "hbLobsterPots",
+      "label": "lobster pots"
+    },
+    {
+      "id": "hbNetRack",
+      "label": "net drying rack"
+    },
+    {
+      "id": "hbLighthouse",
+      "label": "lighthouse"
+    },
+    {
+      "id": "hbCrane",
+      "label": "dock crane"
+    },
+    {
+      "id": "hbOffice",
+      "label": "harbour office"
+    }
+  ]
+}

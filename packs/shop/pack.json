@@ -1,0 +1,60 @@
+{
+  "name": "shop",
+  "title": "Shop and market",
+  "description": "A shop floor and a street market: a checkout, stocked shelving, a drinks chiller, a chest freezer, a fruit and veg stand, a bakery counter, a magazine rack, trolleys, baskets, a market stall, a sandwich board, an ATM and an ice cream cart.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "shCheckout",
+      "label": "checkout"
+    },
+    {
+      "id": "shShelves",
+      "label": "gondola shelving"
+    },
+    {
+      "id": "shChiller",
+      "label": "chiller"
+    },
+    {
+      "id": "shFreezer",
+      "label": "chest freezer"
+    },
+    {
+      "id": "shFruitStand",
+      "label": "fruit and veg stand"
+    },
+    {
+      "id": "shBakery",
+      "label": "bakery counter"
+    },
+    {
+      "id": "shMagazines",
+      "label": "magazine rack"
+    },
+    {
+      "id": "shTrolleys",
+      "label": "trolley bay"
+    },
+    {
+      "id": "shBaskets",
+      "label": "basket stack"
+    },
+    {
+      "id": "shMarketStall",
+      "label": "market stall"
+    },
+    {
+      "id": "shAFrame",
+      "label": "sandwich board"
+    },
+    {
+      "id": "shAtm",
+      "label": "ATM"
+    },
+    {
+      "id": "shIceCream",
+      "label": "ice cream cart"
+    }
+  ]
+}

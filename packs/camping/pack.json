@@ -1,0 +1,60 @@
+{
+  "name": "camping",
+  "title": "Camping",
+  "description": "A campsite: a dome tent, a ridge tent, a campfire that flickers and lights, a camping chair, a cool box, a barbecue, a picnic blanket, a log bench, a hammock, a canoe, a signpost, a camper van and a firewood pile.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "cpDomeTent",
+      "label": "dome tent"
+    },
+    {
+      "id": "cpRidgeTent",
+      "label": "ridge tent"
+    },
+    {
+      "id": "cpCampfire",
+      "label": "campfire"
+    },
+    {
+      "id": "cpChair",
+      "label": "camping chair"
+    },
+    {
+      "id": "cpCoolBox",
+      "label": "cool box"
+    },
+    {
+      "id": "cpBbq",
+      "label": "barbecue"
+    },
+    {
+      "id": "cpBlanket",
+      "label": "picnic blanket"
+    },
+    {
+      "id": "cpLogBench",
+      "label": "log bench"
+    },
+    {
+      "id": "cpHammock",
+      "label": "hammock"
+    },
+    {
+      "id": "cpCanoe",
+      "label": "canoe"
+    },
+    {
+      "id": "cpSignpost",
+      "label": "signpost"
+    },
+    {
+      "id": "cpCamper",
+      "label": "camper van"
+    },
+    {
+      "id": "cpFirewood",
+      "label": "firewood pile"
+    }
+  ]
+}

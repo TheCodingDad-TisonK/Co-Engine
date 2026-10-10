@@ -1,0 +1,60 @@
+{
+  "name": "farm",
+  "title": "Farm",
+  "description": "Farmyard kit: round and wrapped bales, a bale stack, a fence, a gate, a trough, a tractor, a trailer, a wheelbarrow, a scarecrow, a chicken coop, a water tank and a feed silo.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "fmBaleRound",
+      "label": "round bale"
+    },
+    {
+      "id": "fmBaleWrapped",
+      "label": "wrapped bale"
+    },
+    {
+      "id": "fmBaleStack",
+      "label": "square bale stack"
+    },
+    {
+      "id": "fmFence",
+      "label": "wooden fence"
+    },
+    {
+      "id": "fmGate",
+      "label": "five-bar gate"
+    },
+    {
+      "id": "fmTrough",
+      "label": "water trough"
+    },
+    {
+      "id": "fmTractor",
+      "label": "tractor"
+    },
+    {
+      "id": "fmTrailer",
+      "label": "tipping trailer"
+    },
+    {
+      "id": "fmWheelbarrow",
+      "label": "wheelbarrow"
+    },
+    {
+      "id": "fmScarecrow",
+      "label": "scarecrow"
+    },
+    {
+      "id": "fmChickenCoop",
+      "label": "chicken coop"
+    },
+    {
+      "id": "fmWaterTank",
+      "label": "water tank"
+    },
+    {
+      "id": "fmFeedSilo",
+      "label": "feed silo"
+    }
+  ]
+}

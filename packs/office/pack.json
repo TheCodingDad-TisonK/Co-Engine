@@ -1,0 +1,56 @@
+{
+  "name": "office",
+  "title": "Office",
+  "description": "An office floor: a desk with two screens, an office chair, a meeting table with six chairs, a filing cabinet, a whiteboard, a water cooler, a copier, a partition, a reception desk, a server rack, an office plant and lockers.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "ofDesk",
+      "label": "desk with computer"
+    },
+    {
+      "id": "ofChair",
+      "label": "office chair"
+    },
+    {
+      "id": "ofMeetingTable",
+      "label": "meeting table"
+    },
+    {
+      "id": "ofFiling",
+      "label": "filing cabinet"
+    },
+    {
+      "id": "ofWhiteboard",
+      "label": "whiteboard"
+    },
+    {
+      "id": "ofCooler",
+      "label": "water cooler"
+    },
+    {
+      "id": "ofCopier",
+      "label": "copier"
+    },
+    {
+      "id": "ofPartition",
+      "label": "partition"
+    },
+    {
+      "id": "ofReception",
+      "label": "reception desk"
+    },
+    {
+      "id": "ofServerRack",
+      "label": "server rack"
+    },
+    {
+      "id": "ofPlant",
+      "label": "office plant"
+    },
+    {
+      "id": "ofLockers",
+      "label": "lockers"
+    }
+  ]
+}

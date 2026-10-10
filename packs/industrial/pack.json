@@ -1,0 +1,60 @@
+{
+  "name": "industrial",
+  "title": "Industrial",
+  "description": "Yard and site kit: pallet stacks, drums, gas bottles, an IBC, a skip, scaffolding, a generator, a substation, a pipe stack, a cable reel, a cement mixer and a forklift.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "inPalletStack",
+      "label": "pallet stack"
+    },
+    {
+      "id": "inDrum",
+      "label": "drum"
+    },
+    {
+      "id": "inDrums",
+      "label": "drums on a pallet"
+    },
+    {
+      "id": "inGasBottles",
+      "label": "gas bottle cage"
+    },
+    {
+      "id": "inIbc",
+      "label": "IBC tank"
+    },
+    {
+      "id": "inSkip",
+      "label": "skip"
+    },
+    {
+      "id": "inScaffold",
+      "label": "scaffold tower"
+    },
+    {
+      "id": "inGenerator",
+      "label": "generator"
+    },
+    {
+      "id": "inSubstation",
+      "label": "substation box"
+    },
+    {
+      "id": "inPipes",
+      "label": "pipe stack"
+    },
+    {
+      "id": "inCableReel",
+      "label": "cable reel"
+    },
+    {
+      "id": "inCementMixer",
+      "label": "cement mixer"
+    },
+    {
+      "id": "inForklift",
+      "label": "forklift"
+    }
+  ]
+}

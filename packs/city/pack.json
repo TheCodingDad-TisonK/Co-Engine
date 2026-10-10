@@ -1,0 +1,116 @@
+{
+  "name": "city",
+  "title": "City streets",
+  "description": "Everything a street has: street lamps that light at night, traffic lights that cycle, a zebra crossing, signs, manholes, roadworks, benches, bins, a hydrant, a post box, a phone box, bollards, a bike rack, street trees, a parking meter, planters, an advertising column, a billboard, a fountain, and pedestrians walking, chatting and waiting.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "ctStreetLamp",
+      "label": "street lamp"
+    },
+    {
+      "id": "ctDoubleLamp",
+      "label": "double street lamp"
+    },
+    {
+      "id": "ctParkLamp",
+      "label": "park lantern"
+    },
+    {
+      "id": "ctTrafficLight",
+      "label": "traffic light"
+    },
+    {
+      "id": "ctCrossing",
+      "label": "zebra crossing"
+    },
+    {
+      "id": "ctSignStop",
+      "label": "stop sign"
+    },
+    {
+      "id": "ctSignSpeed",
+      "label": "speed limit sign"
+    },
+    {
+      "id": "ctSignStreet",
+      "label": "street name sign"
+    },
+    {
+      "id": "ctManhole",
+      "label": "manhole cover"
+    },
+    {
+      "id": "ctRoadworks",
+      "label": "roadworks barrier"
+    },
+    {
+      "id": "ctBench",
+      "label": "city bench"
+    },
+    {
+      "id": "ctLitterBin",
+      "label": "litter bin"
+    },
+    {
+      "id": "ctRecycling",
+      "label": "recycling bins"
+    },
+    {
+      "id": "ctHydrant",
+      "label": "fire hydrant"
+    },
+    {
+      "id": "ctPostBox",
+      "label": "post box"
+    },
+    {
+      "id": "ctPhoneBox",
+      "label": "phone box"
+    },
+    {
+      "id": "ctBollard",
+      "label": "street bollard"
+    },
+    {
+      "id": "ctBikeRack",
+      "label": "bike rack"
+    },
+    {
+      "id": "ctStreetTree",
+      "label": "street tree"
+    },
+    {
+      "id": "ctParkingMeter",
+      "label": "parking meter"
+    },
+    {
+      "id": "ctPlanter",
+      "label": "flower planter"
+    },
+    {
+      "id": "ctAdColumn",
+      "label": "advertising column"
+    },
+    {
+      "id": "ctBillboard",
+      "label": "billboard"
+    },
+    {
+      "id": "ctFountain",
+      "label": "fountain"
+    },
+    {
+      "id": "ctWalker",
+      "label": "pedestrian (walking)"
+    },
+    {
+      "id": "ctChatting",
+      "label": "pedestrians (chatting)"
+    },
+    {
+      "id": "ctWaiting",
+      "label": "pedestrian (waiting)"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "name": "home",
+  "title": "Home",
+  "description": "A home's furniture: a sofa, an armchair, a coffee table, a TV unit, a bookcase, a dining set, a double bed, a wardrobe, a kitchen run, a fridge, a floor lamp that lights, a rug, a house plant and a bathroom set.",
+  "since": "0.10.0",
+  "props": [
+    {
+      "id": "hmSofa",
+      "label": "sofa"
+    },
+    {
+      "id": "hmArmchair",
+      "label": "armchair"
+    },
+    {
+      "id": "hmCoffeeTable",
+      "label": "coffee table"
+    },
+    {
+      "id": "hmTvUnit",
+      "label": "TV unit"
+    },
+    {
+      "id": "hmBookcase",
+      "label": "bookcase"
+    },
+    {
+      "id": "hmDiningSet",
+      "label": "dining set"
+    },
+    {
+      "id": "hmBed",
+      "label": "double bed"
+    },
+    {
+      "id": "hmWardrobe",
+      "label": "wardrobe"
+    },
+    {
+      "id": "hmKitchen",
+      "label": "kitchen run"
+    },
+    {
+      "id": "hmFridge",
+      "label": "fridge"
+    },
+    {
+      "id": "hmFloorLamp",
+      "label": "floor lamp"
+    },
+    {
+      "id": "hmRug",
+      "label": "rug"
+    },
+    {
+      "id": "hmPlant",
+      "label": "house plant"
+    },
+    {
+      "id": "hmBathroom",
+      "label": "bathroom set"
+    }
+  ]
+}
