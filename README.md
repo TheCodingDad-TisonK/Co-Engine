@@ -2,7 +2,7 @@
 
 The engine and editor behind [Grow Co.](https://github.com/TheCodingDad-TisonK/Grow-Co), [Depot Co.](https://github.com/TheCodingDad-TisonK/Depot-Co) and Garage Co.: one HTML page, one closure, three.js, no bundler, no framework. Every texture, figure and sound is generated in code, and the editor runs the real game while you build in it.
 
-**Version 0.9.2** (2026-10-10). Every milestone of the plan has shipped a first version. What is still owed is listed in [docs/PLAN.md](docs/PLAN.md).
+**Version 0.9.3** (2026-10-10). Every milestone of the plan has shipped a first version. What is still owed is listed in [docs/PLAN.md](docs/PLAN.md).
 
 ## What is in it
 
@@ -66,7 +66,7 @@ The editor is also an MCP server with 75 tools: Claude Code sees the scene, sele
 A game pins a tag, so an engine change never breaks a shipped game by surprise:
 
 ```json
-"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.9.2"
+"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.9.3"
 ```
 
 ## Support

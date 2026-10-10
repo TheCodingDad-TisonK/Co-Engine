@@ -75,7 +75,8 @@ function runScript(dir, script) {
   return new Promise((resolve) => {
     const key = dir + ':' + script; if (running[key]) { log(script + ' is already running', 'err'); resolve(false); return; }
     log('> npm run ' + script + '   (' + dir + ')', 'cmd');
-    const child = spawn('npm run ' + script, { cwd: dir, shell: true, env: Object.assign({}, process.env, { ELECTRON_RUN_AS_NODE: '' }) });
+    const env = Object.assign({}, process.env); delete env.ELECTRON_RUN_AS_NODE;   /* even empty, it makes the game's electron run as plain Node (render-brand, the smoke) */
+    const child = spawn('npm run ' + script, { cwd: dir, shell: true, env: env });
     running[key] = child;
     const pipe = (stream, kind) => { let buf = ''; stream.on('data', (c) => { buf += c.toString(); const lines = buf.split(/\r?\n/); buf = lines.pop(); lines.forEach((l) => { if (l.trim()) log(l, kind); }); }); stream.on('end', () => { if (buf.trim()) log(buf, kind); }); };
     pipe(child.stdout, 'out'); pipe(child.stderr, 'err');
@@ -205,6 +206,10 @@ ipcMain.handle('release', async (e, q) => {
     const pkgPath = path.join(dir, 'package.json'), pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8')), name = pkg.productName || d.name, tag = 'v' + q.version;
     try { git(dir, ['rev-parse', '--verify', '--quiet', 'refs/tags/' + tag]); return { error: 'the tag ' + tag + ' exists already; pick another version' }; } catch (e2) {}
     const title = (q.title || '').trim(), notes = (q.notes || '').trim(), date = new Date().toISOString().slice(0, 10);
+    // what a release changes before it commits, kept so a failure puts it all back (the version, the lock, the changelog, the stamp)
+    const snap = {}, committedRef = { done: false }; [pkgPath, path.join(dir, 'package-lock.json'), path.join(dir, 'CHANGELOG.md'), path.join(dir, 'game', 'version.js')].forEach((f) => { snap[f] = fs.existsSync(f) ? fs.readFileSync(f) : null; });
+    const restore = () => { for (const f in snap) { try { if (snap[f] === null) { if (fs.existsSync(f)) fs.unlinkSync(f); } else fs.writeFileSync(f, snap[f]); } catch (e3) {} } };
+    const fail = (why) => { restore(); say(why + '; nothing committed, and the version and the changelog are back as they were', 'err'); return { error: why + '; nothing committed, and the version and the changelog are back as they were', steps }; };
     // 1. the version in package.json (and the lock's top-level copy)
     const old = pkg.version; pkg.version = q.version; fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n'); say('package.json ' + old + ' to ' + q.version, 'ok');
     const lockPath = path.join(dir, 'package-lock.json'); if (fs.existsSync(lockPath)) { try { const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')); lock.version = q.version; if (lock.packages && lock.packages['']) lock.packages[''].version = q.version; fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n'); } catch (e2) { say('package-lock.json not updated: ' + e2.message, 'err'); } }
@@ -213,14 +218,14 @@ ipcMain.handle('release', async (e, q) => {
     if (fs.existsSync(clPath)) { const cl = fs.readFileSync(clPath, 'utf8'); const m = /^(# [^\n]*\n\n?)/.exec(cl); fs.writeFileSync(clPath, m ? m[1] + (m[1].endsWith('\n\n') ? '' : '\n') + entry + cl.slice(m[1].length) : entry + cl); } else fs.writeFileSync(clPath, '# Changelog\n\n' + entry);
     say('CHANGELOG.md: ' + q.version + (title ? ': ' + title : ''), 'ok');
     // 3. build (stamps game/version.js) and check
-    if (d.kind === 'engine') { if (!buildEngineGame(dir, false)) return { error: 'the build failed; nothing committed (the version and the changelog are changed on disk, revert them or fix the build and release again)' }; } else if (d.scripts && d.scripts.build) { if (!(await runScript(dir, 'build'))) return { error: 'npm run build failed; nothing committed' }; }
-    if (d.scripts && d.scripts.check) { if (!(await runScript(dir, 'check'))) return { error: 'npm run check failed; nothing committed' }; }
+    if (d.kind === 'engine') { if (!buildEngineGame(dir, false)) return fail('the build failed'); } else if (d.scripts && d.scripts.build) { if (!(await runScript(dir, 'build'))) return fail('npm run build failed'); }
+    if (d.scripts && d.scripts.check) { if (!(await runScript(dir, 'check'))) return fail('npm run check failed'); }
     let installer = false;
-    if (q.installer && d.scripts && d.scripts.installer) { say('building the installer'); if (!(await runScript(dir, 'installer'))) return { error: 'npm run installer failed; nothing committed' }; const dist = path.join(dir, 'dist'); const exes = fs.existsSync(dist) ? fs.readdirSync(dist).filter((n) => /\.exe$/i.test(n) && !/^__/.test(n)) : []; const desk = app.getPath('desktop'); exes.forEach((n) => { try { fs.copyFileSync(path.join(dist, n), path.join(desk, n)); say('on the Desktop: ' + n, 'ok'); installer = true; } catch (e2) { say('could not copy ' + n + ': ' + e2.message, 'err'); } }); }
+    if (q.installer && d.scripts && d.scripts.installer) { say('building the installer'); if (!(await runScript(dir, 'installer'))) return fail('npm run installer failed'); const dist = path.join(dir, 'dist'); const exes = fs.existsSync(dist) ? fs.readdirSync(dist).filter((n) => /\.exe$/i.test(n) && !/^__/.test(n)) : []; const desk = app.getPath('desktop'); exes.forEach((n) => { try { fs.copyFileSync(path.join(dist, n), path.join(desk, n)); say('on the Desktop: ' + n, 'ok'); installer = true; } catch (e2) { say('could not copy ' + n + ': ' + e2.message, 'err'); } }); }
     // 4. commit and tag
     git(dir, ['add', '-A']);
     const staged = git(dir, ['status', '--porcelain']);
-    if (staged) { git(dir, ['commit', '-q', '-m', 'Release ' + tag + (title ? ': ' + title : '')]); say('committed: Release ' + tag, 'ok'); } else say('nothing to commit', 'out');
+    if (staged) { git(dir, ['commit', '-q', '-m', 'Release ' + tag + (title ? ': ' + title : '')]); committedRef.done = true; say('committed: Release ' + tag, 'ok'); } else say('nothing to commit', 'out');
     const branch = git(dir, ['rev-parse', '--abbrev-ref', 'HEAD']);
     let urls = {}; let remote = null; try { remote = git(dir, ['remote', 'get-url', 'origin']); } catch (e2) {}
     const slug = remote && /github\.com[:/]([^/]+\/[^/.]+)/.exec(remote) ? /github\.com[:/]([^/]+\/[^/.]+)/.exec(remote)[1] : null;
