@@ -4,6 +4,8 @@ const fs = require('fs');
 const X = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')), OUT = process.argv[3], SKIP = new Set((process.argv[4] || '').split(',').filter(Boolean));
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const indent = (t) => t.split('\n').map((l) => '  ' + l).join('\n');
+const STANDIN = ['world', 'xs', 'dlcOn', 'dlcProp', 'unitIds', 'unitBase', 'drive', 'sec', 'deskBoard', 'held', 'PROPS', 'PROP_ORDER', 'growDefProp', 'propExtra'];
+const packVars = [...new Set(X.decls.filter((d) => /^\s*var\s/.test(d.text) && !d.names.some((n) => STANDIN.includes(n))).flatMap((d) => d.names).concat(['S']))].map((n) => n + ': ' + n).join(', ');
 const lines = [];
 lines.push("//@ Co Engine pack: Grow Co. Every prop the grow shop has (its counters, shelves, bins, vending and coffee machines, fridges, sofas, desks, screens, plants, racks, lockers and more), carried with the helpers, materials and textures they are drawn with, sealed in a scope of their own so nothing clashes with the game they land in. Shop logic stays behind: a prop that fills from the shop's stock stands empty, a machine you use says what it is. Generated from Grow Co's src/ by the Co Engine editor's pack tools; regenerate rather than edit.");
 lines.push('  // the pack waits for the engine: a game part ahead of CO.setup runs it on the beforeBuild hook, the editor runs it at once');
@@ -50,6 +52,8 @@ lines.push(`    // each Grow prop as an engine prop: Grow's own build context on
         c.hit(Math.max(0.2, b3.max.x - b3.min.x), Math.max(0.2, b3.max.y - b3.min.y), Math.max(0.2, b3.max.z - b3.min.z), 0, (b3.max.y - b3.min.y) / 2, 0, { prompt: function () { return 'The ' + fx.label; }, use: function () { toast('The ' + fx.label + ' (from Grow Co.)', ''); } });
       } });
     });
+    // the pack's own materials by name, for a prop read back as parts in the Model tab (Co Engine 0.8.0): a getter, so a cache filled later is seen
+    CO.packMats = CO.packMats || {}; CO.packMats.growco = function () { return { ${packVars} }; };
   };
   if (CO.cfg && typeof scene !== 'undefined' && scene) growcoPack(MAT, TEX); else hook('beforeBuild', function () { growcoPack(MAT, TEX); });
 `);

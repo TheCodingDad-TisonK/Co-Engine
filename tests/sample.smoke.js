@@ -191,6 +191,18 @@ module.exports = `
     ok(bad.length === 0 && ids.length === n, 'every ' + name + ' prop builds: ' + ids.length + (bad.length ? ', failed ' + bad.slice(0, 3).join(' | ') : ''));
     ok(JSON.stringify(Object.keys(T.S)) === save0, 'the ' + name + ' pack leaves the host save alone');
     ids.forEach((id) => E.remove(id)); }
+  // parts from a prop drawn in code (0.8.0): a Grow Co, a Depot Co and a basics prop read back as parts, rebuilt from them with the same pieces and size
+  for (const type of ['gcVending', 'dcLockers', 'pkBench']) {
+    const E = T.editor, THREE = T.THREE, sid = E.spawn(type, 4, 4);
+    const look = () => { const g = T.propInst[sid].g; g.updateMatrixWorld(true); const b = new THREE.Box3(), v = new THREE.Vector3(); let n = 0; g.traverse((o) => { let shown = true; for (let q = o; q && q !== g; q = q.parent) if (!q.visible) shown = false; if (o.isMesh && shown && o.material.visible !== false && o.material !== T.MAT.hit) { n++; const pa = o.geometry.attributes.position; for (let i = 0; i < pa.count; i++) b.expandByPoint(v.fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld)); } }); return { n, s: b.getSize(new THREE.Vector3()) }; };
+    let pictures0 = 0; T.propInst[sid].g.traverse((o) => { if (o.isMesh && o.material && o.material.map) pictures0++; });
+    const before = look(), r = E.modelConvert(type), after = r && r.ok ? look() : null;
+    ok(r && r.ok && r.model.parts.length > 3 && E.model(type).modelled === true, type + ' reads back as parts: ' + (r && r.ok ? r.model.parts.length : (r && r.error)));
+    ok(!!after && after.n === before.n && Math.abs(after.s.x - before.s.x) < 0.02 && Math.abs(after.s.y - before.s.y) < 0.02 && Math.abs(after.s.z - before.s.z) < 0.02, type + ' rebuilt from its parts keeps its pieces and its size: ' + (after ? before.n + ' to ' + after.n + ' pieces' : 'no rebuild'));
+    if (type === 'gcVending') ok(r.stats.pack > 0 && /packMat/.test(r.code), 'the Grow Co parts keep the pack materials by name: ' + (r.stats.pack || 0));
+    const pics = (g) => { let n = 0; g.traverse((o) => { if (o.isMesh && o.material && o.material.map) n++; }); return n; };
+    if (type === 'gcVending') ok(r.stats.picture > 0 && pics(T.propInst[sid].g) >= pictures0, 'a picture drawn in code rides along in the parts: ' + (r.stats.picture || 0) + ' pictures, ' + pics(T.propInst[sid].g) + ' of ' + pictures0 + ' on the copy');
+    E.revert(type); E.remove(sid); }
 
   // M9 (0.2.1): clips as data on props and on the people rig; UI as data: HUD chips, panels with buttons, start chips
   { const E = T.editor, CO2 = T.CO, NL = String.fromCharCode(10); const node = (id) => { const tr = E.tree(); for (const k in tr.props) { const n = tr.props[k].find((p) => p.id === id); if (n) return n; } return null; };

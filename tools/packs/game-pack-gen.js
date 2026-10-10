@@ -6,6 +6,7 @@ const C = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')), X = JSON.parse(f
 const SKIP = new Set(C.skip || []), REPL = C.replace || {};
 const indent = (t, n) => t.split('\n').map((l) => ' '.repeat(n) + l).join('\n');
 const fn = C.name.replace(/-/g, '') + 'Pack', L = [];
+const packVars = [...new Set(X.decls.filter((d) => /^\s*var\s/.test(d.text) && !d.names.some((n) => REPL[n] !== undefined)).flatMap((d) => d.names).concat(['S']))].map((n) => n + ': ' + n).join(', ');
 L.push('//@ Co Engine pack: ' + C.title + '. ' + C.header + ' Generated from ' + C.game + "'s src/ by the Co Engine pack tools; regenerate rather than edit.");
 L.push('  // the pack waits for the engine: a game part ahead of CO.setup runs it on the beforeBuild hook, the editor runs it at once');
 L.push('  var ' + fn + ' = function (HOST_DEF) {');
@@ -37,6 +38,8 @@ L.push(`    // each definition as a pack prop: placeable in the editor, never so
         try { d.build(c, P, inst); if (d.after) d.after(c, P, inst); } finally { c.hit = h0; }
       } });
     });
+    // the pack's own materials by name, for a prop read back as parts in the Model tab (Co Engine 0.8.0): a getter, so a cache filled later is seen
+    CO.packMats = CO.packMats || {}; CO.packMats[${JSON.stringify(C.name)}] = function () { return { ${packVars} }; };
   };
   if (CO.cfg && typeof scene !== 'undefined' && scene) ${fn}(defProp); else hook('beforeBuild', function () { ${fn}(defProp); });
 `);

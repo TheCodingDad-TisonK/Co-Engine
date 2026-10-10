@@ -243,9 +243,19 @@ ipcMain.handle('pack-write', (e, q) => {
   const d = describe(q.dir), srcDir = path.join(q.dir, (d.co && d.co.src) || 'src');
   if (!fs.existsSync(srcDir)) return { error: 'no src/ folder in ' + q.dir };
   const files = fs.readdirSync(srcDir).filter((n) => /\.js$/.test(n)).sort();
+  // a prop whose build is shared (a pack prop, a builder several props use) is written as an override of that one prop in src/00-models.js
+  if (q.override && typeof q.newText === 'string') {
+    const p = path.join(srcDir, '00-models.js'), open = '  // model: ' + q.override + '\n', close = '  // end model: ' + q.override + '\n';
+    let t = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '//@ models: props reshaped in the Co Engine editor whose build code is shared (a pack prop, or a builder several props use). Each block replaces one prop\'s build; delete a block to give the prop its shared build back.\n';
+    if (!/\n$/.test(t)) t += '\n';
+    const block = open + '  modelOverride(' + JSON.stringify(q.override) + ', ' + q.newText.replace(/\s+$/, '').replace(/\n/g, '\n  ') + ');\n' + close;
+    const i = t.indexOf(open), j = i >= 0 ? t.indexOf(close, i) : -1;
+    t = i >= 0 && j > i ? t.slice(0, i) + block + t.slice(j + close.length) : t + block;
+    fs.writeFileSync(p, t); log('pack: wrote ' + q.override + ' into src/00-models.js', 'ok'); return { ok: true, file: 'src/00-models.js', note: 'its build is shared, so this prop alone was reshaped' };
+  }
   if (q.oldText && typeof q.newText === 'string') {
     for (const n of files) { const p = path.join(srcDir, n), t = fs.readFileSync(p, 'utf8'), i = t.indexOf(q.oldText); if (i >= 0) { if (t.indexOf(q.oldText, i + 1) >= 0) return { error: 'the old code appears twice in src/' + n + '; edit that file by hand' }; fs.writeFileSync(p, t.slice(0, i) + q.newText + t.slice(i + q.oldText.length)); log('pack: wrote src/' + n, 'ok'); return { ok: true, file: 'src/' + n }; } }
-    const re = new RegExp(q.oldText.trim().split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'));
+    let re = null; try { re = new RegExp(q.oldText.trim().split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+')); } catch (e) { return { error: 'the original build code was not found in src/ as written, and it is too long to match loosely' }; }
     for (const n of files) { const p = path.join(srcDir, n), t = fs.readFileSync(p, 'utf8'), m = re.exec(t); if (m) { fs.writeFileSync(p, t.slice(0, m.index) + q.newText + t.slice(m.index + m[0].length)); log('pack: wrote src/' + n, 'ok'); return { ok: true, file: 'src/' + n, note: 'matched allowing for whitespace' }; } }
     return { error: 'the original build code was not found in src/ (changed on disk since the game was built?)' };
   }

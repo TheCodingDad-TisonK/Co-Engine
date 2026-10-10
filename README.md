@@ -1,8 +1,37 @@
 # Co Engine
 
-The runtime, editor and template behind [Grow Co.](https://github.com/TheCodingDad-TisonK/Grow-Co) and [Depot Co.](https://github.com/TheCodingDad-TisonK/Depot-Co): one HTML page, one closure, three.js, no bundler, no framework. Every texture, figure and sound is generated in code.
+The engine and editor behind [Grow Co.](https://github.com/TheCodingDad-TisonK/Grow-Co), [Depot Co.](https://github.com/TheCodingDad-TisonK/Depot-Co) and Garage Co.: one HTML page, one closure, three.js, no bundler, no framework. Every texture, figure and sound is generated in code, and the editor runs the real game while you build in it.
 
-**Status:** milestones 1 to 5 done (2026-10-09, v0.1.4): the runtime stands in eighteen parts, Depot Co 1.22 and Grow Co 1.29 run on it, the template installs from a fresh folder and Garage Co's first room stands on it. Milestones 6 and 7, the editor, are done at v0.1.7: the game runs inside the editor window with a scene camera, a hierarchy, an inspector, assets, a console and a play bar over the engine's editor bridge (`CO.editor`); undo and redo; the Pack tab edits a prop's build code live and saves it back into `src/`; the Profiler tab shows the frame's phases and the renderer's counts; the Build menu runs the game's scripts; and the same editor is an MCP server (`editor/mcp.js`), so Claude Code can see and change the running game from a terminal or from the Claude panel inside the editor. Milestone 8 is done at v0.2.0: a heightmap terrain with sculpt and paint brushes and flora scatter, materials from a layer graph edited live, and engine packs (a control panel, a gate, a barrier, a lever, signs, yard props) that the Assets tab adds to any game. Milestone 9 is done at v0.2.1: clips as data with an Animation tab that plays, scrubs and keys them on props and people, and UI as data (HUD chips, panels with buttons, start chips) in a UI tab. Milestones 10 and 11 are done at v0.3.0, each as a first version: a prop modeller (parts as data, written out as build code that reads back, edited in a Model tab) and a rigid-body physics layer (bodies that fall, rest, stack, slide and sleep; Drop in the editor puts a prop where it lands). Every milestone of the plan has shipped, and v0.4.0 went back over the owed lists: props and model parts drag in the viewport, a road brush and feathered paints on the terrain, bevels, lathes and extrusions in the modeller, rolling spheres and a hinge joint, a dope sheet in the Animation tab, and Grow Co.'s own props on the shipped layout. v0.5.0 went over the editor table in the plan: a Project tab with the game's files and a File editor, a Settings tab for the tuning tables, a Top camera, Ctrl and mouse to drag and turn any prop in the game view, height keys and wall snap, a save picker, undo for terrain, materials and UI, packs from your other games and from this one, mesh parts with vertex dragging, GLSL on materials, a spring joint, material tracks in clips, and web folder and portable exe in the Build menu. v0.6.0 brings the Grow Co. pack (67 props: the till and the counter things, shelves, fridges, the vending and coffee machines, sofas, desks, racks, lockers, the vault, the arcade cabinet and more) to every game, and `examples/showcase`, a hall built with every pack prop that the editor opens as a game. v0.7.0 adds the Depot Co. pack (131 props: a rack row, belts, the packing line and its machines, consoles, lockers, office and break room furniture, signs and the yard) and the Garage Co. pack (11 props), so all four packs are in the Assets tab. What is still owed is listed in docs/PLAN.md. The contract a game writes against is `docs/ENGINE.md`. The plan is `docs/PLAN.md`; the inventory of what the two games share is `docs/M1-INVENTORY.md`; the two candidate games are planned in `docs/games/`.
+**Version 0.8.0** (2026-10-10). Every milestone of the plan has shipped a first version. What is still owed is listed in [docs/PLAN.md](docs/PLAN.md).
+
+## What is in it
+
+- **The runtime** (`engine/`): 3D helpers and materials, the prop system with catalogue and build mode, the static bake, doors and touch screens, the people rig, the world kit, the route finder, weather and the sky, vehicles, the sound synth, saves and settings, the HUD and menu shell, the player, terrain, a material graph, clips, UI as data, tuning tables, a prop modeller and rigid-body physics. A game adds its own parts after the engine's, in file-name order.
+- **The editor** (`editor/`): a desktop program that opens a game folder and runs the game in its viewport, with a scene camera, a hierarchy, an inspector and a tab for each kind of work. Everything you change is written back into the game's own `src/`.
+- **Asset packs** (`packs/`): props any game can place from the Assets tab.
+- **The template** (`template/`) and **the showcase** (`examples/showcase`): a starter game, and a hall built with every pack prop that the editor opens like any game.
+
+## Asset packs
+
+| Pack | Props | What is in it |
+|---|---|---|
+| Basics | 15 | A control panel with a touch screen that opens the gates, a sliding gate, a boom barrier, a lever, signs, crates, a pallet, a bench, a bin, cones, lamp posts, fences, a planter |
+| Grow Co. | 67 | The till, the tip jar and the desk bell, goods shelves, fridges, the vending and coffee machines, sofas, desks, racks, lockers, the vault, the arcade cabinet and more |
+| Depot Co. | 131 | A rack row, belt pieces and the packing line, the moulder, palletiser, hopper, silo and dock loaders, consoles, lockers, office and break room furniture, signs, posters, floor paint and the yard |
+| Garage Co. | 11 | The tool wall, the workbench, the desk, the trolley jack, axle stands, the oil drum, the parts rack, the notice board, the compressor, a stool, a planter |
+
+A pack prop looks like the original and its use says what it is; the game logic behind it stays in its own game. The three game packs are generated from each game's source: `node tools/packs/make-pack.js depotco` (or `garageco`) regenerates one after its game changes, and Grow Co. has its own pair of tools beside it.
+
+## Changing how a prop looks
+
+No Blender needed. In the editor:
+
+- **Model tab.** Build a prop from parts: boxes, cylinders, spheres, planes, signs, lights, lathes, extrusions and meshes whose corners you drag in the viewport. Click a part to pick it, nudge it with the arrows, change its material or colour, mirror the whole prop. Every placed copy rebuilds as you edit.
+- **Parts from this prop** (0.8.0). Select any prop, pack props included, and the Model tab reads it back as parts. Sizes, turns and materials carry over, a picture drawn in code rides along, and glass stays see-through. Reshape and recolour it, then Save to src.
+- **Pack tab.** The selected prop's build code, edited live; a build that throws is refused and the old one stays.
+- **Claude panel.** Describe the change and Claude makes it while you watch.
+
+A prop whose build code is shared, like every pack prop, is saved for that prop alone in `src/00-models.js`, so changing the vending machine never touches the other props of its pack.
 
 ## Run it
 
@@ -14,24 +43,28 @@ npm run editor:exe  # the editor as one portable exe in dist/
 node editor/mcp.js  # the editor as an MCP server on stdio (Claude Code starts it through .mcp.json)
 ```
 
-The editor opens a game folder (Depot Co, Grow Co, Garage Co, or a game made from the sample), builds it and runs it in the viewport: Scene flies a camera over the running game, the hierarchy lists what stands in it, the inspector edits what you click (a prop's place through the layout and the save, or the live transform, material and light), the assets pane places props, the console runs the game's commands, and the play bar pauses, steps and restarts. Check, Test and the dev link on 127.0.0.1:8432 are there too.
+The latest editor exe is attached to each tag at [releases/latest](https://github.com/TheCodingDad-TisonK/Co-Engine/releases/latest). "New game from the sample" copies the sample room, three.js and the engine's parts into an empty folder that then builds on its own.
 
-What you change goes into the game's `src/`: the layout (where props stand, what is hidden, the copies you placed) writes itself to `src/00-layout.js` a moment after each change, the Pack tab writes build functions back into the part that holds them, and Ctrl+S saves everything pending. Release… in the Build menu bumps the version, writes the changelog entry, builds and checks, commits, tags, pushes and creates the GitHub release that the repo's workflow fills with the installer. Undo and redo (Ctrl+Z, Ctrl+Y) cover every edit the editor makes. The Pack tab shows the selected prop's build function; edit it and every placed copy rebuilds as you type, Revert drops the change, Save to src writes it into the game's part, New prop starts a definition from a template. The Profiler tab draws the frame's phases (sim, world, present, ui, render) against the 60 fps line with draws, triangles, textures, programs, heap and the scene counts. The Build menu lists build, check, test and the game's other npm scripts (installer, brand, zip) and opens the folders. The Terrain tab makes the ground a heightmap and the left button sculpts and paints it in Scene mode (raise, lower, smooth, flatten, paint; scatter props over it). The Materials tab composes materials from layers (bricks, planks, tiles, grain, blotches, cracks and more) with a picture beside the stack; a build function uses them as MAT.name. Assets lists the engine's packs and adds one to the game with a click. The Animation tab plays, scrubs and keys clips (wave, nod, spin, bob and your own) on the selected prop or person. The UI tab makes HUD chips, panels with buttons and start screen chips from expressions over the game's state, without code. The Model tab builds a prop from parts (boxes, cylinders, spheres, planes, signs, lights, solids, uses) with every copy rebuilding as you edit, and saves it as build code. Drop in the inspector lets a prop fall under physics and keeps where it lands.
+## The editor
 
-The Claude panel runs Claude Code in the open game's folder with the editor as its MCP server, so it can read and edit `src/`, build and test, and through the editor see the scene, select and move props, fly the camera and take screenshots. The same tools reach a terminal Claude Code: a game made from the template carries a `.mcp.json` that names `node_modules/co-engine/editor/mcp.js` as the server `co-editor`, and the engine repo's own `.mcp.json` names `editor/mcp.js`; the editor has to be open with the game playing for the scene tools to answer. The tools are status, open_game, play, reload, build, check, test, run_script, scene_tree, inspect, set, select, frame, spawn, remove, undo, redo, history, camera, pause, step, command, assets, screenshot, console_log, prop_source, prop_preview, prop_revert, prop_define, pack_save, profile, layout_save, save, release_preflight and release.
+- **Scene, Top and Game views** over the running game; pause, step and restart from the play bar. Ctrl and the mouse drag and turn any prop in any view; PageUp and PageDown lift it.
+- **Hierarchy and inspector**: what stands in the game, and the place, material and light of what you click. Drop lets a prop fall under physics and keeps where it lands.
+- **Tabs**: Console, Assets, Readout, Pack, Terrain (sculpt, paint, roads, scatter), Materials (layer stacks and GLSL), Profiler, Animation (clips and a dope sheet), UI (HUD chips, panels and buttons as data), Model, Settings (the game's tuning tables), File, and the Claude panel.
+- **Saving**: the layout writes itself to `src/00-layout.js` a moment after each change, every other tab saves into its own part of `src/`, Ctrl+S saves everything pending, and undo and redo cover every edit.
+- **Release…** in the Build menu bumps the version, writes the changelog entry, builds, checks, commits, tags, pushes and creates the GitHub release that the repo's workflow fills with the installer.
 
-The latest editor exe is attached to each tag at [releases/latest](https://github.com/TheCodingDad-TisonK/Co-Engine/releases/latest); a tag push builds it. "New game from the sample" copies the sample room, three.js and this engine's parts into an empty folder that then builds on its own.
+The editor is also an MCP server with 75 tools: Claude Code sees the scene, selects, places and moves props, flies the camera, takes screenshots, edits and saves props, models, terrain, materials, clips and UI, runs the game's commands, and builds, tests and releases. A game made from the template carries a `.mcp.json` that names the server; the editor has to be open with the game playing for the scene tools to answer.
 
-## What it will be
+## Docs
 
-- **The runtime** (`engine/`): the parts both games carry today, joined in front of a game's own `src/` by the same build script the games use. 3D helpers and materials, the prop system with catalogue and build mode, bake, doors, the people rig, the screen kit, the sound synth, save slots, the HUD and menu shell, the Electron shell, the dev console link, the smoke harness and the build, lint, brand and icon tools.
-- **The editor** (`editor/`): a desktop program that opens a game folder, shows the real game page as the scene, and edits layouts, props, config tables and texts through an inspector, saving clean diffs to the game's own files.
-- **The template** (`template/`): a starter game. Clone, install, start, and a room runs.
+- [docs/ENGINE.md](docs/ENGINE.md): the contract a game writes against, part by part.
+- [docs/PLAN.md](docs/PLAN.md): the milestones, what shipped in each version and what is still owed.
+- [docs/games/](docs/games/): the next games, Garage Co. and Garden Co.
 
-A game pins a tag:
+A game pins a tag, so an engine change never breaks a shipped game by surprise:
 
 ```json
-"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.1.0"
+"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.8.0"
 ```
 
 ## Support

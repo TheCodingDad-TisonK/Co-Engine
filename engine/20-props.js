@@ -17,7 +17,11 @@
   CO.layout = function (L) { if (!L) return LAYOUT; if (L.props) for (var k in L.props) LAYOUT.props[k] = L.props[k]; if (L.placed) L.placed.forEach(function (p) { if (p && p.id && !placedById(p.id)) LAYOUT.placed.push(p); }); return LAYOUT; };
   function placedById(id) { for (var i = 0; i < LAYOUT.placed.length; i++) if (LAYOUT.placed[i].id === id) return LAYOUT.placed[i]; return null; }
   function numOr(v, d) { return typeof v === 'number' ? v : d; }
-  function defProp(id, def) { if (CO.game && CO.game.resolveDef) CO.game.resolveDef(id, def); def.id = id; PROPS[id] = def; PROP_ORDER.push(id); return def; }
+  function defProp(id, def) { if (CO.game && CO.game.resolveDef) CO.game.resolveDef(id, def); def.id = id; if (MODEL_OVER[id]) def.build = MODEL_OVER[id]; PROPS[id] = def; PROP_ORDER.push(id); return def; }
+  // a prop whose build is shared (a pack's wrapper, a builder several props use) is reshaped by type: src/00-models.js, written by the
+  // editor's Save, says modelOverride(type, build) and the build lands on that prop whenever it is defined, before or after (0.8.0)
+  var MODEL_OVER = {};
+  function modelOverride(type, build) { MODEL_OVER[type] = build; if (PROPS[type]) PROPS[type].build = build; }
   function propAllowed(id) { var d = PROPS[id]; if (!d) return true; if (d.extra) return true; if (CO.game && CO.game.propAllowed && !CO.game.propAllowed(id, d)) return false; return true; }
   function propDef(id) { if (PROPS[id]) return PROPS[id]; var c = customById(id); if (c) return PROPS[c.type]; var p = placedById(id); return p ? PROPS[p.type] : null; }
   function customById(id) { return (S && S.custom || []).filter(function (c) { return c.id === id; })[0] || null; }

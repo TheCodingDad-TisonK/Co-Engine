@@ -136,5 +136,7 @@
         try { d.build(c, P, inst); if (d.after) d.after(c, P, inst); } finally { c.hit = h0; }
       } });
     });
+    // the pack's own materials by name, for a prop read back as parts in the Model tab (Co Engine 0.8.0): a getter, so a cache filled later is seen
+    CO.packMats = CO.packMats || {}; CO.packMats["garageco"] = function () { return { GAME: GAME, G: G, LOCKUP: LOCKUP, BAY: BAY, DESK: DESK, DESK_STAND: DESK_STAND, FAULTS: FAULTS, CHROME_RED: CHROME_RED, S: S }; };
   };
   if (CO.cfg && typeof scene !== 'undefined' && scene) garagecoPack(defProp); else hook('beforeBuild', function () { garagecoPack(defProp); });
