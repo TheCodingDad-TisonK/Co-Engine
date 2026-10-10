@@ -132,6 +132,8 @@ In the editor: click an item to select it; drag it in the scene camera (Ctrl and
 
 **A box round many things (0.9.1).** Shift and a drag in the scene camera draw a selection box: every prop and world item whose footprint on the ground falls inside it is selected (Ctrl and Shift add to the selection). From the Top camera that is a building and everything in it in one go; then any of them drags them all.
 
+**Duplicate, copy and paste (0.9.4).** Ctrl+D duplicates every selected prop and world item 1.5 m along and selects the copies; Ctrl+C copies the selection and Ctrl+V pastes it where the camera looks, keeping the arrangement; the inspector has a Duplicate button and Claude a `duplicate` tool. A prop copy is a placed copy the layout keeps. A world item's copy is a **world copy**: `CO.worldCopies([{ id, of, x, y, z, ry, sx, sy, sz }])` in `src/00-world.js`, built after the edits from the original's meshes (shared geometry and materials) with its solids cloned and laid where the copy stands. A copy is the original's look and solids: a door or a prompt stays with the original. Removing a copy takes it away; one undo takes a whole paste back. An item marked movesOnly is not copied.
+
 **Doors and buildings (0.9.1).** A hinged door is a world item of its own (its frame and its leaf), or part of the item it is built in; its hinge's place, the solid it closes and its prompt follow wherever the item stands (`doorSync`). A game whose rules follow a building's place marks that item `userData.movesOnly = true`: the editor moves it but refuses to turn or resize it. Garage Co.'s lock-up is one such item, and its indoors, roof, walls, doorway and the customer's place at the desk read where it stands.
 
 ## 6h. Physics (0.3.0)

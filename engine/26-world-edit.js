@@ -2,7 +2,9 @@
   // ── World items ───────────────────────────────────────────────────
   // A key names an item by what it is and where the game built it ("lamp post@12,6", "mesh plane 34x19.2@0,13.6"), so it survives a
   // reload and most changes to the game's code. An edit is { x, y, z, ry (degrees), sx, sy, sz, hidden }, every field optional.
-  var WORLD_EDITS = {}, WORLD_ITEMS = [], WORLD_PARENT = null;
+  var WORLD_EDITS = {}, WORLD_ITEMS = [], WORLD_PARENT = null, WORLD_COPIES = [];
+  // copies of world items (0.9.4): { id, of (the original's key), x, y, z, ry (degrees), sx, sy, sz }, kept in src/00-world.js
+  CO.worldCopies = function (list) { (list || []).forEach(function (c) { if (c && c.id && c.of && !WORLD_COPIES.some(function (k) { return k.id === c.id; })) WORLD_COPIES.push(c); }); return WORLD_COPIES; };
   CO.world = function (edits) { if (edits && typeof edits === 'object') for (var k in edits) WORLD_EDITS[k] = edits[k]; return WORLD_EDITS; };
   // a kit call builds into a group of its own, centred on what it built and standing on the ground, so it turns and resizes about itself
   // a game marks an item movesOnly (o.userData.movesOnly = true) when its rules follow where it stands but not a turn or a new size
@@ -81,10 +83,26 @@
     o.scale.set(typeof e.sx === 'number' ? e.sx : b0.sx, typeof e.sy === 'number' ? e.sy : b0.sy, typeof e.sz === 'number' ? e.sz : b0.sz);
     o.visible = !e.hidden; o.updateMatrixWorld(true); worldSolids(o); shadowDirty = true;
   }
-  // after the build and before the bake: the saved edits laid on the world
-  function worldEditsApply() { worldScan(); WORLD_ITEMS.forEach(function (o) { var e = WORLD_EDITS[o.userData.worldKey]; if (e) worldLay(o, e); }); }
+  // after the build and before the bake: the saved edits laid on the world, then the copies built
+  function worldEditsApply() { worldScan(); WORLD_ITEMS.forEach(function (o) { var e = WORLD_EDITS[o.userData.worldKey]; if (e) worldLay(o, e); }); WORLD_COPIES.forEach(function (c) { worldCopyBuild(c); }); }
+  // a copy: the original's meshes cloned (they share its geometry and materials, so a copy costs little), its solids cloned and laid where
+  // the copy stands. What the original does (a door that opens, a prompt) stays with the original: a copy is its look and its solids
+  function worldCopyBuild(c) {
+    var src = worldByKey(c.of); if (!src) return null;
+    var keep = [], vis = []; src.traverse(function (o) { keep.push(o.userData); vis.push(o.userData && o.userData.bakedAway ? true : o.visible); o.userData = {}; });
+    var g; try { g = src.clone(true); } finally { var i0 = 0; src.traverse(function (o) { o.userData = keep[i0++]; }); }
+    var i1 = 0; g.traverse(function (o) { o.visible = vis[i1++]; });
+    g.visible = true; g.name = src.name; g.userData = { worldItem: src.userData.worldItem || null, worldKey: c.id, worldCopy: c, worldBase: src.userData.worldBase, worldSolidsBase: src.userData.worldSolidsBase || [] };
+    g.userData.solids = g.userData.worldSolidsBase.map(function (q) { var s = { x0: q.x0, x1: q.x1, z0: q.z0, z1: q.z1, y0: q.y0, y1: q.y1 }; solids.push(s); return s; });
+    (CO.root || scene).add(g); worldCopyLay(g); WORLD_ITEMS.push(g); return g;
+  }
+  function worldCopyLay(g) { var c = g.userData.worldCopy, b = g.userData.worldBase || { x: 0, y: 0, z: 0, ry: 0, sx: 1, sy: 1, sz: 1 }; g.position.set(num(c.x, b.x), num(c.y, b.y), num(c.z, b.z)); g.rotation.y = typeof c.ry === 'number' ? c.ry * Math.PI / 180 : b.ry; g.scale.set(num(c.sx, b.sx), num(c.sy, b.sy), num(c.sz, b.sz)); g.updateMatrixWorld(true); worldSolids(g); shadowDirty = true; }
+  function num(v, d) { return typeof v === 'number' ? v : d; }
+  // a copy removed: out of the scene, its solids gone, its record dropped
+  function worldCopyRemove(g) { var c = g.userData.worldCopy; if (g.parent) g.parent.remove(g); (g.userData.solids || []).forEach(function (s) { var k = solids.indexOf(s); if (k >= 0) solids.splice(k, 1); }); var a = WORLD_COPIES.indexOf(c); if (a >= 0) WORLD_COPIES.splice(a, 1); var b = WORLD_ITEMS.indexOf(g); if (b >= 0) WORLD_ITEMS.splice(b, 1); if (typeof NAV === 'object' && NAV) NAV.dirty = true; shadowDirty = true; }
   // what the editor keeps: the item as it stands now against where the game built it
   function worldRecord(o) {
+    if (o.userData.worldCopy) { var c = o.userData.worldCopy; c.x = wr(o.position.x); c.y = wr(o.position.y); c.z = wr(o.position.z); c.ry = Math.round(o.rotation.y * 180 / Math.PI * 10) / 10; c.sx = wr(o.scale.x); c.sy = wr(o.scale.y); c.sz = wr(o.scale.z); worldSolids(o); return c; }
     var b0 = o.userData.worldBase, key = o.userData.worldKey; if (!b0 || !key) return null;
     var e = {}, near = function (a, b) { return Math.abs(a - b) < 0.0005; };
     if (!near(o.position.x, b0.x)) e.x = wr(o.position.x); if (!near(o.position.y, b0.y)) e.y = wr(o.position.y); if (!near(o.position.z, b0.z)) e.z = wr(o.position.z);
@@ -96,8 +114,10 @@
   }
   // the part the editor writes: src/00-world.js, or nothing when the world stands as the game builds it
   function worldCode() {
-    var keys = Object.keys(WORLD_EDITS).sort(); if (!keys.length) return '';
-    var lines = ['//@ the world the editor changed: what was moved, turned, resized or removed of what the game builds straight into its world. Written by the Co Engine editor; it sorts first in src/ and is laid on the world as it is built. A key is the thing and where the game built it; delete a line to put that thing back.', '  CO.world({'];
-    keys.forEach(function (k) { lines.push('    ' + JSON.stringify(k) + ': ' + JSON.stringify(WORLD_EDITS[k]).replace(/"(\w+)":/g, '$1: ').replace(/,(?=\w+: )/g, ', ').replace(/^\{/, '{ ').replace(/\}$/, ' }') + ','); });
-    lines.push('  });'); return lines.join('\n') + '\n';
+    var keys = Object.keys(WORLD_EDITS).sort(); if (!keys.length && !WORLD_COPIES.length) return '';
+    var obj = function (o) { return JSON.stringify(o).replace(/"(\w+)":/g, '$1: ').replace(/,(?=\w+: )/g, ', ').replace(/^\{/, '{ ').replace(/\}$/, ' }'); };
+    var lines = ['//@ the world the editor changed: what was moved, turned, resized, removed or copied of what the game builds straight into its world. Written by the Co Engine editor; it sorts first in src/ and is laid on the world as it is built. A key is the thing and where the game built it; delete a line to put that thing back, or to take a copy away.'];
+    if (keys.length) { lines.push('  CO.world({'); keys.forEach(function (k) { lines.push('    ' + JSON.stringify(k) + ': ' + obj(WORLD_EDITS[k]) + ','); }); lines.push('  });'); }
+    if (WORLD_COPIES.length) { lines.push('  CO.worldCopies(['); WORLD_COPIES.forEach(function (c) { lines.push('    ' + obj(c) + ','); }); lines.push('  ]);'); }
+    return lines.join('\n') + '\n';
   }

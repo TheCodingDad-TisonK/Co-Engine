@@ -155,6 +155,8 @@ Each milestone ends with every suite green and a tag.
 
 **v0.9.1 (2026-10-10):** a selection box (Shift and a drag in the scene camera) picks a building and everything in it at once; doors move with the item they are built in; an item can be marked moves-only so a game's rules can follow a building's place.
 
+**v0.9.2 to v0.9.4 (2026-10-10):** typing in a text box no longer moves the selection; the editor runs a game's scripts with Electron as Electron and a failed release undoes itself; duplicate, copy and paste (Ctrl+D, Ctrl+C, Ctrl+V) for props and world items, a world item's copy kept as a world copy.
+
 Each of M8 to M11 is a project of its own, sized like the expansion. They are ordered by what a new game feels first. All four shipped a first version on 2026-10-09 (v0.2.0 to v0.3.0); what each still owes is listed in its row and is the next work when a game asks for it.
 
 M1 to M3 is the big block, the largest piece of work since the expansion. Everything after is incremental.

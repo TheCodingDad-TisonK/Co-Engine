@@ -225,6 +225,21 @@ module.exports = `
     E.undo(); const a2 = at(); ok(Math.abs(a2[0] - a0[0]) < 0.02 && Math.abs(a2[1] - a0[1]) < 0.02, 'one undo puts them all back');
     E.select(lamp.id, true); ok(E.selection().length === 1 && E.selection()[0] === crate, 'Ctrl and a click on a selected thing takes it out');
     E.select(null); E.set(lamp.id, 'world.reset', 1); }
+  // duplicate, copy and paste (0.9.4): a tree (a world item) and the crate stack (a prop), copied beside themselves, saved, moved, removed, undone
+  { const E = T.editor, tree = E.worldItems().find((i) => /^tree/.test(i.name)), n0 = E.worldItems().length, c0 = (T.S.custom || []).length;
+    E.select(tree.id); E.select('crateStack', true); const r = E.duplicate();
+    ok(r && r.ok && r.made.length === 2 && E.selection().length === 2 && E.worldItems().length === n0 + 1 && (T.S.custom || []).length === c0 + 1, 'Ctrl+D copies a tree and a prop and selects the copies: ' + JSON.stringify(r && (r.made || r.error)));
+    const copyId = r.made.find((k) => !/^cp-/.test(k)), ci = E.inspect(copyId), ti = E.inspect(tree.id);
+    ok(ci && ci.type === 'world' && /tree/.test(ci.name) && Math.abs(ci.position[0] - ti.position[0] - 1.5) < 0.01, 'the tree copy stands 1.5 m along and is a tree: ' + (ci && ci.name));
+    ok(E.worldCode().indexOf('CO.worldCopies([') >= 0 && E.worldCode().indexOf(JSON.stringify(tree.key)) > 0, 'the copy is kept as a world copy of the tree');
+    E.set(copyId, 'position.z', ci.position[2] + 2); ok(E.worldCopies()[0] && Math.abs(E.worldCopies()[0].z - ci.position[2] - 2) < 0.01, 'moving the copy updates its record');
+    E.undo(); E.undo(); ok(E.worldItems().length === n0 && (T.S.custom || []).length === c0 && E.worldCopies().length === 0, 'one undo of the duplicate takes both copies away');
+    E.select(tree.id); E.copy(); const pr = E.paste(); ok(pr && pr.ok && pr.made.length === 1 && E.worldCopies().length === 1, 'Ctrl+C and Ctrl+V paste a copy where the camera looks');
+    const pid = pr.made[0]; E.remove(pid); ok(E.worldCopies().length === 0 && E.worldItems().length === n0, 'removing a copy takes it away');
+    E.undo(); ok(E.worldCopies().length === 1, 'undo brings the removed copy back');
+    const rb = E.run('(function () { var c = WORLD_COPIES[0], g = worldByKey(c.id); worldCopyRemove(g); WORLD_COPIES.push(c); worldCopyBuild(c); var g2 = worldByKey(c.id); return !!g2 && Math.abs(g2.position.x - c.x) < 0.01; })()');
+    ok(rb === true, 'a saved copy is built again from its record at the build');
+    E.remove(E.worldItems().find((i) => i.key === E.worldCopies()[0].id).id); E.select(null); }
   // parts from a prop drawn in code (0.8.0): a Grow Co, a Depot Co and a basics prop read back as parts, rebuilt from them with the same pieces and size
   for (const type of ['gcVending', 'dcLockers', 'pkBench']) {
     const E = T.editor, THREE = T.THREE, sid = E.spawn(type, 4, 4);
