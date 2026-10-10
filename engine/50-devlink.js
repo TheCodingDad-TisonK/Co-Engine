@@ -23,6 +23,7 @@
     saveNow: function () { save(); return 'saved to ' + SAVE; },
     reload: function () { save(); setTimeout(function () { location.reload(); }, 200); return 'reloading'; },
     tp: function (arg) { if (!player) return 'no player'; var m = /^(-?[\d.]+)[ ,]+(-?[\d.]+)$/.exec(String(arg || '')); if (!m) return 'tp needs "x, z"'; player.x = +m[1]; player.z = +m[2]; player.y = floorY(player.x, player.z); return 'at ' + player.x + ', ' + player.z; },
+    lanes: function (arg) { return roadDebug(arg === 'on' ? true : arg === 'off' ? false : undefined); },
     weather: function (kind) { if (!S.weather) S.weather = { wet: 0, snow: 0, wind: 0.4 }; S.weather.kind = kind || 'clear'; S.weather.until = nowAbs() + 6; return 'weather ' + S.weather.kind; }
   };
   function devCommandList() { var out = Object.keys(DEV_COMMANDS); if (CO.game && CO.game.commands) for (var k in CO.game.commands) if (out.indexOf(k) < 0) out.push(k); return out; }

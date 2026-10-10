@@ -155,6 +155,8 @@ Each milestone ends with every suite green and a tag.
 
 **v0.9.1 (2026-10-10):** a selection box (Shift and a drag in the scene camera) picks a building and everything in it at once; doors move with the item they are built in; an item can be marked moves-only so a game's rules can follow a building's place.
 
+**v0.11.0 (2026-10-10):** traffic that follows the roads a game lays. Road pieces carry lanes that join where the pieces meet; roadTraffic keeps cars on the network, turning at junctions, one approach at a time through a junction with room on the far side, giving way on a roundabout ring that takes a car per 10 m, slowing for bends, never locking two cars against each other. The dev command lanes draws the network. Garage Co.'s road moves onto it.
+
 **v0.10.0 (2026-10-10):** thirteen new packs, 189 props, for any game: buildings (sheds to pre-built apartments, an office tower, a supermarket and a car park), cars and vans, city streets (lamps that light, traffic lights that cycle, signs, street furniture, pedestrians that walk), nature, industrial, farm, park and play, home, office, shop and market, harbour, camping, and roads (straights, a crossroads, a T-junction, a bend, a roundabout and a dead end that join end to end, with markings and roadside kit). Moving parts sit in dynamic groups so the bake leaves them free. Still owed: traffic that follows road pieces a game lays (cars today drive the lanes a game gives them).
 
 **v0.9.2 to v0.9.4 (2026-10-10):** typing in a text box no longer moves the selection; the editor runs a game's scripts with Electron as Electron and a failed release undoes itself; duplicate, copy and paste (Ctrl+D, Ctrl+C, Ctrl+V) for props and world items, a world item's copy kept as a world copy.

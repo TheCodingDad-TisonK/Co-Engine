@@ -146,6 +146,21 @@ In the editor: click an item to select it; drag it in the scene camera (Ctrl and
 
 `CO.table(name, obj, desc)` registers a live table a game tunes by (the faults and what each pays, the economy, the ladder); `CO.tune({ name: { 'path.to.leaf': value } })` holds overrides and applies them the moment the table registers, so the editor's `src/00-tables.js`, which runs first, wins over the code. The bridge lists every number, string and boolean leaf by path with its code value (`tables()`), sets one live as an undo step (`tableSet(name, path, value)`), and writes the part (`tablesCode()`). The editor's Settings tab edits them.
 
+## 6j. The road network (0.11.0)
+
+Lanes are directed polylines of `[x, z]` points. A road piece adds its own from its build with `c.lane(points, opt)`, in the piece's own coordinates, so they move and turn with it; a game adds one in world space with `roadLane(points, opt)` (opt.y is its height). Lane ends that meet, within 1.2 m and heading within 60 degrees, join into one network, rebuilt within half a second of a piece being placed, moved or removed.
+
+`roadTraffic({ cars, speed, colours })` keeps that many cars on the network (`roadTraffic(0)` takes them off). The cars sit in `traffic.cars` beside the lane cars of `trafficAdd`, flagged `road: true`, so the editor lists them as before. Their rules:
+
+- At a lane end a car takes one of the lanes that follow at random. A lane end that leads nowhere sends it back to a lane nothing feeds, so a straight road with open ends behaves like the old wrapping lanes.
+- It keeps its distance to the car ahead on its lane and the next one, and to any car close in front in its path. When two cars each have the other in front, only one waits (the lower priority lane, then the later car), so they cannot lock each other.
+- Lanes with the same `opt.box` are a junction: a car goes in only when no car from another approach (`opt.from`) is inside or has reserved it, and only with room on the far side, so nobody stops in the box.
+- `opt.prio` marks a lane with priority, such as a roundabout's ring. A loop of priority lanes takes one car per 10 m; a car waits at the line to join a full one. A lane with `opt.merge` (a roundabout entry) gives way at its start to anyone coming round within 22 m, and once on it the car carries on.
+- `opt.r` is a lane's curve radius; a car slows to suit it, and slows ahead of a tight lane it is about to take.
+- A car held at a line for 9 s goes anyway, except into a busy junction or a full loop.
+
+The road pack's pieces drive on the right, 1.75 m off the centre line. The straights carry a lane each way. The crossroads carries straight on, right and left from every arm, and the T-junction the turns its three arms allow. The bend carries one lane each way, the roundabout a one-lane ring with an entry and an exit on each arm, and the dead end a lane round its turning circle. The dev command `lanes` (or `lanes on`, `lanes off`) draws the network: blue lanes, amber priority lanes and red lane ends that lead nowhere.
+
 ## 7. The editor bridge
 
 Since 0.1.5 the page carries `CO.editor` (`engine/60-editor.js`), published as `window.CO_EDITOR` and switched on by `?editor=1` in the page's query (the editor's viewport loads the page with `?dev=1&editor=1`). It is the one surface the editor, the MCP server and a test talk to:

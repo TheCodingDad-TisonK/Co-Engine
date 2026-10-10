@@ -2,7 +2,7 @@
 
 The engine and editor behind [Grow Co.](https://github.com/TheCodingDad-TisonK/Grow-Co), [Depot Co.](https://github.com/TheCodingDad-TisonK/Depot-Co) and Garage Co.: one HTML page, one closure, three.js, no bundler, no framework. Every texture, figure and sound is generated in code, and the editor runs the real game while you build in it.
 
-**Version 0.10.0** (2026-10-10). Every milestone of the plan has shipped a first version. What is still owed is listed in [docs/PLAN.md](docs/PLAN.md).
+**Version 0.11.0** (2026-10-10). Every milestone of the plan has shipped a first version. What is still owed is listed in [docs/PLAN.md](docs/PLAN.md).
 
 ## What is in it
 
@@ -33,7 +33,7 @@ The engine and editor behind [Grow Co.](https://github.com/TheCodingDad-TisonK/G
 | Camping | 13 | a dome tent, a ridge tent, a campfire that flickers and lights, a camping chair, a cool box, a barbecue, a picnic blanket, a log bench, a hammock, a canoe, a signpost, a camper van and a firewood pile |
 | Roads | 16 | 10 m and 20 m straights, a crossroads, a T-junction, a 90 degree bend, a roundabout and a dead end, all 7 m of tarmac between 2 m pavements, plus a pavement strip, parking bays, a bus stop, a speed bump, a crash barrier, cones, lane arrows, a give way line and a sign gantry |
 
-The thirteen packs below Garage Co. (0.10.0) are built for any game: a whole street, a campsite or a harbour can be laid out from them. The road pieces are 7 m of tarmac between 2 m pavements and join end to end.
+The thirteen packs below Garage Co. (0.10.0) are built for any game: a whole street, a campsite or a harbour can be laid out from them. The road pieces are 7 m of tarmac between 2 m pavements and join end to end; since 0.11.0 they carry the lanes traffic drives.
 
 A pack prop looks like the original and its use says what it is; the game logic behind it stays in its own game. The three game packs are generated from each game's source: `node tools/packs/make-pack.js depotco` (or `garageco`) regenerates one after its game changes, and Grow Co. has its own pair of tools beside it.
 
@@ -65,6 +65,7 @@ The editor exe is private: it is built with `npm run editor:exe` and is not publ
 - **Scene, Top and Game views** over the running game; pause, step and restart from the play bar. Ctrl and the mouse drag and turn any prop in any view; PageUp and PageDown lift it.
 - **Everything in the world is editable** (0.9.0): walls, floors, lamps, trees, fences and the ground the game builds can be moved, turned, resized and removed like props, and the change is kept in `src/00-world.js`.
 - **Select several things** (0.9.0): Ctrl and a click adds to the selection; drag one and they all move together; Delete removes them all. Shift and a drag in the scene camera draw a box that selects everything standing inside it (0.9.1).
+- **Traffic that follows your roads** (0.11.0): the road pieces carry lanes, and the pieces you lay join into one network. `roadTraffic({ cars: 8 })` puts cars on it; they turn at junctions, take one approach at a time through a crossroads, give way on the roundabout and slow for bends. The dev command `lanes` draws the network.
 - **Duplicate, copy and paste** (0.9.4): Ctrl+D copies what is selected right beside it, Ctrl+C and Ctrl+V paste it where the camera looks. Trees, lamps, walls and props alike.
 - **Hierarchy and inspector**: what stands in the game, and the place, material and light of what you click. Drop lets a prop fall under physics and keeps where it lands.
 - **Tabs**: Console, Assets, Readout, Pack, Terrain (sculpt, paint, roads, scatter), Materials (layer stacks and GLSL), Profiler, Animation (clips and a dope sheet), UI (HUD chips, panels and buttons as data), Model, Settings (the game's tuning tables), File, and the Claude panel.
@@ -82,7 +83,7 @@ The editor is also an MCP server with 75 tools: Claude Code sees the scene, sele
 A game pins a tag, so an engine change never breaks a shipped game by surprise:
 
 ```json
-"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.10.0"
+"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.11.0"
 ```
 
 ## Support
