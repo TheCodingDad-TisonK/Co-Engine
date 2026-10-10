@@ -75,4 +75,4 @@ The engine and the games on it are free and stay free. The work is visible first
 
 ## Licence
 
-MIT. Made by TheCodingDad.
+All rights reserved. You may download and try the editor; copying, sharing or using the engine, its packs or its template to make a game needs written permission. Releases up to v0.9.3 were MIT. See [LICENSE](LICENSE). Made by TheCodingDad.

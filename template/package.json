@@ -5,7 +5,7 @@
   "description": "A game on Co Engine.",
   "main": "main.js",
   "author": "",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "start": "electron .",
