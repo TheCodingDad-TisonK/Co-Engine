@@ -43,7 +43,7 @@ npm run editor:exe  # the editor as one portable exe in dist/
 node editor/mcp.js  # the editor as an MCP server on stdio (Claude Code starts it through .mcp.json)
 ```
 
-The latest editor exe is attached to each tag at [releases/latest](https://github.com/TheCodingDad-TisonK/Co-Engine/releases/latest). "New game from the sample" copies the sample room, three.js and the engine's parts into an empty folder that then builds on its own.
+The editor exe is private: it is built with `npm run editor:exe` and is not published with the releases. "New game from the sample" copies the sample room, three.js and the engine's parts into an empty folder that then builds on its own.
 
 ## The editor
 

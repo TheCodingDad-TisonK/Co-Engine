@@ -1,7 +1,7 @@
 name: Release
 
-# Push a tag like v0.1.7 and this builds the editor as one portable exe and attaches it to a GitHub release,
-# so the latest editor is always at github.com/TheCodingDad-TisonK/Co-Engine/releases/latest.
+# Push a tag like v0.9.4 and this checks the engine and writes the GitHub release with its notes.
+# The editor exe is private (all rights reserved): it is built on the author's machine with npm run editor:exe and is never attached here.
 
 on:
   push:
@@ -29,14 +29,8 @@ jobs:
           if [ "$GITHUB_REF_NAME" != "$want" ]; then echo "Tag $GITHUB_REF_NAME does not match package.json ($want)"; exit 1; fi
       - run: npm run check
       - run: node tests/mcp.test.js
-      - run: npm run editor:exe
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Co-Engine-windows
-          path: dist/*.exe
-      - name: Attach to the release
+      - name: The release, notes only
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.exe
           generate_release_notes: true
