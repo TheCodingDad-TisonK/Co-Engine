@@ -62,7 +62,7 @@
     if (ui.started && !ui.blocked()) { if (photo.on && CO.game.photo !== false) photoTick(dt); else { if (CO.game.tick) CO.game.tick(dt); if (CO.game.weather !== false) tickWeatherState(dt); updatePlayer(dt); } autosaveT += dt; if (autosaveT > 30) { autosaveT = 0; save(); } }
     profMark('sim', pf); pf = PROF.on ? performance.now() : 0;
     worldTime += dt;
-    if (CO.game.lighting !== false) lighting(dt); updateLightBudget(); shadowTick(dt); if (sky.dome || sky.rain) tickSky(dt); tickBursts(dt); doorsTick(dt); drawScreens(dt); editTick(); tickTraffic(dt);
+    if (CO.game.lighting !== false) lighting(dt); updateLightBudget(); shadowTick(dt); if (sky.dome || sky.rain) tickSky(dt); tickBursts(dt); doorsTick(dt); drawScreens(dt); editTick(); tickTraffic(dt); npcsTick(dt);
     profMark('world', pf); pf = PROF.on ? performance.now() : 0;
     if (CO.game.present) CO.game.present(dt); runHooks('frame', dt);
     for (var ai = 0; ai < animated.length; ai++) animated[ai](dt);

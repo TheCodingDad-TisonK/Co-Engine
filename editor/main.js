@@ -96,10 +96,16 @@ function openGame(dir, page, dev) {
 // a new game from the sample: the sample's parts, page and co.json copied into a folder of the user's choosing, with three.js
 // and a copy of this editor's engine parts beside it, so the folder builds on its own with the engine version it was made with
 // (engine/VERSION says which). Pinning a tag of the engine repo replaces the copy once the engine is published.
+// the menus a new game starts with: the menu maker's start screen, pause menu and settings, titled with the game's name, ready to edit in the Menus tab
+function newGameMenus(name) {
+  const data = {"start":{"title":name,"subtitle":"","buttons":[{"label":"Play","action":"play","primary":true},{"label":"Settings","action":"settings"},{"label":"How to play","action":"guide"},{"label":"Save slots","action":"slots"},{"label":"Quit","action":"quit"}]},"pause":{"title":"Paused","buttons":[{"label":"Resume","action":"resume","primary":true},{"label":"Settings","action":"settings"},{"label":"How to play","action":"guide"},{"label":"Build mode","action":"edit"},{"label":"Save file","action":"saves"},{"label":"Main menu","action":"quit"}]},"settings":{"hide":[],"custom":[]}};
+  return "//@ the menus the editor saved: the start screen, the pause menu, the settings and their pages, as data. Written by the Co Engine editor; it sorts first in src/. Edit it in the editor rather than here.\n" + '  CO.menus(' + JSON.stringify(data, null, 2).replace(/\n/g, '\n  ') + ');\n';
+}
 function newGame(dir) {
   const name = path.basename(dir);
   ['src', 'game', path.join('vendor', 'three'), 'engine'].forEach((d) => fs.mkdirSync(path.join(dir, d), { recursive: true }));
   fs.copyFileSync(path.join(SAMPLE_DIR, 'src', '01-sample.js'), path.join(dir, 'src', '01-game.js'));
+  fs.writeFileSync(path.join(dir, 'src', '00-menus.js'), newGameMenus(name));
   fs.copyFileSync(path.join(VENDOR_DIR, 'three', 'three.min.js'), path.join(dir, 'vendor', 'three', 'three.min.js'));
   fs.readdirSync(ENGINE_DIR).filter((n) => /^\d\d-.*\.js$/.test(n)).forEach((n) => fs.copyFileSync(path.join(ENGINE_DIR, n), path.join(dir, 'engine', n)));
   fs.writeFileSync(path.join(dir, 'engine', 'VERSION'), app.getVersion() + '\n');
@@ -162,6 +168,14 @@ ipcMain.handle('pack-add', (e, q) => {
   const src = q.src && fs.existsSync(q.src) ? q.src : path.join(PACKS_DIR, q.name, 'pack.js'); if (!fs.existsSync(src)) return { error: 'no such pack: ' + q.name };
   const srcDir = path.join(q.dir, (d.co && d.co.src) || 'src'); if (!fs.existsSync(srcDir)) return { error: 'no src/ folder in ' + q.dir };
   const file = path.join(srcDir, '00-pack-' + q.name + '.js'); fs.copyFileSync(src, file); log('pack: ' + q.name + ' is in src/00-pack-' + q.name + '.js', 'ok'); return { ok: true, file: 'src/00-pack-' + q.name + '.js' };
+});
+// a picture for the menus: picked anywhere, copied into the game's brand/menus/ folder, answered as the path the page loads it by
+ipcMain.handle('image-pick', async (e, dir) => {
+  if (!dir || !fs.existsSync(path.join(dir, 'co.json'))) return { error: 'no game is open' };
+  const r = await dialog.showOpenDialog(win, { title: 'Pick a picture for the menus', properties: ['openFile'], filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }] });
+  if (r.canceled || !r.filePaths[0]) return { rel: null };
+  const src = r.filePaths[0], name = path.basename(src).replace(/[^A-Za-z0-9._-]/g, '-'), outDir = path.join(dir, 'brand', 'menus');
+  try { fs.mkdirSync(outDir, { recursive: true }); const to = path.join(outDir, name); if (path.resolve(src) !== path.resolve(to)) fs.copyFileSync(src, to); log('menus: copied ' + name + ' into brand/menus'); return { rel: 'brand/menus/' + name }; } catch (err) { return { error: err.message }; }
 });
 ipcMain.handle('part-write', (e, q) => {
   const d = describe(q.dir), srcDir = path.join(q.dir, (d.co && d.co.src) || 'src'); if (!fs.existsSync(srcDir)) return { error: 'no src/ folder in ' + q.dir };

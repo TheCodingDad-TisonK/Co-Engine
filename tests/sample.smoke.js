@@ -369,4 +369,57 @@ module.exports = `
     const moved = E.inspect('crateStack').prop; ok(E.selected() === 'crateStack' && moved.x !== cw[0], 'Ctrl and the left button grab and drag a prop in the game view: x ' + cw[0] + ' to ' + moved.x); ok(E.history().undo[E.history().undo.length - 1] === 'move crateStack', 'as one move step'); E.undo();
     const r0 = E.inspect('crateStack').prop.rot; cv.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, ctrlKey: true, clientX: mx, clientY: my, bubbles: true, cancelable: true })); ok(E.inspect('crateStack').prop.rot === (r0 + 1) % 4, 'Ctrl and the wheel turn it a quarter'); E.undo(); E.on = false;
     const pc = E.packCode(['crateStack', 'lever']); ok(pc.ids.length === 2 && pc.code.indexOf('defProp("crateStack"') >= 0 && pc.code.indexOf('"shop":false') >= 0, 'packCode writes a pack from the game\u2019s own props'); }
+  // the menu maker (0.12.0): CO.menus draws the start screen, the pause menu and the settings from data; a custom setting lives in SET and reaches the game; pages open; the editor seeds from the page and writes src/00-menus.js
+  { const E = T.editor; if (T.ui.menuOpen) T.closeMenu();
+    const seed = E.menusSeed(); ok(seed.start && seed.start.title === 'Co Engine sample' && seed.pause.buttons.some((b) => b.action === 'resume') && seed.settings.hide.length === 0, 'the seed reads the page: the title ' + seed.start.title + ', ' + seed.pause.buttons.length + ' pause buttons');
+    let heard = null; const prevSetting = T.CO.game.setting; T.CO.game.setting = (k, v) => { heard = [k, v]; };
+    seed.start.subtitle = 'A test of the menu maker'; seed.start.buttons.push({ label: 'Credits', action: 'page credits' }, { label: 'Pay', action: 'cash 7' });
+    seed.pause.title = 'Taking a break'; seed.pause.buttons.push({ label: 'Credits', action: 'page credits' }, { label: 'Pay me', action: 'cash 5' });
+    seed.settings.hide = ['fov', 'film']; seed.settings.custom = [{ key: 'difficulty', label: 'Difficulty', type: 'select', options: ['Easy', 'Normal', 'Hard'], value: 'Normal' }, { key: 'gore', label: 'Blood', type: 'toggle', value: false }];
+    seed.pages = { credits: { title: 'Credits', text: 'Made by the sample.' } }; seed.theme.accent = '#33aaff'; seed.theme.align = 'left';
+    E.menusSet(seed);
+    const st = document.getElementById('dc-start'); ok(st.classList.contains('co-mm') && /A test of the menu maker/.test(st.textContent) && st.querySelectorAll('[data-start]').length === seed.start.buttons.length && !!document.getElementById('dc-start-stats'), 'the start screen is drawn from the data, with the save chips kept: ' + st.querySelectorAll('[data-start]').length + ' buttons');
+    ok(/#33aaff/.test(document.getElementById('co-mm-style').textContent) && /flex-start/.test(document.getElementById('co-mm-style').textContent), 'the theme sets the accent and puts the menus on the left');
+    ok(T.SET.difficulty === 'Normal' && T.SET.gore === false, 'a custom setting starts at its value in SET: ' + T.SET.difficulty);
+    E.menusPreview('start'); const credits = [...st.querySelectorAll('[data-start]')].find((b) => b.textContent === 'Credits'); credits.click(); ok(/Made by the sample/.test(document.getElementById('co-mm-start-body').innerHTML) && document.getElementById('co-mm-start-btns').hidden, 'a start button opens its page');
+    st.querySelector('[data-start-back]').click(); [...st.querySelectorAll('[data-start]')].find((b) => b.textContent === 'Settings').click(); ok(/Difficulty/.test(document.getElementById('co-mm-start-body').innerHTML) && !/Field of view/.test(document.getElementById('co-mm-start-body').innerHTML), 'the start screen has the settings, without the hidden ones');
+    const bank0 = T.S.bank; st.querySelector('[data-start-back]').click(); [...st.querySelectorAll('[data-start]')].find((b) => b.textContent === 'Pay').click(); ok(T.S.bank === bank0 + 7, 'a start button runs a dev command: bank ' + bank0 + ' to ' + T.S.bank);
+    [...st.querySelectorAll('[data-start]')].find((b) => b.textContent === 'Play').click(); ok(st.hidden && T.ui.started, 'Play over a running game puts the start screen away');
+    E.menusPreview('pause'); const mn = document.getElementById('dc-menu'); ok(T.ui.menuOpen && /Taking a break/.test(mn.textContent) && mn.querySelectorAll('.dc-menu-btns button').length === seed.pause.buttons.length && /Saved at/.test(document.getElementById('dc-menu-sub').textContent), 'the pause menu is drawn from the data and still says it saved');
+    const bank1 = T.S.bank; [...mn.querySelectorAll('.dc-menu-btns button')].find((b) => b.textContent === 'Pay me').click(); ok(T.S.bank === bank1 + 5, 'a pause button runs a dev command');
+    [...mn.querySelectorAll('.dc-menu-btns button')].find((b) => b.textContent === 'Credits').click(); ok(/Made by the sample/.test(document.getElementById('dc-menu-body').innerHTML), 'a pause button opens a page');
+    T.menuAct('back'); T.menuAct('settings'); const body = document.getElementById('dc-menu-body'); ok(/Difficulty/.test(body.innerHTML) && /Blood/.test(body.innerHTML) && !/Film look/.test(body.innerHTML) && /Mouse sensitivity/.test(body.innerHTML), 'the settings show the engine ones that are kept and the custom ones');
+    const dsel = body.querySelector('[data-set="difficulty"]'); dsel.value = 'Hard'; dsel.dispatchEvent(new Event('input', { bubbles: true })); const saved = JSON.parse(localStorage.getItem(T.CO.save.prefix + '-settings') || '{}');
+    ok(T.SET.difficulty === 'Hard' && heard && heard[0] === 'difficulty' && heard[1] === 'Hard' && saved.difficulty === 'Hard', 'changing a custom setting sets SET, tells the game and is kept: ' + JSON.stringify(heard));
+    ok(E.run('setting("difficulty")') === 'Hard', 'setting(key) reads one');
+    [...mn.querySelectorAll('.dc-menu-btns button')].find((b) => b.getAttribute('data-menu') === 'resume').click(); ok(!T.ui.menuOpen, 'Resume still closes the menu');
+    const code = E.menusCode(); ok(code.indexOf('CO.menus(') > 0 && code.indexOf('"difficulty"') > 0 && code.indexOf('Taking a break') > 0, 'the menus are kept as code for src/00-menus.js: ' + code.length + ' characters');
+    E.menusSet({ start: { title: 'Two' } }); E.undo(); ok(E.menus().pause && E.menus().pause.title === 'Taking a break', 'undo brings the last menus back');
+    E.menusPreview(null); T.CO.game.setting = prevSetting; }
+  // the NPC creator (0.12.0): characters and their steps, a spawner that brings one by car, a worker at a post; talk waits for the player, a choice pays and sends them off, the game hears events, and it all keeps as code
+  { const E = T.editor; let heard = []; const prevEv = T.CO.game.npcEvent; T.CO.game.npcEvent = (name, npc, extra) => { heard.push(name + (extra ? ':' + extra : '')); };
+    const DATA = { spots: { desk: { x: 3, z: 3, ry: 0 } },
+      characters: { customer: { names: ['Sam'], look: { shirt: '#c0392b' }, speed: 3, car: true, steps: [{ do: 'walk', to: 'desk' }, { do: 'event', name: 'atDesk' }, { do: 'say', text: 'Hi, {name} here.', wait: 0.2 }, { do: 'talk', prompt: 'Talk to {name}', text: 'Fix my car?', choices: [{ label: 'Sure', say: 'Thanks!', run: 'cash 40' }, { label: 'No', then: 'leave' }] }, { do: 'until', test: 'npc.data.ready === true' }, { do: 'leave' }] },
+        clerk: { names: ['Kim'], steps: [{ do: 'wait', seconds: 0.5 }, { do: 'walk', to: 'post' }, { do: 'repeat' }] } },
+      spawners: [{ id: 'road', character: 'customer', x: -20, z: 3, park: [-2, 3], every: 2, max: 1 }],
+      workers: [{ id: 'clerk', character: 'clerk', x: 5, z: 5, ry: 0 }] };
+    E.npcsSet(DATA); ok(E.npcs().spawners.length === 1 && E.npcInfo().length === 0, 'the NPC data is set and nobody is in the game yet');
+    const tick = (sec, stop) => E.run('(function () { for (var i = 0; i < ' + Math.round(sec * 30) + '; i++) { npcsTick(1 / 30); ' + (stop ? 'if (' + stop + ') return i; ' : '') + '} return -1; })()');
+    tick(0.2); const w = E.npcInfo().find((n) => n.worker); ok(!!w && w.name === 'Kim' && Math.abs(w.x - 5) < 0.2 && Math.abs(w.z - 5) < 0.2, 'a worker with no hours stands at the post from the start: ' + JSON.stringify(w));
+    tick(4, 'npcList.some(function (n) { return n.charId === "customer"; })'); let c = E.npcInfo().find((n) => n.character === 'customer'); ok(!!c && c.doing === 'drive', 'the spawner brings a customer by car: ' + JSON.stringify(c));
+    ok(E.run('traffic.cars.filter(function (q) { return q.npc; }).length') === 1, 'the car is one of the traffic cars');
+    tick(20, 'npcList.some(function (n) { return n.charId === "customer" && n.state === "talk"; })'); c = E.npcInfo().find((n) => n.character === 'customer');
+    ok(c && c.doing === 'talk' && c.state === 'talk' && Math.abs(c.x - 3) < 0.3 && Math.abs(c.z - 3) < 0.3 && heard.indexOf('atDesk') >= 0, 'the customer parks, walks to the desk, tells the game, speaks and waits for the player: ' + JSON.stringify(c) + ' heard ' + heard.join(','));
+    const prompt = E.run('(function () { var n = npcList.filter(function (q) { return q.charId === "customer"; })[0]; return n.hit.userData.it.prompt(); })()'); ok(prompt === 'Talk to Sam', 'the customer offers Talk to Sam: ' + prompt);
+    const wprompt = E.run('(function () { var n = npcList.filter(function (q) { return q.worker; })[0]; return n.hit.userData.it.prompt(); })()'); ok(wprompt === '', 'nobody offers a talk when no talk step waits');
+    const bank0 = T.S.bank; E.run('(function () { var n = npcList.filter(function (q) { return q.charId === "customer"; })[0]; npcTalk(n); })()');
+    ok(T.ui.panelOpen && /Fix my car/.test(document.getElementById('dc-panel-body').textContent) && document.querySelectorAll('#dc-panel-body [data-act="npc"]').length === 2, 'talking opens a panel with the words and both choices');
+    document.querySelector('#dc-panel-body [data-act="npc"][data-arg="0"]').click(); ok(!T.ui.panelOpen && T.S.bank === bank0 + 40 && heard.indexOf('choice:Sure') >= 0, 'a choice closes the panel, runs its command and tells the game: bank ' + bank0 + ' to ' + T.S.bank);
+    tick(1); c = E.npcInfo().find((n) => n.character === 'customer'); ok(c && c.doing === 'until', 'until waits for its test: ' + (c && c.doing));
+    E.run('(function () { npcList.filter(function (q) { return q.charId === "customer"; })[0].pub.data.ready = true; })()');
+    const gone = tick(30, '!npcList.some(function (n) { return n.charId === "customer"; })'); ok(gone >= 0 && E.run('traffic.cars.filter(function (q) { return q.npc; }).length') === 0, 'when the test comes true the customer walks back, drives off and is gone with the car');
+    ok(E.npcInfo().some((n) => n.worker), 'the worker stays at work');
+    const code = E.npcsCode(); ok(code.indexOf('CO.npcs(') > 0 && code.indexOf('"customer"') > 0 && code.indexOf('"clerk"') > 0, 'the NPCs are kept as code for src/00-npcs.js: ' + code.length + ' characters');
+    E.npcsSet({ characters: {}, spawners: [], workers: [], spots: {} }); ok(E.npcInfo().length === 0, 'new data starts the NPCs again: none now'); E.undo(); ok(E.npcs().workers.length === 1, 'undo brings the last NPC data back');
+    E.npcsSet({ characters: {}, spawners: [], workers: [], spots: {} }); T.CO.game.npcEvent = prevEv; }
 `;

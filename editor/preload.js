@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('co', {
   packWrite: (q) => ipcRenderer.invoke('pack-write', q),
   layoutWrite: (q) => ipcRenderer.invoke('layout-write', q),
   partWrite: (q) => ipcRenderer.invoke('part-write', q),
+  imagePick: (dir) => ipcRenderer.invoke('image-pick', dir),
   packs: (dir) => ipcRenderer.invoke('packs-list', dir),
   packAdd: (q) => ipcRenderer.invoke('pack-add', q),
   packMake: (q) => ipcRenderer.invoke('pack-make', q),

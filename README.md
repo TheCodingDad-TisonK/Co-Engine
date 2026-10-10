@@ -2,7 +2,7 @@
 
 The engine and editor behind [Grow Co.](https://github.com/TheCodingDad-TisonK/Grow-Co), [Depot Co.](https://github.com/TheCodingDad-TisonK/Depot-Co) and Garage Co.: one HTML page, one closure, three.js, no bundler, no framework. Every texture, figure and sound is generated in code, and the editor runs the real game while you build in it.
 
-**Version 0.11.0** (2026-10-10). Every milestone of the plan has shipped a first version. What is still owed is listed in [docs/PLAN.md](docs/PLAN.md).
+**Version 0.12.0** (2026-10-10). Every milestone of the plan has shipped a first version. What is still owed is listed in [docs/PLAN.md](docs/PLAN.md).
 
 ## What is in it
 
@@ -65,6 +65,8 @@ The editor exe is private: it is built with `npm run editor:exe` and is not publ
 - **Scene, Top and Game views** over the running game; pause, step and restart from the play bar. Ctrl and the mouse drag and turn any prop in any view; PageUp and PageDown lift it.
 - **Everything in the world is editable** (0.9.0): walls, floors, lamps, trees, fences and the ground the game builds can be moved, turned, resized and removed like props, and the change is kept in `src/00-world.js`.
 - **Select several things** (0.9.0): Ctrl and a click adds to the selection; drag one and they all move together; Delete removes them all. Shift and a drag in the scene camera draw a box that selects everything standing inside it (0.9.1).
+- **Menu maker** (0.12.0): the Menus tab makes the start screen (title, subtitle, logo, backdrop picture, buttons for play, new game, save slots, settings, pages and quit), the pause menu (its title and buttons in any order) and the settings (which of the engine's show, plus switches, sliders and lists of your own that the game reads with `setting(key)`), in a theme of your colours. It shows live in the game and saves into `src/00-menus.js`; a game made with New starts on it.
+- **NPC creator** (0.12.0): the NPCs tab makes characters (names, clothes, hair, by car or on foot) and what they do, step by step: walk to a spot, say something, wait for the player to press E and offer choices that pay, talk or send them off, wait, wander, wait until something is true, run a command, tell the game, leave. Spawners bring them on a clock inside their hours; workers keep a place through the day. Saved into `src/00-npcs.js`.
 - **Traffic that follows your roads** (0.11.0): the road pieces carry lanes, and the pieces you lay join into one network. `roadTraffic({ cars: 8 })` puts cars on it; they turn at junctions, take one approach at a time through a crossroads, give way on the roundabout and slow for bends. The dev command `lanes` draws the network.
 - **Duplicate, copy and paste** (0.9.4): Ctrl+D copies what is selected right beside it, Ctrl+C and Ctrl+V paste it where the camera looks. Trees, lamps, walls and props alike.
 - **Hierarchy and inspector**: what stands in the game, and the place, material and light of what you click. Drop lets a prop fall under physics and keeps where it lands.
@@ -83,7 +85,7 @@ The editor is also an MCP server with 75 tools: Claude Code sees the scene, sele
 A game pins a tag, so an engine change never breaks a shipped game by surprise:
 
 ```json
-"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.11.0"
+"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.12.0"
 ```
 
 ## Support

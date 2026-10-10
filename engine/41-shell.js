@@ -41,6 +41,7 @@
   function renderPanel() {
     if (!ui.panelOpen) return;
     var spec = panel.kind === 'catalogue' ? { title: 'Catalogue · build mode', tabs: [], body: catalogueHtml() } : (CO.game && CO.game.panel ? CO.game.panel(panel.kind, panel.tab) : null);
+    if (!spec && panel.kind === 'npc') spec = npcPanelSpec();   /* part 47: an NPC's words and choices */
     if (!spec) spec = uiPanelSpec(panel.kind);   /* a panel the editor's UI tab described */
     if (!spec) spec = { title: panel.kind || '', tabs: [], body: '' };
     if (spec.tab && spec.tab !== panel.tab) panel.tab = spec.tab;
@@ -53,6 +54,7 @@
     if (panel.kind === 'catalogue' && act === 'restore') { editRestore(arg); renderPanel(); return true; }
     if (panel.kind === 'catalogue' && act === 'buy') { closePanel(); editBuy(arg); return true; }   // only the catalogue's: a game's shop has a buy of its own
     if (act === 'ui') return uiPanelAct(arg);
+    if (act === 'npc') return npcChoice(arg);
     if (CO.game && CO.game.panelAct && CO.game.panelAct(act, arg)) return true;
     runHooks('panelAct', act, arg); return false;
   }
@@ -95,10 +97,13 @@
     else if (k === 'import') { try { var s = JSON.parse($('dc-save-ta').value); if (!s || typeof s !== 'object' || (CO.game && CO.game.saveLooksRight && !CO.game.saveLooksRight(s))) throw new Error('not a save'); wiped = true; localStorage.setItem(SAVE, JSON.stringify(s)); sessionFlag('skip-splash'); sessionFlag('autoplay'); location.reload(); } catch (err) { toast('That is not a save of this game.', 'bad'); } }   // wiped: the unload autosave must not write the old game back over the import
     else if (k === 'reset') { if (b && b.getAttribute('data-sure') !== '1') { b.setAttribute('data-sure', '1'); b.textContent = 'Really reset slot ' + BOOT_SLOT + '? Click again'; setTimeout(function () { b.removeAttribute('data-sure'); b.textContent = '⟲ Reset this save'; }, 3000); return; } wipe(); sessionFlag('skip-splash'); location.reload(); }
     else if (k === 'quit') { save(); sessionFlag('skip-splash'); location.reload(); }
+    else if (k.indexOf('page:') === 0) menuBody(menusPageHtml(k.slice(5)));
+    else if (k.indexOf('mm:') === 0) menusPauseAct(+k.slice(3), b);
     else if (CO.game && CO.game.menu) CO.game.menu(k, b);
   }
   // ── Settings ──────────────────────────────────────────────────────
   function settingsHtml() {
+    if (MENUS.settings) return '<div class="dc-form">' + menusSettingRows() + (CO.game && CO.game.settingsHtml ? CO.game.settingsHtml() : '') + '</div>';   // part 46: the settings the menu maker chose
     return '<div class="dc-form">' +
       '<label><span>Mouse sensitivity</span><input type="range" min="0.3" max="2.5" step="0.1" value="' + SET.sens + '" data-set="sens"></label>' +
       '<label><span>Invert Y</span><input type="checkbox" ' + (SET.invertY ? 'checked' : '') + ' data-set="invertY"></label>' +
@@ -116,7 +121,7 @@
     var k = el.getAttribute('data-set'); if (!k) return;
     var v = el.type === 'checkbox' ? el.checked : el.tagName === 'SELECT' ? el.value : +el.value;
     if (!(k in SET)) { if (CO.game && CO.game.setting) CO.game.setting(k, v); hudDirty = true; return; }
-    SET[k] = v; saveSettings(); applySettings();
+    SET[k] = v; saveSettings(); applySettings(); if (menusCustomKey(k) && CO.game && CO.game.setting) CO.game.setting(k, v);
   }
   function applySettings() {
     if (!renderer) return;

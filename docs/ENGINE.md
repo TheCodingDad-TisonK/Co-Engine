@@ -161,6 +161,31 @@ Lanes are directed polylines of `[x, z]` points. A road piece adds its own from 
 
 The road pack's pieces drive on the right, 1.75 m off the centre line. The straights carry a lane each way. The crossroads carries straight on, right and left from every arm, and the T-junction the turns its three arms allow. The bend carries one lane each way, the roundabout a one-lane ring with an entry and an exit on each arm, and the dead end a lane round its turning circle. The dev command `lanes` (or `lanes on`, `lanes off`) draws the network: blue lanes, amber priority lanes and red lane ends that lead nowhere.
 
+## 6k. The menu maker (0.12.0)
+
+`CO.menus({ theme, start, pause, settings, pages })` describes the start screen, the pause menu, the settings and the text pages a button opens; the engine draws them into the page's `dc-start` and `dc-menu` (part 46). A section left out keeps the page's own markup, so a game opts in a screen at a time. The editor's Menus tab edits it with the menu showing live in the viewport and writes `src/00-menus.js`; "Use the menu maker" starts from what the page has. A game made with New, and the template, start with one.
+
+- `theme`: `accent`, `panel`, `text`, `muted` colours, `font`, `radius`, `dim` (how dark behind), `align` (`center` or `left`), `width`, `layout` (`stack` or `row`) and `image`, the start screen's backdrop.
+- `start`: `title`, `subtitle`, `logo`, `chips` and `note` (the save chips and the slot line, on by default) and `buttons: [{ label, action, primary }]`. Its actions: `play`, `new` (this slot again, after a second click), `settings`, `guide`, `slots`, `quit` (closes the window in the desktop build) and `page <name>`.
+- `pause`: `title`, `line` (the save line under it) and `buttons`. Its actions: `resume`, `settings`, `guide`, `stats`, `saves`, `edit`, `devlink`, `reset`, `quit` and `page <name>`.
+- `settings`: `hide`, the engine settings to leave out (`sens`, `invertY`, `fov`, `bob`, `quality`, `sound`, `vol`, `film`, `fps`), and `custom: [{ key, label, type, min, max, step, options, value }]` with type `toggle`, `slider` or `select`. A custom setting lives in `SET` beside the engine's, is kept with them, reaches `GAME.setting(key, value)` and the `settings` hook when it changes, and `setting(key)` reads it.
+- `pages: { name: { title, text } }`: text in paragraphs and `- ` lists.
+
+Any other action is a dev command or code over the kit, as a UI panel button's is. The editor bridge has `menus`, `menusSet`, `menusSeed`, `menusPreview('start' | 'pause' | 'settings' | null)` and `menusCode`; the MCP server has `menus`, `menus_set` and `menus_preview`.
+
+## 6l. The NPC creator (0.12.0)
+
+`CO.npcs({ characters, spawners, workers, spots })` describes a game's people and what they do (part 47). The editor's NPCs tab edits it and writes `src/00-npcs.js`; "Use the NPC creator" lays out a customer who drives in, talks at a desk and leaves, and a clerk at a counter, where the camera looks.
+
+- `characters: { id: { names, look: { shirt, pants, skin, hair, style }, speed, car, steps } }`. One of the names is picked for each NPC.
+- `spawners: [{ id, character, x, z, every, max, hours: [from, to], park: [x, z], via, on }]` make a character every so many seconds, up to `max` at once, inside the hours (the game's `S.time`). A character that comes by car drives from `x, z` through `via` to `park` and gets out on the driver's side.
+- `workers: [{ id, name, character, x, z, ry, home: [x, z], hours }]` keep a place: they walk in from home when their hours start (or stand there all along without hours), run their character's steps over and over, and go home when the hours end.
+- `spots: { name: { x, z, ry } }` are the places a step walks to.
+
+Steps run from the top. `walk { to }` goes to a spot's name, `x, z`, `player`, `home`, `car` or `post` (a worker's place), by the route finder where its grid reaches and straight where it does not. `say { text, wait }` puts up a speech bubble (`{name}` is the NPC's name). `talk { prompt, text, choices }` waits for the player to press E on the NPC and opens a panel; each choice has `label`, `say`, `run` and `then` (`next`, `stay`, `leave`, `repeat` or `step N`). `wait { seconds }`, `wander { radius, seconds }`, `face { to }`, `mood { mood }`, `until { test, every }` (an expression over the kit, with `npc`), `run { code }` (a dev command or code, with `npc`), `event { name }` (`runHooks('npc', name, npc)` and `GAME.npcEvent(name, npc)`), `leave`, `repeat` and `goto { step }`. A choice also tells the game, as the event `choice`.
+
+The `npc` an expression or a command sees has `id`, `name`, `character`, `data` (its own store for the game), `x`, `z`, `step`, `say(text)`, `leave()`, `go(step)` and `next()`. NPCs are not saved: spawners and workers make them again from the data when the game loads. The editor bridge has `npcs`, `npcsSet`, `npcSpawn(spawner index, id or character)`, `npcInfo`, `npcAim`, `npcClear` and `npcsCode`; the MCP server has `npcs`, `npcs_set`, `npc_spawn` and `npc_info`.
+
 ## 7. The editor bridge
 
 Since 0.1.5 the page carries `CO.editor` (`engine/60-editor.js`), published as `window.CO_EDITOR` and switched on by `?editor=1` in the page's query (the editor's viewport loads the page with `?dev=1&editor=1`). It is the one surface the editor, the MCP server and a test talk to:
