@@ -1,0 +1,532 @@
+{
+  "name": "depotco",
+  "title": "Depot Co.",
+  "description": "The warehouse from Depot Co.: a rack row, belt pieces and the packing line, the moulder, palletiser, hopper, silo and dock loaders, the baler and wrapper, consoles and boards, lockers, the vending machine, coffee machine and fridge, office and break room furniture, signs, posters, floor paint and the yard. The depot's logic stays in Depot Co.: a machine you use says what it is.",
+  "since": "0.7.0",
+  "props": [
+    {
+      "id": "dcRack0",
+      "label": "rack row A"
+    },
+    {
+      "id": "dcTimeclock",
+      "label": "time clock"
+    },
+    {
+      "id": "dcCabinet",
+      "label": "control cabinet"
+    },
+    {
+      "id": "dcConsoleIn0",
+      "label": "dock console IN 1"
+    },
+    {
+      "id": "dcConsole0",
+      "label": "dock console OUT 1"
+    },
+    {
+      "id": "dcBreaker",
+      "label": "breaker panel"
+    },
+    {
+      "id": "dcBoard",
+      "label": "order board"
+    },
+    {
+      "id": "dcCharger",
+      "label": "forklift charging point"
+    },
+    {
+      "id": "dcPainted",
+      "label": "painted name"
+    },
+    {
+      "id": "dcLamp0",
+      "label": "lamp post"
+    },
+    {
+      "id": "dcCar0",
+      "label": "parked car"
+    },
+    {
+      "id": "dcTree0",
+      "label": "tree"
+    },
+    {
+      "id": "dcCar",
+      "label": "parked car"
+    },
+    {
+      "id": "dcAisleSign",
+      "label": "aisle sign"
+    },
+    {
+      "id": "dcLockers",
+      "label": "lockers"
+    },
+    {
+      "id": "dcHooks",
+      "label": "coat hooks"
+    },
+    {
+      "id": "dcNotice",
+      "label": "notice board"
+    },
+    {
+      "id": "dcFirstAid",
+      "label": "first-aid box"
+    },
+    {
+      "id": "dcExtBreak",
+      "label": "fire extinguisher"
+    },
+    {
+      "id": "dcPosterRota",
+      "label": "rota poster"
+    },
+    {
+      "id": "dcPosterSmoke",
+      "label": "no-smoking poster"
+    },
+    {
+      "id": "dcLobbySeat",
+      "label": "bench seat"
+    },
+    {
+      "id": "dcCot",
+      "label": "cot"
+    },
+    {
+      "id": "dcVending",
+      "label": "vending machine"
+    },
+    {
+      "id": "dcCoffee",
+      "label": "coffee counter"
+    },
+    {
+      "id": "dcFridge",
+      "label": "fridge"
+    },
+    {
+      "id": "dcCooler",
+      "label": "water cooler"
+    },
+    {
+      "id": "dcTable",
+      "label": "table"
+    },
+    {
+      "id": "dcChair1",
+      "label": "chair"
+    },
+    {
+      "id": "dcCalendar",
+      "label": "calendar"
+    },
+    {
+      "id": "dcClockBreak",
+      "label": "wall clock"
+    },
+    {
+      "id": "dcPosterHands",
+      "label": "wash-hands poster"
+    },
+    {
+      "id": "dcPlantBreak",
+      "label": "potted plant"
+    },
+    {
+      "id": "dcDesk",
+      "label": "office desk"
+    },
+    {
+      "id": "dcOfficeChair",
+      "label": "office chair"
+    },
+    {
+      "id": "dcCabinets",
+      "label": "filing cabinets"
+    },
+    {
+      "id": "dcCoatStand",
+      "label": "coat stand"
+    },
+    {
+      "id": "dcKpi",
+      "label": "whiteboard"
+    },
+    {
+      "id": "dcCertificate",
+      "label": "certificate"
+    },
+    {
+      "id": "dcPosterSafety",
+      "label": "safety poster"
+    },
+    {
+      "id": "dcBench",
+      "label": "packing bench"
+    },
+    {
+      "id": "dcFlask",
+      "label": "coffee flask"
+    },
+    {
+      "id": "dcBinDamaged",
+      "label": "damaged-goods bin"
+    },
+    {
+      "id": "dcBroom",
+      "label": "broom"
+    },
+    {
+      "id": "dcWetFloor",
+      "label": "wet-floor sign"
+    },
+    {
+      "id": "dcEmpties",
+      "label": "stack of empty pallets"
+    },
+    {
+      "id": "dcBaler",
+      "label": "baler"
+    },
+    {
+      "id": "dcWrapper",
+      "label": "stretch wrapper"
+    },
+    {
+      "id": "dcHose",
+      "label": "hose reel"
+    },
+    {
+      "id": "dcClockHall",
+      "label": "hall clock"
+    },
+    {
+      "id": "dcPosterLift",
+      "label": "lifting poster"
+    },
+    {
+      "id": "dcPosterFork",
+      "label": "forklift poster"
+    },
+    {
+      "id": "dcPosterStack",
+      "label": "pallet-rules poster"
+    },
+    {
+      "id": "dcPosterOffice",
+      "label": "safety poster"
+    },
+    {
+      "id": "dcPosterExit",
+      "label": "fire-exit poster"
+    },
+    {
+      "id": "dcShelter",
+      "label": "smoking shelter"
+    },
+    {
+      "id": "dcDumpster",
+      "label": "dumpster"
+    },
+    {
+      "id": "dcFlag",
+      "label": "flag pole"
+    },
+    {
+      "id": "dcParkingSign",
+      "label": "parking sign"
+    },
+    {
+      "id": "dcBollard",
+      "label": "bollard"
+    },
+    {
+      "id": "dcClock",
+      "label": "wall clock"
+    },
+    {
+      "id": "dcBeltS2",
+      "label": "belt, 2 m"
+    },
+    {
+      "id": "dcBeltS4",
+      "label": "belt, 4 m"
+    },
+    {
+      "id": "dcBeltCL",
+      "label": "belt, curve left"
+    },
+    {
+      "id": "dcBeltCR",
+      "label": "belt, curve right"
+    },
+    {
+      "id": "dcBeltUp",
+      "label": "belt, incline up"
+    },
+    {
+      "id": "dcBeltDown",
+      "label": "belt, incline down"
+    },
+    {
+      "id": "dcBeltHigh",
+      "label": "belt, high run"
+    },
+    {
+      "id": "dcPackline",
+      "label": "pack line"
+    },
+    {
+      "id": "dcMoulder",
+      "label": "moulding line"
+    },
+    {
+      "id": "dcBeltMain",
+      "label": "main belt"
+    },
+    {
+      "id": "dcPalletiser",
+      "label": "palletiser"
+    },
+    {
+      "id": "dcHopper",
+      "label": "raw hopper"
+    },
+    {
+      "id": "dcDockLoader2",
+      "label": "dock loader OUT 2"
+    },
+    {
+      "id": "dcDockLoader1",
+      "label": "dock loader OUT 1"
+    },
+    {
+      "id": "dcDockLoader3",
+      "label": "dock loader OUT 3"
+    },
+    {
+      "id": "dcAgvDock",
+      "label": "AGV dock"
+    },
+    {
+      "id": "dcSilo",
+      "label": "silo"
+    },
+    {
+      "id": "dcQcBench",
+      "label": "quality bench"
+    },
+    {
+      "id": "dcWorkbench",
+      "label": "maintenance bench"
+    },
+    {
+      "id": "dcToolCab",
+      "label": "tool cabinet"
+    },
+    {
+      "id": "dcMouldRack",
+      "label": "mould store"
+    },
+    {
+      "id": "dcPartsShelf",
+      "label": "spares shelf"
+    },
+    {
+      "id": "dcChiller",
+      "label": "chiller"
+    },
+    {
+      "id": "dcDryer",
+      "label": "granulate dryer"
+    },
+    {
+      "id": "dcSwitchboard",
+      "label": "switchboard"
+    },
+    {
+      "id": "dcShiftBoard",
+      "label": "shift board"
+    },
+    {
+      "id": "dcClockWing",
+      "label": "wing clock"
+    },
+    {
+      "id": "dcSignStaff",
+      "label": "sign: STAFF"
+    },
+    {
+      "id": "dcSignFront",
+      "label": "sign: DEPOT CO. (front)"
+    },
+    {
+      "id": "dcSignOffice",
+      "label": "sign: OFFICE"
+    },
+    {
+      "id": "dcSignLobby",
+      "label": "sign: LOBBY"
+    },
+    {
+      "id": "dcSignBreak",
+      "label": "sign: BREAK ROOM"
+    },
+    {
+      "id": "dcExitNorth",
+      "label": "exit sign (fire exit)"
+    },
+    {
+      "id": "dcSignPacking",
+      "label": "sign: PACKING"
+    },
+    {
+      "id": "dcSignProduction",
+      "label": "sign: PRODUCTION"
+    },
+    {
+      "id": "dcSignWarehouse",
+      "label": "sign: WAREHOUSE"
+    },
+    {
+      "id": "dcSignPpe",
+      "label": "sign: PPE"
+    },
+    {
+      "id": "dcPaintReceiving",
+      "label": "floor paint: RECEIVING"
+    },
+    {
+      "id": "dcPaintShipping",
+      "label": "floor paint: SHIPPING"
+    },
+    {
+      "id": "dcPaintFinished",
+      "label": "floor paint: FINISHED GOODS"
+    },
+    {
+      "id": "dcPaintRaw",
+      "label": "floor paint: RAW GRANULATE"
+    },
+    {
+      "id": "dcWallSign",
+      "label": "wall sign (DEPOT CO.)"
+    },
+    {
+      "id": "dcFloorArrow",
+      "label": "floor arrow"
+    },
+    {
+      "id": "dcPosterWing",
+      "label": "safety poster"
+    },
+    {
+      "id": "dcTv",
+      "label": "TV"
+    },
+    {
+      "id": "dcDartboard",
+      "label": "dartboard"
+    },
+    {
+      "id": "dcMicrowave",
+      "label": "microwave"
+    },
+    {
+      "id": "dcFanStand",
+      "label": "standing fan"
+    },
+    {
+      "id": "dcRugLobby",
+      "label": "rug"
+    },
+    {
+      "id": "dcRugOffice",
+      "label": "rug"
+    },
+    {
+      "id": "dcBookshelf",
+      "label": "bookshelf"
+    },
+    {
+      "id": "dcPrinter",
+      "label": "printer"
+    },
+    {
+      "id": "dcPictureOffice",
+      "label": "picture"
+    },
+    {
+      "id": "dcPictureLobby",
+      "label": "picture"
+    },
+    {
+      "id": "dcSofa",
+      "label": "sofa"
+    },
+    {
+      "id": "dcArmchair",
+      "label": "armchair"
+    },
+    {
+      "id": "dcPaddedChair",
+      "label": "padded chair"
+    },
+    {
+      "id": "dcRoundTable",
+      "label": "round table"
+    },
+    {
+      "id": "dcRug",
+      "label": "rug"
+    },
+    {
+      "id": "dcPicture",
+      "label": "picture"
+    },
+    {
+      "id": "dcReturnsDesk",
+      "label": "returns desk"
+    },
+    {
+      "id": "dcLift",
+      "label": "goods lift"
+    },
+    {
+      "id": "dcBay1",
+      "label": "shipping bay OUT 1"
+    },
+    {
+      "id": "dcRetIntake",
+      "label": "returns intake"
+    },
+    {
+      "id": "dcRetDesk0",
+      "label": "inspection desk 1"
+    },
+    {
+      "id": "dcRetCage",
+      "label": "restock cage"
+    },
+    {
+      "id": "dcRetCompactor",
+      "label": "cardboard compactor"
+    },
+    {
+      "id": "dcConsoleRet",
+      "label": "dock console RETURNS"
+    },
+    {
+      "id": "dcRetPaint",
+      "label": "returns hall floor paint"
+    },
+    {
+      "id": "dcRetSign",
+      "label": "returns hall sign"
+    }
+  ]
+}

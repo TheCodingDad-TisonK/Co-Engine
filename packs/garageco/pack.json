@@ -1,0 +1,52 @@
+{
+  "name": "garageco",
+  "title": "Garage Co.",
+  "description": "The lock-up from Garage Co.: the tool wall, the workbench, the desk, the trolley jack, axle stands, the oil drum, the parts rack, the notice board, the compressor, a stool and a planter.",
+  "since": "0.7.0",
+  "props": [
+    {
+      "id": "gaToolWall",
+      "label": "tool wall"
+    },
+    {
+      "id": "gaBench",
+      "label": "workbench"
+    },
+    {
+      "id": "gaDesk",
+      "label": "desk"
+    },
+    {
+      "id": "gaJack",
+      "label": "trolley jack"
+    },
+    {
+      "id": "gaStands",
+      "label": "axle stands"
+    },
+    {
+      "id": "gaDrum",
+      "label": "oil drum"
+    },
+    {
+      "id": "gaRack",
+      "label": "parts rack"
+    },
+    {
+      "id": "gaNoticeBoard",
+      "label": "notice board"
+    },
+    {
+      "id": "gaCompressor",
+      "label": "compressor"
+    },
+    {
+      "id": "gaStool",
+      "label": "stool"
+    },
+    {
+      "id": "gaPlanter",
+      "label": "planter"
+    }
+  ]
+}

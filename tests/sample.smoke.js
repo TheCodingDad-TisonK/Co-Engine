@@ -2,9 +2,13 @@
 'use strict';
 const PACK_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'basics', 'pack.js'), 'utf8'));
 const GROWCO_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'growco', 'pack.js'), 'utf8'));
+const DEPOTCO_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'depotco', 'pack.js'), 'utf8'));
+const GARAGECO_JSON = JSON.stringify(require('fs').readFileSync(require('path').join(__dirname, '..', 'packs', 'garageco', 'pack.js'), 'utf8'));
 module.exports = `
   const PACK_BASICS = ${PACK_JSON};
   const PACK_GROWCO = ${GROWCO_JSON};
+  const PACK_DEPOTCO = ${DEPOTCO_JSON};
+  const PACK_GARAGECO = ${GARAGECO_JSON};
   ok(!!T.renderer && !!T.scene && !!T.camera && T.CO.ready === true && typeof T.enter === 'function', 'CO.setup and CO.boot ran: renderer, scene, camera and the handle stand');
   ok(T.ui.started === false && !document.getElementById('dc-start').hidden, 'the start screen is up before enter');
   ok(/A new room/.test(document.getElementById('dc-start-stats').textContent) && /Slot 1/.test(document.getElementById('dc-start-note').textContent), 'the start screen chips and note come from the game and the engine');
@@ -178,6 +182,14 @@ module.exports = `
     const bad = [], ids = []; gc.forEach((p, i) => { try { const id = E.spawn(p.id, -9 + (i % 9) * 2, -9 + Math.floor(i / 9) * 2); ids.push(id); } catch (e) { bad.push(p.id + ': ' + e.message); } });
     ok(bad.length === 0 && ids.length === 67, 'every Grow Co prop builds: ' + ids.length + (bad.length ? ', failed ' + bad.slice(0, 3).join(' | ') : ''));
     ok(T.MAT.wood && T.MAT.wood === T.MAT.wood && !('ceramic' in T.MAT && T.MAT.ceramic === undefined), 'the host palette is untouched by the pack');
+    ids.forEach((id) => E.remove(id)); }
+  // the Depot Co and Garage Co packs (0.7.0): each game's props with its helpers and a sandboxed save; every one builds, the host scene and save stay untouched
+  for (const [PK, pre, n, name] of [[PACK_DEPOTCO, 'dc', 131, 'Depot Co'], [PACK_GARAGECO, 'ga', 11, 'Garage Co']]) {
+    const E = T.editor, top0 = T.scene.children.length, save0 = JSON.stringify(Object.keys(T.S)); const df = E.define(PK); const ps = E.assets().props.filter((p) => p.id.indexOf(pre) === 0 && /^[A-Z]/.test(p.id.charAt(2)));
+    ok(df.ok === true && ps.length === n && T.scene.children.length === top0, 'the ' + name + ' pack defines its ' + n + ' props and adds nothing to the scene: ' + (df.ok ? ps.length : df.error));
+    const bad = [], ids = []; ps.forEach((p, i) => { try { ids.push(E.spawn(p.id, -12 + (i % 12) * 2, -10 + Math.floor(i / 12) * 2)); } catch (e) { bad.push(p.id + ': ' + e.message); } });
+    ok(bad.length === 0 && ids.length === n, 'every ' + name + ' prop builds: ' + ids.length + (bad.length ? ', failed ' + bad.slice(0, 3).join(' | ') : ''));
+    ok(JSON.stringify(Object.keys(T.S)) === save0, 'the ' + name + ' pack leaves the host save alone');
     ids.forEach((id) => E.remove(id)); }
 
   // M9 (0.2.1): clips as data on props and on the people rig; UI as data: HUD chips, panels with buttons, start chips

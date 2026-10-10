@@ -1,0 +1,14 @@
+{
+ "name": "garageco",
+ "title": "Garage Co.",
+ "game": "Garage Co.",
+ "prefix": "ga",
+ "cat": "garage co",
+ "header": "The lock-up's props: the tool wall, the workbench, the desk, the trolley jack, axle stands, the oil drum, the parts rack, the notice board, the compressor, a stool and a planter, sealed in a scope of their own.",
+ "sandbox": "var S = { day: 1, bank: 400, rep: 10, level: 1, xp: 0, doorOpen: false, job: null, done: [], stats: { earned: 0, spent: 0, jobs: 0, fixed: 0 } };",
+ "skip": [
+  "rollPanel"
+ ],
+ "src": "C:/Users/tison/Desktop/Garage Co/src",
+ "carry": []
+}

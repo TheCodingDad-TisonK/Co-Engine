@@ -12,6 +12,10 @@ Open this folder in the Co Engine editor (Open..., pick `examples/showcase`) and
 - **The shop floor** (south half): two goods shelves, the cigarette cabinet, the drinks fridge, the vending machine, the lobby coffee machine, the coffee bar, the menu screen, the rope line, the tablet dock, the trophy cabinet, the merch stand, the hydroponics bay, the breeding bench, the grow tent, the basement hatch, lobby benches, the window seat, ferns and plants, and a counter of four crates carrying the till, the tip jar, the business cards and the desk bell (dropped onto it under physics).
 - **The forecourt** (outside the doorway): the sliding gate and the control panel that opens and closes it, the boom barrier, lamp posts, fence sections, cones, a bench, a bin, a planter, a standing sign, a lever, a pallet, and a wall screen and a wall sign on the hall.
 
+## The other packs
+
+The Depot Co. pack (131 props) and the Garage Co. pack (11 props) are loaded too: they are in the Assets tab under their own groups, ready to place. The hall above was built before they existed, so none of them stand in it yet.
+
 ## Commands
 
 In the editor's console: `night` and `day` set the clock.
