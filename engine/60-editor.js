@@ -3,7 +3,7 @@
   // The editor shows the running game in its viewport and talks to it through this object (executeJavaScript into the page, or the
   // dev link). Everything here reads or writes the live scene and the save; nothing runs unless the editor asks. Objects are named
   // by id: a prop by its prop id, anything else by an editor id stamped on userData the first time it is listed.
-  var EOBJ = {}, eidN = 0, editorSel = null, editorHelper = null, eRay = new THREE.Raycaster();
+  var EOBJ = {}, eidN = 0, editorSel = null, editorHelper = null, eRay = new THREE.Raycaster(), editorMulti = [], editorHelpers2 = [], groupDrag = null, pendingOff = null;   // editorSel is the last of editorMulti, the things selected together
   // a game that builds its props itself (Grow Co) names its builder in GAME.buildProp; the bridge rebuilds through it
   function rebuildProp(id) { return CO.game && CO.game.buildProp ? CO.game.buildProp(id) : buildProp(id); }
   function eid(o) { if (!o.userData.eid) o.userData.eid = 'e' + (++eidN); EOBJ[o.userData.eid] = o; return o.userData.eid; }
@@ -35,7 +35,7 @@
     for (var id in propInst) { var d = propInst[id].def || propDef(id) || {}; (props[d.cat || 'other'] = props[d.cat || 'other'] || []).push({ id: id, name: propLabel(id), type: 'prop', custom: !!customById(id), n: propInst[id].g.children.length, from: customById(id) ? 'save' : placedById(id) && !PROPS[id] ? 'layout' : (LAYOUT.props[id] ? 'definition, moved in the layout' : 'definition'), pack: !!(d.id && /^pk[A-Z]/.test(d.id)) }); }
     var roots = CO.root && CO.root !== scene ? [scene, CO.root] : [scene];
     roots.forEach(function (r) { r.children.forEach(function (o) {
-      if (o === CO.root || o.userData.editor || isPropRoot(o)) return;
+      if (o === CO.root || o.userData.editor || isPropRoot(o) || o.userData.worldKey) return;
       if (o.isLight) { lights.push(eNode(o)); return; }
       if (o.userData.legs || o.userData.person) { people.push(eNode(o)); return; }
       if (o.userData.baked) { baked++; return; }
@@ -47,7 +47,8 @@
     screens.forEach(function (sc) { screensL.push({ id: eid(sc.mesh), name: sc.title || 'screen', type: 'screen' }); });
     if (traffic && traffic.cars) traffic.cars.forEach(function (c, i) { vehicles.push({ id: eid(c.g), name: 'car ' + (i + 1), type: 'vehicle' }); });
     var extra = null; try { extra = CO.game && CO.game.editorTree ? CO.game.editorTree(eid) : null; } catch (e) { extra = { error: String(e && e.message || e) }; }
-    return { props: props, lights: lights, people: people, doors: doors, screens: screensL, vehicles: vehicles, other: other, counts: { baked: baked, statics: statics, inter: inter.length, solids: solids.length, dyn: dyn.length }, extra: extra, time: S ? { day: S.day, time: S.time } : null, selected: editorSel, paused: !!CO.paused, scene: !!photo.on, started: !!ui.started, engine: CO.version, game: CO.gameVersion };
+    var worldL = WORLD_ITEMS.filter(function (o) { return o.parent; }).map(function (o) { return { id: eid(o), name: worldName(o), type: 'world', n: o.children.length, vis: o.visible !== false, edited: !!WORLD_EDITS[o.userData.worldKey] }; });
+    return { props: props, lights: lights, people: people, doors: doors, screens: screensL, vehicles: vehicles, other: other, world: worldL, selection: editorMulti.slice(), counts: { baked: baked, statics: statics, inter: inter.length, solids: solids.length, dyn: dyn.length }, extra: extra, time: S ? { day: S.day, time: S.time } : null, selected: editorSel, paused: !!CO.paused, scene: !!photo.on, started: !!ui.started, engine: CO.version, game: CO.gameVersion };
   }
   function editorChildren(id) { var o = eobj(id); if (!o) return []; return o.children.filter(function (c) { return !c.userData.editor; }).map(eNode); }
   // the inspector record: the transform, the material or the light, the prop's definition and placement, and what the game adds
@@ -59,6 +60,8 @@
     if (o.isMesh && o.geometry && o.geometry.parameters) r.geometry = { type: o.geometry.type, params: o.geometry.parameters };
     if (o.isLight) r.light = { type: o.type, color: '#' + o.color.getHexString(), intensity: rnd(o.intensity), distance: o.distance === undefined ? null : o.distance, decay: o.decay === undefined ? null : o.decay, shadow: !!o.castShadow };
     if (propInst[id]) { var inst = propInst[id], def = inst.def || propDef(id) || {}, P = propPlacement(id), c = customById(id); r.prop = { id: id, type: c ? c.type : (placedById(id) ? placedById(id).type : id), label: def.label, cat: def.cat || null, custom: !!c, fixed: !!def.fixed, wall: !!def.wall, extra: !!def.extra, price: def.price || 0, lvl: def.lvl || null, desc: def.desc || '', x: rnd(P.x), z: rnd(P.z), rot: P.rot, h: rnd(P.h || 0), hidden: !!P.hidden, moved: !!(S && S.layout && S.layout[id]), obstacles: inst.ctx.obstacles.length }; }
+    if (o.userData.worldKey) { r.worldItem = { key: o.userData.worldKey, kind: worldKind(o), edited: !!WORLD_EDITS[o.userData.worldKey], solids: (o.userData.solids || []).length }; r.name = worldName(o); r.type = 'world'; }
+    if (editorMulti.length > 1 && editorMulti.indexOf(id) >= 0) r.together = editorMulti.length;
     if (o.userData.screen) r.screen = { title: o.userData.screen.title || '', w: o.userData.screen.w, h: o.userData.screen.h, zones: o.userData.screen.zones.length };
     try { var g = CO.game && CO.game.editorInspect ? CO.game.editorInspect(id, o) : null; if (g) r.game = g; } catch (e) { r.game = { error: String(e && e.message || e) }; }
     return r;
@@ -73,26 +76,74 @@
       rebuildProp(id); save(); editorSelect(propInst[id] ? id : null); return 'ok';
     }
     var o = eobj(id); if (!o) return 'no such object ' + id;
-    if (p[0] === 'position' || p[0] === 'rotation' || p[0] === 'scale') { o[p[0]][p[1]] = p[0] === 'rotation' ? (+v) * Math.PI / 180 : +v; o.updateMatrixWorld(true); shadowDirty = true; if (editorHelper) editorHelper.update(); return 'ok'; }
-    if (p[0] === 'visible') { o.visible = !!v && v !== 'false'; shadowDirty = true; return 'ok'; }
+    var isWorld = !!(o.userData && o.userData.worldKey); if (isWorld && (p[0] === 'position' || p[0] === 'rotation' || p[0] === 'scale' || p[0] === 'visible' || p[0] === 'world') && baked.meshes.length) unbakeStatic();
+    if (p[0] === 'world' && p[1] === 'reset' && isWorld) { var b0 = o.userData.worldBase; o.position.set(b0.x, b0.y, b0.z); o.rotation.y = b0.ry; o.scale.set(b0.sx, b0.sy, b0.sz); o.visible = true; o.updateMatrixWorld(true); worldRecord(o); shadowDirty = true; if (editorHelper) editorHelper.update(); return 'ok'; }
+    if (p[0] === 'position' || p[0] === 'rotation' || p[0] === 'scale') { o[p[0]][p[1]] = p[0] === 'rotation' ? (+v) * Math.PI / 180 : +v; o.updateMatrixWorld(true); if (isWorld) worldRecord(o); shadowDirty = true; if (editorHelper) editorHelper.update(); return 'ok'; }
+    if (p[0] === 'visible') { o.visible = !!v && v !== 'false'; if (isWorld) worldRecord(o); shadowDirty = true; return 'ok'; }
     if (p[0] === 'material') { var m = o.material; if (!m) return 'no material'; if (p[1] === 'color' || p[1] === 'emissive') { if (!m[p[1]]) return 'no ' + p[1]; m[p[1]].set(String(v)); } else m[p[1]] = +v; m.needsUpdate = true; return 'ok'; }
     if (p[0] === 'light') { if (!o.isLight) return 'not a light'; if (p[1] === 'color') o.color.set(String(v)); else o[p[1]] = +v; return 'ok'; }
     if (p[0] === 'name') { o.name = String(v); return 'ok'; }
     return 'unknown path ' + path;
   }
-  function editorSelect(id) {
-    var o = id ? eobj(id) : null; editorSel = o ? (propInst[id] ? id : eid(o)) : null;
-    if (editorHelper) { scene.remove(editorHelper); editorHelper.geometry.dispose(); editorHelper = null; }
-    if (o) { editorHelper = new THREE.BoxHelper(o, 0xf5b53d); editorHelper.userData.editor = true; editorHelper.userData.noBake = true; editorHelper.material.depthTest = false; editorHelper.renderOrder = 9; scene.add(editorHelper); }
+  function editorSelect(id, add) {
+    var o = id ? eobj(id) : null, nid = o ? (propInst[id] ? id : eid(o)) : null;
+    if (add && nid) { var at = editorMulti.indexOf(nid); if (at >= 0) { editorMulti.splice(at, 1); nid = null; } else editorMulti.push(nid); }
+    else editorMulti = nid ? [nid] : [];
+    editorMulti = editorMulti.filter(function (k) { return !!eobj(k); });
+    editorSel = nid || editorMulti[editorMulti.length - 1] || null;
+    editorHelpersShow();
     return editorSel ? editorInspect(editorSel) : null;
   }
+  function editorHelpersShow() {
+    if (editorHelper) { scene.remove(editorHelper); editorHelper.geometry.dispose(); editorHelper = null; }
+    editorHelpers2.forEach(function (h) { scene.remove(h); h.geometry.dispose(); }); editorHelpers2 = [];
+    editorMulti.forEach(function (k) { var o = eobj(k); if (!o) return; var hb = new THREE.BoxHelper(o, k === editorSel ? 0xf5b53d : 0x5aa9ff); hb.userData.editor = true; hb.userData.noBake = true; hb.material.depthTest = false; hb.renderOrder = 9; scene.add(hb); if (k === editorSel) editorHelper = hb; else editorHelpers2.push(hb); });
+  }
+  function editorHelpersUpdate() { if (editorHelper) editorHelper.update(); editorHelpers2.forEach(function (h) { h.update(); }); }
+  // what can be dragged: a prop that is not fixed, a world item
+  function editorMovable(id) { if (propInst[id]) { var d = propDef(id); return !(d && d.fixed); } var o = eobj(id); return !!(o && o.userData.worldKey); }
+  // a drag starts on a selected thing: one thing drags the way it always did (walls snap), several move together by the same step
+  function editorDragStart(e, hq) {
+    var ids = editorMulti.filter(editorMovable); if (ids.indexOf(hq.id) < 0) return false;
+    if (ids.some(function (k) { return !propInst[k]; }) && baked.meshes.length) unbakeStatic();
+    if (ids.length === 1) {
+      var id = ids[0], g1 = eobj(id), p1 = pointOnPlane(e, g1.position.y); if (!p1) return false;
+      propDrag = propInst[id] ? { id: id, g: g1, y: g1.position.y, off: p1.clone().sub(g1.position), before: layoutSnap(id), moved: false } : { id: id, g: g1, y: g1.position.y, off: p1.clone().sub(g1.position), world: true, before: { x: g1.position.x, z: g1.position.z }, moved: false };
+      return true;
+    }
+    var hg = eobj(hq.id), p0 = pointOnPlane(e, hg.position.y); if (!p0) return false;
+    groupDrag = { y: hg.position.y, p0: p0.clone(), moved: false, items: ids.map(function (k) { var g = eobj(k); return { id: k, g: g, prop: !!propInst[k], x0: g.position.x, z0: g.position.z, before: propInst[k] ? layoutSnap(k) : { x: g.position.x, z: g.position.z } }; }) };
+    return true;
+  }
+  // several things moved: each kept where it now stands (a prop in the layout, a world item in src/00-world.js), one undo step for all
+  function editorGroupCommit(GD) {
+    var after = GD.items.map(function (it) { return { x: Math.round(it.g.position.x * 100) / 100, z: Math.round(it.g.position.z * 100) / 100 }; });
+    var put = function (which) {
+      GD.items.forEach(function (it, i) {
+        if (it.prop) { if (which === 'before') layoutRestore(it.id, it.before); else { var P = propPlacement(it.id); if (!S.layout) S.layout = {}; var Lz = S.layout[it.id] = S.layout[it.id] || { x: P.x, z: P.z, rot: P.rot, h: P.h || 0 }; Lz.x = after[i].x; Lz.z = after[i].z; rebuildProp(it.id); } }
+        else { var g = eobj(it.id), q = which === 'before' ? it.before : after[i]; g.position.x = q.x; g.position.z = q.z; g.updateMatrixWorld(true); worldRecord(g); }
+      });
+      save(); shadowDirty = true; editorHelpersShow();
+    };
+    put('after'); histPush('move ' + GD.items.length + ' things', function () { put('before'); }, function () { put('after'); });
+    console.log('[co-editor] ' + JSON.stringify({ movedTogether: GD.items.map(function (it) { return it.id; }) }));
+    return GD.items.length;
+  }
+  function editorMoveSel(dx, dz) {
+    var ids = editorMulti.filter(editorMovable); if (!ids.length) return 'nothing selected that moves';
+    if (ids.some(function (k) { return !propInst[k]; }) && baked.meshes.length) unbakeStatic();
+    var GD = { items: ids.map(function (k) { var g = eobj(k); return { id: k, g: g, prop: !!propInst[k], before: propInst[k] ? layoutSnap(k) : { x: g.position.x, z: g.position.z } }; }) };
+    GD.items.forEach(function (it) { it.g.position.x += +dx || 0; it.g.position.z += +dz || 0; });
+    return 'moved ' + editorGroupCommit(GD);
+  }
+  function editorRemoveSel() { var ids = editorMulti.slice(), out = ids.map(function (k) { return editorRemove(k); }); editorSelect(null); return out; }
   // what the crosshair or a click is on: the nearest visible mesh, named as its prop when it belongs to one
   function editorPick(nx, ny) {
     scene.updateMatrixWorld(true);   /* a prop rebuilt this tick has no world matrix until the next frame */
     eRay.setFromCamera({ x: nx === undefined ? 0 : nx, y: ny === undefined ? 0 : ny }, camera); eRay.far = 120;
     var hits = eRay.intersectObjects(scene.children, true);
     // a baked merge is skipped and the hidden original behind it counts: it is the thing the player would name
-    for (var i = 0; i < hits.length; i++) { var h = hits[i].object; if (h.userData.baked || h.userData.editor || h.material === MAT.hit || h === editorHelper || h.isPoints || h.userData.noBake || (!h.visible && !h.userData.bakedAway) || (h.material && h.material.transparent && h.material.opacity < 0.9 && !h.userData.screen)) continue;   /* not a blob, a helper or a glass pane */ var pid = propIdOf(h); return { id: pid && propInst[pid] ? pid : eid(h), prop: !!(pid && propInst[pid]), distance: rnd(hits[i].distance), point: [rnd(hits[i].point.x), rnd(hits[i].point.y), rnd(hits[i].point.z)] }; }
+    for (var i = 0; i < hits.length; i++) { var h = hits[i].object; if (h.userData.baked || h.userData.editor || h.material === MAT.hit || h === editorHelper || h.isPoints || h.userData.noBake || (!h.visible && !h.userData.bakedAway) || (h.material && h.material.transparent && h.material.opacity < 0.9 && !h.userData.screen)) continue;   /* not a blob, a helper or a glass pane */ var pid = propIdOf(h), isProp = !!(pid && propInst[pid]), wi = isProp ? null : worldItemOf(h); return { id: isProp ? pid : wi ? eid(wi) : eid(h), prop: isProp, world: !!wi, distance: rnd(hits[i].distance), point: [rnd(hits[i].point.x), rnd(hits[i].point.y), rnd(hits[i].point.z)] }; }
     return null;
   }
   function aheadPoint(dist) { var d = new THREE.Vector3(); camera.getWorldDirection(d); var p = camera.position.clone().add(d.multiplyScalar(dist || 3)); return { x: p.x, z: p.z, y: floorY(p.x, p.z) }; }
@@ -109,6 +160,7 @@
     var c = customById(id);
     if (c) { var at = S.custom.indexOf(c); S.custom.splice(at, 1); removePropInst(id); save(); if (editorSel === id) editorSelect(null); histPush('remove ' + c.type, function () { S.custom.splice(Math.min(at, S.custom.length), 0, c); buildProp(c.id); save(); }, function () { var i = S.custom.indexOf(c); if (i >= 0) S.custom.splice(i, 1); removePropInst(c.id); if (editorSel === c.id) editorSelect(null); save(); }); return 'removed ' + id; }
     if (propInst[id]) { var before = layoutSnap(id); if (!S.layout) S.layout = {}; S.layout[id] = S.layout[id] || {}; S.layout[id].hidden = true; buildProp(id); save(); if (editorSel === id) editorSelect(null); var after = layoutSnap(id); histPush('hide ' + id, function () { layoutRestore(id, before); }, function () { layoutRestore(id, after); }); return 'hidden ' + id + ' (the catalogue brings it back)'; }
+    var wo = eobj(id); if (wo && wo.userData.worldKey) { if (baked.meshes.length) unbakeStatic(); wo.visible = false; worldRecord(wo); if (editorSel === id) editorSelect(null); shadowDirty = true; histPush('remove ' + worldName(wo), function () { wo.visible = true; worldRecord(wo); shadowDirty = true; }, function () { wo.visible = false; worldRecord(wo); shadowDirty = true; }); return 'removed ' + worldName(wo) + ' (kept in src/00-world.js; Put it back in the inspector or Ctrl+Z brings it back)'; }
     var o = eobj(id); if (!o) return 'no such object ' + id; var par = o.parent; if (par) par.remove(o); if (editorSel === id) editorSelect(null); shadowDirty = true;
     histPush('remove ' + eName(o), function () { if (par) { par.add(o); shadowDirty = true; } }, function () { if (o.parent) o.parent.remove(o); if (editorSel === id) editorSelect(null); shadowDirty = true; });
     return 'removed ' + id + ' until the next reload';
@@ -172,27 +224,39 @@
       if (!CO.editor.on || !ui.started) return;
       if (e.button === 0 && editorTool.mode === 'model' && editorTool.type) { var r0 = canvas.getBoundingClientRect(), mx = ((e.clientX - r0.left) / r0.width) * 2 - 1, my = -((e.clientY - r0.top) / r0.height) * 2 + 1, pk = modelPick(editorTool.type, mx, my); if (pk) { var inst0 = propInst[pk.id]; inst0.g.updateMatrixWorld(true); var partObj = null; inst0.g.traverse(function (o) { if (!partObj && o.userData && o.userData.part === pk.part) partObj = o; }); var wp = partObj ? partObj.getWorldPosition(new THREE.Vector3()) : inst0.g.position.clone(); var vh = partObj && partObj.userData.vertexEdit ? nearestVertex(partObj, e) : null; if (vh) { partDrag = { type: editorTool.type, id: pk.id, part: pk.part, g: inst0.g, mesh: partObj, vert: vh.i, y: vh.w.y }; console.log('[co-editor] ' + JSON.stringify({ partPick: pk.part, vert: vh.i, type: editorTool.type })); e.preventDefault(); return; } var p0 = pointOnPlane(e, wp.y); if (p0) { partDrag = { type: editorTool.type, id: pk.id, part: pk.part, g: inst0.g, y: wp.y, off: p0.clone().sub(wp) }; console.log('[co-editor] ' + JSON.stringify({ partPick: pk.part, type: editorTool.type })); e.preventDefault(); return; } } }
       if (e.button === 0 && editorTool.mode && editorTool.mode !== 'model' && TERRAIN.on) { toolDown = true; toolStroke = { mode: editorTool.mode, h: Float32Array.from(TERRAIN.heights), p: Uint8Array.from(TERRAIN.paint) }; toolApply(e); e.preventDefault(); return; }
-      // Ctrl and the left button grab whatever prop is under the pointer, in the game view as well as the scene camera; in the scene camera the selected prop drags without Ctrl
-      if (e.button === 0 && (e.ctrlKey || e.metaKey)) { var rc = canvas.getBoundingClientRect(), cx = ((e.clientX - rc.left) / rc.width) * 2 - 1, cy = -((e.clientY - rc.top) / rc.height) * 2 + 1, hc = editorPick(cx, cy); if (hc && hc.prop && propInst[hc.id] && editorSel !== hc.id) { editorSelect(hc.id); console.log('[co-editor] ' + JSON.stringify({ select: hc.id, point: hc.point })); } }
-      if (e.button === 0 && (photo.on || e.ctrlKey || e.metaKey) && editorSel && propInst[editorSel]) { var r1 = canvas.getBoundingClientRect(), sx = ((e.clientX - r1.left) / r1.width) * 2 - 1, sy = -((e.clientY - r1.top) / r1.height) * 2 + 1, hit1 = editorPick(sx, sy); var defS = propDef(editorSel); if (hit1 && hit1.id === editorSel && hit1.prop && !(defS && defS.fixed)) { var inst1 = propInst[editorSel], gy = inst1.g.position.y, p1 = pointOnPlane(e, gy); if (p1) { propDrag = { id: editorSel, g: inst1.g, y: gy, off: p1.clone().sub(inst1.g.position), before: layoutSnap(editorSel), moved: false }; e.preventDefault(); return; } } }
-      if (e.button === 0) { var r = canvas.getBoundingClientRect(), nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1, hit = editorPick(nx, ny); editorSelect(hit ? hit.id : null); console.log('[co-editor] ' + JSON.stringify({ select: hit ? hit.id : null, point: hit ? hit.point : null, nx: nx, ny: ny })); }
+      // the left button: a click selects, Ctrl and a click adds to the selection or takes away; a drag on a selected thing moves it and
+      // everything selected with it, with Ctrl in the game view and without in the scene camera
+      if (e.button === 0) {
+        var rq = canvas.getBoundingClientRect(), qx = ((e.clientX - rq.left) / rq.width) * 2 - 1, qy = -((e.clientY - rq.top) / rq.height) * 2 + 1, hq = editorPick(qx, qy), add = e.ctrlKey || e.metaKey;
+        pendingOff = null;
+        if (add) { if (hq) { if (editorMulti.indexOf(hq.id) >= 0) pendingOff = hq.id; else editorSelect(hq.id, true); } }
+        else if (!hq || editorMulti.indexOf(hq.id) < 0) editorSelect(hq ? hq.id : null);
+        else { editorSel = hq.id; editorHelpersShow(); }
+        console.log('[co-editor] ' + JSON.stringify({ select: editorSel, selection: editorMulti.slice(), point: hq ? hq.point : null, nx: qx, ny: qy }));
+        if (hq && (add || photo.on) && editorMulti.indexOf(hq.id) >= 0 && editorDragStart(e, hq)) { e.preventDefault(); return; }
+      }
       if (e.button === 2) { CO.editor.drag = true; e.preventDefault(); }
     });
     document.addEventListener('mouseup', function (e) {
       if (e.button === 2) CO.editor.drag = false; if (e.button === 0) toolDown = false;
+      var moved0 = (groupDrag && groupDrag.moved) || (propDrag && propDrag.moved);
+      if (e.button === 0 && pendingOff) { var po = pendingOff; pendingOff = null; if (!moved0) { editorSelect(po, true); console.log('[co-editor] ' + JSON.stringify({ select: editorSel, selection: editorMulti.slice() })); } }
+      if (e.button === 0 && groupDrag) { var GD0 = groupDrag; groupDrag = null; if (GD0.moved) editorGroupCommit(GD0); return; }
       if (e.button === 0 && toolStroke) { var TS = toolStroke; toolStroke = null; var afterH = Float32Array.from(TERRAIN.heights), afterP = Uint8Array.from(TERRAIN.paint); histPush('terrain ' + TS.mode, function () { terrainRestore(TS.h, TS.p); }, function () { terrainRestore(afterH, afterP); }); }
+      if (e.button === 0 && propDrag && propDrag.world) { var DW = propDrag; propDrag = null; if (DW.moved) { var gw = DW.g, bw = DW.before, aw = { x: gw.position.x, z: gw.position.z }; worldRecord(gw); histPush('move ' + worldName(gw), function () { gw.position.x = bw.x; gw.position.z = bw.z; gw.updateMatrixWorld(true); worldRecord(gw); shadowDirty = true; }, function () { gw.position.x = aw.x; gw.position.z = aw.z; gw.updateMatrixWorld(true); worldRecord(gw); shadowDirty = true; }); console.log('[co-editor] ' + JSON.stringify({ moved: DW.id, x: wr(aw.x), z: wr(aw.z), world: true })); } return; }
       if (e.button === 0 && propDrag) { var D = propDrag; propDrag = null; if (D.moved) { var P = propPlacement(D.id), x = Math.round(D.g.position.x * 100) / 100, z = Math.round(D.g.position.z * 100) / 100; if (!S.layout) S.layout = {}; S.layout[D.id] = S.layout[D.id] || { x: P.x, z: P.z, rot: P.rot, h: P.h || 0 }; S.layout[D.id].x = x; S.layout[D.id].z = z; if (D.rot !== undefined) S.layout[D.id].rot = D.rot; rebuildProp(D.id); save(); var after = layoutSnap(D.id), bef = D.before; histPush('move ' + D.id, function () { layoutRestore(D.id, bef); }, function () { layoutRestore(D.id, after); }); editorSelect(D.id); console.log('[co-editor] ' + JSON.stringify({ moved: D.id, x: x, z: z })); } }
       if (e.button === 0 && partDrag) { console.log('[co-editor] ' + JSON.stringify({ partDragEnd: partDrag.part, type: partDrag.type })); partDrag = null; }
     });
     canvas.addEventListener('mousemove', function (e) {
       if (toolDown && editorTool.mode && editorTool.mode !== 'model' && TERRAIN.on) toolApply(e);
-      if (propDrag) { var p = pointOnPlane(e, propDrag.y); if (!p) return; var s = e.shiftKey ? 0.5 : 0.05, nx2 = snapTo(p.x - propDrag.off.x, s), nz2 = snapTo(p.z - propDrag.off.z, s); var dd = propDef(propDrag.id); if (dd && dd.wall) { var ws2 = wallSnap({ x: nx2, z: nz2 }, s); if (ws2) { nx2 = ws2.x; nz2 = ws2.z; if (propDrag.g.rotation.y !== ws2.rot * Math.PI / 2) { propDrag.g.rotation.y = ws2.rot * Math.PI / 2; propDrag.rot = ws2.rot; } } } if (nx2 !== propDrag.g.position.x || nz2 !== propDrag.g.position.z) { propDrag.g.position.x = nx2; propDrag.g.position.z = nz2; propDrag.moved = true; if (editorHelper) editorHelper.update(); shadowDirty = true; } return; }
+      if (groupDrag) { var pg = pointOnPlane(e, groupDrag.y); if (!pg) return; var sg = e.shiftKey ? 0.5 : 0.05, gdx = snapTo(pg.x - groupDrag.p0.x, sg), gdz = snapTo(pg.z - groupDrag.p0.z, sg); groupDrag.items.forEach(function (it) { it.g.position.x = it.x0 + gdx; it.g.position.z = it.z0 + gdz; it.g.updateMatrixWorld(true); }); if (gdx || gdz) groupDrag.moved = true; editorHelpersUpdate(); shadowDirty = true; return; }
+      if (propDrag) { var p = pointOnPlane(e, propDrag.y); if (!p) return; var s = e.shiftKey ? 0.5 : 0.05, nx2 = snapTo(p.x - propDrag.off.x, s), nz2 = snapTo(p.z - propDrag.off.z, s); var dd = propDrag.world ? null : propDef(propDrag.id); if (dd && dd.wall) { var ws2 = wallSnap({ x: nx2, z: nz2 }, s); if (ws2) { nx2 = ws2.x; nz2 = ws2.z; if (propDrag.g.rotation.y !== ws2.rot * Math.PI / 2) { propDrag.g.rotation.y = ws2.rot * Math.PI / 2; propDrag.rot = ws2.rot; } } } if (nx2 !== propDrag.g.position.x || nz2 !== propDrag.g.position.z) { propDrag.g.position.x = nx2; propDrag.g.position.z = nz2; propDrag.moved = true; if (editorHelper) editorHelper.update(); shadowDirty = true; } return; }
       if (partDrag) { var pp = pointOnPlane(e, partDrag.y); if (!pp) return; var now = performance.now(); if (now - dragT < 40) return; dragT = now; var st = e.shiftKey ? 0.25 : 0.05; if (partDrag.vert !== undefined) { var lv = partDrag.mesh.worldToLocal(pp.clone()); console.log('[co-editor] ' + JSON.stringify({ vertDrag: partDrag.part, v: partDrag.vert, type: partDrag.type, x: snapTo(lv.x, st / 5), z: snapTo(lv.z, st / 5) })); return; } var local = partDrag.g.worldToLocal(pp.clone().sub(partDrag.off)); console.log('[co-editor] ' + JSON.stringify({ partDrag: partDrag.part, type: partDrag.type, x: snapTo(local.x, st), z: snapTo(local.z, st) })); }
     });
     window.addEventListener('blur', function () { CO.editor.drag = false; });
     canvas.addEventListener('contextmenu', function (e) { if (CO.editor.on) e.preventDefault(); });
     // Ctrl and the wheel turn the prop under the pointer (or the selected one) a quarter at a time
-    canvas.addEventListener('wheel', function (e) { if (!CO.editor.on || !ui.started || !(e.ctrlKey || e.metaKey)) return; e.preventDefault(); e.stopImmediatePropagation(); var r2 = canvas.getBoundingClientRect(), wx = ((e.clientX - r2.left) / r2.width) * 2 - 1, wy = -((e.clientY - r2.top) / r2.height) * 2 + 1, hw = editorPick(wx, wy), id = hw && hw.prop && propInst[hw.id] ? hw.id : editorSel; if (!id || !propInst[id]) return; var dw = propDef(id); if (dw && dw.fixed) return; var rot = propPlacement(id).rot || 0; editorSet(id, 'prop.rot', (rot + (e.deltaY > 0 ? 1 : 3)) % 4); editorSelect(id); console.log('[co-editor] ' + JSON.stringify({ moved: id, rot: (rot + (e.deltaY > 0 ? 1 : 3)) % 4 })); }, { capture: true, passive: false });
+    canvas.addEventListener('wheel', function (e) { if (!CO.editor.on || !ui.started || !(e.ctrlKey || e.metaKey)) return; e.preventDefault(); e.stopImmediatePropagation(); var r2 = canvas.getBoundingClientRect(), wx = ((e.clientX - r2.left) / r2.width) * 2 - 1, wy = -((e.clientY - r2.top) / r2.height) * 2 + 1, hw = editorPick(wx, wy), id = hw && hw.prop && propInst[hw.id] ? hw.id : hw && hw.world ? hw.id : editorSel; var wt = id && !propInst[id] ? eobj(id) : null; if (wt && wt.userData.worldKey) { var ry0 = wt.rotation.y * 180 / Math.PI; editorSet(id, 'rotation.y', Math.round(ry0 + (e.deltaY > 0 ? -90 : 90))); editorSelect(id); return; } if (!id || !propInst[id]) return; var dw = propDef(id); if (dw && dw.fixed) return; var rot = propPlacement(id).rot || 0; editorSet(id, 'prop.rot', (rot + (e.deltaY > 0 ? 1 : 3)) % 4); editorSelect(id); console.log('[co-editor] ' + JSON.stringify({ moved: id, rot: (rot + (e.deltaY > 0 ? 1 : 3)) % 4 })); }, { capture: true, passive: false });
     window.addEventListener('keydown', function (e) { if (!CO.editor.on || !(e.ctrlKey || e.metaKey)) return; var k = (e.key || '').toLowerCase(); if (k === 'z' && !e.shiftKey) { e.preventDefault(); console.log('[co-editor] ' + JSON.stringify({ history: editorUndoStep() })); } else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); console.log('[co-editor] ' + JSON.stringify({ history: editorRedoStep() })); } });
   }
   // ── Undo and redo: a stack of steps, each one knowing how to undo and redo itself ──
@@ -219,6 +283,7 @@
   function editorSet(id, path, value) {
     var head = String(path).split('.')[0];
     if (head === 'prop') { var before = layoutSnap(id), r = editorApply(id, path, value); if (r === 'ok') { var after = layoutSnap(id); histPush(path + ' of ' + id, function () { layoutRestore(id, before); }, function () { layoutRestore(id, after); }); } return r; }
+    if (head === 'world') { var wo = eobj(id); if (!wo || !wo.userData.worldKey) return 'not a world item'; var snap = function () { return { p: wo.position.clone(), ry: wo.rotation.y, s: wo.scale.clone(), v: wo.visible }; }, put = function (q) { wo.position.copy(q.p); wo.rotation.y = q.ry; wo.scale.copy(q.s); wo.visible = q.v; wo.updateMatrixWorld(true); worldRecord(wo); shadowDirty = true; }, w0 = snap(), rw = editorApply(id, path, value), w1 = snap(); if (rw === 'ok') histPush('put back ' + worldName(wo), function () { put(w0); }, function () { put(w1); }); return rw; }
     var was = editorGet(id, path), r2 = editorApply(id, path, value);
     if (r2 === 'ok' && was !== undefined) histPush(path + ' of ' + id, function () { editorApply(id, path, was); }, function () { editorApply(id, path, value); });
     return r2;
@@ -364,7 +429,7 @@
     tables: tablesList, tableSet: tableSet, tablesCode: tablesCode, uiCode: uiCode, uiOpen: function (kind) { openPanel(kind); return !!UI.panels[kind]; }, uiEval: uiEval,
     packCode: function (types) { var ids = (types && types.length ? types : PROP_ORDER.filter(function (id) { return !/^pk[A-Z]/.test(id); })).filter(function (id) { return PROPS[id] && PROPS[id].build; }); var lines = ['//@ a pack made in the Co Engine editor from ' + (CO.game && CO.game.handle || 'a game') + '\'s props. A prop that calls the game\'s own functions needs them in the game it goes to.']; ids.forEach(function (id) { var d = PROPS[id], f = {}; ['label', 'cat', 'wall', 'fixed', 'price', 'desc', 'lvl', 'ico', 'noBlob'].forEach(function (k) { if (d[k] !== undefined) f[k] = d[k]; }); f.extra = true; f.shop = false; var body = JSON.stringify(f); lines.push('  defProp(' + JSON.stringify(id) + ', Object.assign(' + body + ', { build: ' + d.build.toString() + (d.after ? ', after: ' + d.after.toString() : '') + ' }));'); }); return { ids: ids, code: lines.join('\n') + '\n' }; },
     run: function (code) { var r = closureRun(String(code)); try { return r === undefined ? null : JSON.parse(JSON.stringify(r)); } catch (e) { return String(r); } },
-    model: modelOf, modelPreview: modelPreview, modelStart: modelStart, modelPick: modelPick, modelMirror: modelMirror, modelCode: modelCode, modelConvert: modelConvert,
+    model: modelOf, modelPreview: modelPreview, modelStart: modelStart, modelPick: modelPick, modelMirror: modelMirror, modelCode: modelCode, modelConvert: modelConvert, worldCode: worldCode, selection: function () { return editorMulti.slice(); }, moveSel: editorMoveSel, removeSel: editorRemoveSel, worldItems: function () { return WORLD_ITEMS.map(function (o) { return { id: eid(o), key: o.userData.worldKey, name: worldName(o), hidden: !o.visible }; }); },
     physics: physicsState, bodyAdd: function (id, opt) { var o = eobj(id); if (!o) return { error: 'no such object ' + id }; var B = body(o, opt || {}); return { ok: true, id: B.id, size: [B.hx * 2, B.hy * 2, B.hz * 2] }; }, bodyRemove: function (id) { var o = eobj(id); return !!o && removeBody(o); }, impulse: function (id, vx, vy, vz) { var o = eobj(id); return !!o && impulse(o, vx, vy, vz); },
     springAdd: function (id, opt) { var o = eobj(id); if (!o) return { error: 'no such object ' + id }; var S2 = spring(o, opt || {}); return { ok: true, anchor: S2.anchor, k: S2.k }; }, springRemove: function (id) { var o = eobj(id); return !!o && unspring(o); },
     drop: editorDrop, hingeAdd: function (id, opt) { var o = eobj(id); if (!o) return { error: 'no such object ' + id }; var H = hinge(o, opt || {}); return { ok: true, pivot: H.pivot, length: H.length, axis: H.axis }; }, hingeRemove: function (id) { var o = eobj(id); return !!o && removeHinge(o); },

@@ -151,6 +151,8 @@ Each milestone ends with every suite green and a tag.
 
 **v0.8.0 (2026-10-10):** Parts from this prop: the Model tab reads any prop drawn in code back as parts you can edit (sizes, turns, materials, pictures, corners), so an existing prop is reshaped without Blender. A prop whose build is shared (every pack prop) is saved as an override of that prop alone in `src/00-models.js`; before, saving one pack prop from the Pack tab would have rewritten the shared code under all of them.
 
+**v0.9.0 (2026-10-10):** the world is editable. Everything a game builds straight into its world (walls, floors, lamps, trees, fences, the asphalt) is a world item the editor selects, moves, turns, resizes and removes, kept in `src/00-world.js` and laid on the world before the bake, its solids following it. Ctrl and a click select several things, props and world items alike, and they move together; Ctrl no longer flies the scene camera down.
+
 Each of M8 to M11 is a project of its own, sized like the expansion. They are ordered by what a new game feels first. All four shipped a first version on 2026-10-09 (v0.2.0 to v0.3.0); what each still owes is listed in its row and is the next work when a game asks for it.
 
 M1 to M3 is the big block, the largest piece of work since the expansion. Everything after is incremental.

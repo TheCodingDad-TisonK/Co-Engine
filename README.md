@@ -2,7 +2,7 @@
 
 The engine and editor behind [Grow Co.](https://github.com/TheCodingDad-TisonK/Grow-Co), [Depot Co.](https://github.com/TheCodingDad-TisonK/Depot-Co) and Garage Co.: one HTML page, one closure, three.js, no bundler, no framework. Every texture, figure and sound is generated in code, and the editor runs the real game while you build in it.
 
-**Version 0.8.0** (2026-10-10). Every milestone of the plan has shipped a first version. What is still owed is listed in [docs/PLAN.md](docs/PLAN.md).
+**Version 0.9.0** (2026-10-10). Every milestone of the plan has shipped a first version. What is still owed is listed in [docs/PLAN.md](docs/PLAN.md).
 
 ## What is in it
 
@@ -48,6 +48,8 @@ The latest editor exe is attached to each tag at [releases/latest](https://githu
 ## The editor
 
 - **Scene, Top and Game views** over the running game; pause, step and restart from the play bar. Ctrl and the mouse drag and turn any prop in any view; PageUp and PageDown lift it.
+- **Everything in the world is editable** (0.9.0): walls, floors, lamps, trees, fences and the ground the game builds can be moved, turned, resized and removed like props, and the change is kept in `src/00-world.js`.
+- **Select several things** (0.9.0): Ctrl and a click adds to the selection; drag one and they all move together; Delete removes them all.
 - **Hierarchy and inspector**: what stands in the game, and the place, material and light of what you click. Drop lets a prop fall under physics and keeps where it lands.
 - **Tabs**: Console, Assets, Readout, Pack, Terrain (sculpt, paint, roads, scatter), Materials (layer stacks and GLSL), Profiler, Animation (clips and a dope sheet), UI (HUD chips, panels and buttons as data), Model, Settings (the game's tuning tables), File, and the Claude panel.
 - **Saving**: the layout writes itself to `src/00-layout.js` a moment after each change, every other tab saves into its own part of `src/`, Ctrl+S saves everything pending, and undo and redo cover every edit.
@@ -64,7 +66,7 @@ The editor is also an MCP server with 75 tools: Claude Code sees the scene, sele
 A game pins a tag, so an engine change never breaks a shipped game by surprise:
 
 ```json
-"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.8.0"
+"co-engine": "github:TheCodingDad-TisonK/Co-Engine#v0.9.0"
 ```
 
 ## Support

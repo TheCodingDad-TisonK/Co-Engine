@@ -22,6 +22,7 @@
     if (GAME.buildWorld) GAME.buildWorld(loaded);
     runHooks('afterBuild', loaded);
     if (GAME.afterBuild) GAME.afterBuild(loaded);
+    worldEditsApply();   // part 26: what the editor moved, resized or removed of the world, before the bake
     applySettings(); resize();
     if (GAME.bake !== false && !/nobake=1/.test(location.search)) bakeStatic();
     if (!GAME.menuCamera) { camera.position.set(12, 3.6, 0); camera.lookAt(0, 1.4, 0); }   // a game with a menu camera of its own places the camera itself

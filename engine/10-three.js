@@ -263,7 +263,7 @@
     g.userData.shared = true; return (geoCache[key] = g);
   }
   // ── Placers: a mesh made, placed and parented in one call. The default parent is CO.root, else the scene ──
-  function parentOf(p) { return p || CO.root || scene; }
+  function parentOf(p) { return p || WORLD_PARENT || CO.root || scene; }   // inside a kit call (part 26) the call's own item
   // box(w, h, d, mat, x, y, z, parent) or box(..., opts) with opts { parent, sharp, r, cast, receive, solid, tag, floorLevel }: a textured, tiled,
   // invisible or userData.sharp material gets a plain box, anything else an eased one (r: the bevel radius). A material with
   // userData.tile = [w, h] is tiled in metres, so the same brick lands on every panel whatever its size. opts.solid adds the box's

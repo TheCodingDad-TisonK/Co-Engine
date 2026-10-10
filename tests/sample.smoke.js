@@ -89,7 +89,7 @@ module.exports = `
   { let n = 0; T.hook('smoke', () => { n += 1; }); T.hook('smoke', () => { throw new Error('boom'); }); T.hook('smoke', () => { n += 10; }); const ce = console.error; let logged = 0; console.error = () => { logged++; }; T.runHooks('smoke'); console.error = ce; ok(n === 11 && logged === 1, 'hooks run in order, a throwing one is logged and does not stop the next'); }
   info('draws ' + T.counts().draws + ', baked ' + T.counts().baked + ' from ' + T.counts().hidden + ', solids ' + T.solids.length + ', weather ' + S.weather.kind);
   // the editor bridge (60-editor): the tree, the inspector, live edits, select, spawn, remove, assets, pause and step, the scene camera, pick, a shot
-  { const E = T.editor; const tr = E.tree(); ok(!!tr && !!tr.props.room && tr.props.room.some((p) => p.id === 'crateStack') && tr.lights.length >= 2 && tr.doors.length === 1 && tr.screens.length === 1 && tr.people.length === 2 && tr.vehicles.length === 1 && tr.counts.statics > 5, 'the editor tree lists the props, the lights, the door, the screen, the people, the car and the static world: ' + JSON.stringify(tr.counts));
+  { const E = T.editor; const tr = E.tree(); ok(!!tr && !!tr.props.room && tr.props.room.some((p) => p.id === 'crateStack') && tr.lights.length >= 2 && tr.doors.length === 1 && tr.screens.length === 1 && tr.people.length === 2 && tr.vehicles.length === 1 && tr.counts.statics + (tr.world || []).length > 5, 'the editor tree lists the props, the lights, the door, the screen, the people, the car and the static world: ' + JSON.stringify(tr.counts) + ', ' + (tr.world || []).length + ' world items');
     const r = E.inspect('crateStack'); ok(!!r && !!r.prop && r.prop.label === 'crate stack' && r.position.length === 3 && r.prop.x === -4 && r.prop.z === 2, 'inspect reads a prop: ' + JSON.stringify(r.prop));
     ok(E.set('crateStack', 'prop.x', -3) === 'ok' && T.propPlacement('crateStack').x === -3 && S.layout.crateStack.x === -3 && !!T.propInst.crateStack, 'a prop placement edit rebuilds the prop and lands in the save');
     E.set('crateStack', 'prop.reset', 1); ok(!S.layout.crateStack && T.propPlacement('crateStack').x === -4, 'reset puts it back where it started');
@@ -191,6 +191,31 @@ module.exports = `
     ok(bad.length === 0 && ids.length === n, 'every ' + name + ' prop builds: ' + ids.length + (bad.length ? ', failed ' + bad.slice(0, 3).join(' | ') : ''));
     ok(JSON.stringify(Object.keys(T.S)) === save0, 'the ' + name + ' pack leaves the host save alone');
     ids.forEach((id) => E.remove(id)); }
+  // the world as things to edit (0.9.0): kit calls and plain meshes are world items; moved, resized and removed with their solids, kept as code
+  { const E = T.editor, items = E.worldItems(), lamp = items.find((i) => /lamp post/.test(i.name)), fence = items.find((i) => /^fence/.test(i.name)), walls = items.filter((i) => /^wall/.test(i.name));
+    ok(items.length >= 15 && !!lamp && !!fence && walls.length >= 2, 'the sample world is items: ' + items.length + ' (a lamp post, a fence, ' + walls.length + ' walls)');
+    const li = E.inspect(lamp.id); ok(li.type === 'world' && li.worldItem && li.worldItem.key === lamp.key && Math.abs(li.position[1]) < 0.01, 'a world item inspects as one thing standing on the ground: ' + lamp.key);
+    E.set(lamp.id, 'position.x', li.position[0] + 3); E.set(lamp.id, 'rotation.y', 90); E.set(lamp.id, 'scale.y', 1.5);
+    const code1 = E.worldCode(); ok(code1.indexOf(JSON.stringify(lamp.key)) > 0 && /ry: 90/.test(code1) && /sy: 1.5/.test(code1), 'a moved, turned and resized item is kept as code for src/00-world.js');
+    const sol = () => E.run('(function () { var o = worldByKey(' + JSON.stringify(fence.key) + '); return o.userData.solids.map(function (s) { return Math.round(s.z0 * 100) / 100; }); })()');
+    const z0 = sol(), fi = E.inspect(fence.id); E.set(fence.id, 'position.z', fi.position[2] + 2); const z1 = sol();
+    ok(z0.length > 0 && Math.abs(z1[0] - z0[0] - 2) < 0.02, 'the solid a fence came with follows it: ' + z0[0] + ' to ' + z1[0]);
+    E.remove(fence.id); const gone = E.run('(function () { var o = worldByKey(' + JSON.stringify(fence.key) + '); bakeStatic(); var n = 0; o.traverse(function (m) { if (m.userData.bakedAway) n++; }); unbakeStatic(); return { v: o.visible, s: o.userData.solids[0].x0, baked: n }; })()');
+    ok(gone.v === false && gone.s > 1e5 && gone.baked === 0 && /hidden: true/.test(E.worldCode()), 'a removed item is hidden, its solid gone, out of the bake, and kept');
+    E.undo(); ok(E.run('(function () { return worldByKey(' + JSON.stringify(fence.key) + ').visible; })()') === true, 'Ctrl+Z brings a removed item back');
+    const ap = E.run('(function () { var o = worldByKey(' + JSON.stringify(lamp.key) + '), b = o.userData.worldBase; o.position.set(b.x, b.y, b.z); o.rotation.y = b.ry; o.scale.set(1, 1, 1); worldEditsApply(); return [Math.round(o.position.x * 100) / 100, Math.round(o.rotation.y * 180 / Math.PI), o.scale.y]; })()');
+    ok(Math.abs(ap[0] - li.position[0] - 3) < 0.02 && ap[1] === 90 && ap[2] === 1.5, 'a saved edit is laid on the world as it is built: ' + ap.join(', '));
+    E.set(lamp.id, 'world.reset', 1); E.set(fence.id, 'world.reset', 1); ok(E.worldCode() === '', 'Put it back leaves nothing to keep'); }
+  // several things selected move together (0.9.0): a prop and a world item, one step, one undo; Ctrl and a click takes one out again
+  { const E = T.editor, lamp = E.worldItems().find((i) => /lamp post/.test(i.name)), crate = 'crateStack';
+    const at = () => [E.inspect(crate).prop.x, E.inspect(lamp.id).position[0]];
+    E.select(crate); E.select(lamp.id, true); const sel = E.selection();
+    ok(sel.length === 2 && sel.indexOf(crate) >= 0 && sel.indexOf(lamp.id) >= 0 && E.inspect(lamp.id).together === 2, 'Ctrl and a click add to the selection: ' + sel.length + ' selected');
+    const a0 = at(); E.moveSel(1, 0); const a1 = at();
+    ok(Math.abs(a1[0] - a0[0] - 1) < 0.02 && Math.abs(a1[1] - a0[1] - 1) < 0.02, 'a move takes every selected thing the same step: ' + a0.join(',') + ' to ' + a1.join(','));
+    E.undo(); const a2 = at(); ok(Math.abs(a2[0] - a0[0]) < 0.02 && Math.abs(a2[1] - a0[1]) < 0.02, 'one undo puts them all back');
+    E.select(lamp.id, true); ok(E.selection().length === 1 && E.selection()[0] === crate, 'Ctrl and a click on a selected thing takes it out');
+    E.select(null); E.set(lamp.id, 'world.reset', 1); }
   // parts from a prop drawn in code (0.8.0): a Grow Co, a Depot Co and a basics prop read back as parts, rebuilt from them with the same pieces and size
   for (const type of ['gcVending', 'dcLockers', 'pkBench']) {
     const E = T.editor, THREE = T.THREE, sid = E.spawn(type, 4, 4);
