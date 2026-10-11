@@ -45,16 +45,16 @@
   // lane of higher opt.prio it merges into (a roundabout's ring) and slows for a tight curve (opt.r, its radius). A lane end
   // that leads nowhere sends the car back to a lane nothing leads into, so an open road behaves like the wrapping lanes above.
   // The cars sit in traffic.cars beside the lane cars, flagged road: true. The dev command 'lanes' draws the network.
-  var ROADS = { src: [], net: null, sig: '', checkT: 0, want: 0, cars: [], dbg: null, seq: 0 };
-  function roadLane(points, opt) { var s = { pts: points.map(function (p) { return [p[0], p[1]]; }), opt: opt || {}, g: null, prop: null, n: ++ROADS.seq }; ROADS.src.push(s); ROADS.sig = ''; return s; }
+  var ROADNET = { src: [], net: null, sig: '', checkT: 0, want: 0, cars: [], dbg: null, seq: 0 };
+  function roadLane(points, opt) { var s = { pts: points.map(function (p) { return [p[0], p[1]]; }), opt: opt || {}, g: null, prop: null, n: ++ROADNET.seq }; ROADNET.src.push(s); ROADNET.sig = ''; return s; }
   function roadLaneLocal(g, prop, points, opt) { var s = roadLane(points, opt); s.g = g; s.prop = prop; return s; }
-  function roadDropProp(prop) { var n = ROADS.src.length; ROADS.src = ROADS.src.filter(function (s) { return s.prop !== prop; }); if (ROADS.src.length !== n) ROADS.sig = ''; }
+  function roadDropProp(prop) { var n = ROADNET.src.length; ROADNET.src = ROADNET.src.filter(function (s) { return s.prop !== prop; }); if (ROADNET.src.length !== n) ROADNET.sig = ''; }
   function roadLive(g) { for (var o = g; o; o = o.parent) { if (o === scene) return true; } return false; }
-  function roadSig() { var parts = [ROADS.src.length]; ROADS.src.forEach(function (s) { if (!s.g) return; var p = s.g.position; parts.push(s.n, Math.round(p.x * 20), Math.round(p.z * 20), Math.round(s.g.rotation.y * 100), roadLive(s.g) ? 1 : 0); }); return parts.join(','); }
+  function roadSig() { var parts = [ROADNET.src.length]; ROADNET.src.forEach(function (s) { if (!s.g) return; var p = s.g.position; parts.push(s.n, Math.round(p.x * 20), Math.round(p.z * 20), Math.round(s.g.rotation.y * 100), roadLive(s.g) ? 1 : 0); }); return parts.join(','); }
   function roadNet() {
     var v = new THREE.Vector3(), lanes = [];
-    ROADS.src = ROADS.src.filter(function (s) { return !s.g || roadLive(s.g); });
-    ROADS.src.forEach(function (s) {
+    ROADNET.src = ROADNET.src.filter(function (s) { return !s.g || roadLive(s.g); });
+    ROADNET.src.forEach(function (s) {
       if (s.g) s.g.updateMatrixWorld(true);
       var pts = s.pts.map(function (p) { if (s.g) { v.set(p[0], 0, p[1]).applyMatrix4(s.g.matrixWorld); return [v.x, v.y, v.z]; } return [p[0], s.opt.y || 0, p[1]]; });
       if (pts.length < 2) return;
@@ -81,26 +81,26 @@
     out.x = a[0] + (b[0] - a[0]) * t; out.y = a[1] + (b[1] - a[1]) * t; out.z = a[2] + (b[2] - a[2]) * t; out.yaw = Math.atan2(-(b[2] - a[2]), b[0] - a[0]); return out;
   }
   function roadPick(L) { return L.next.length ? L.next[Math.floor(Math.random() * L.next.length)] : null; }
-  function roadFree(L, s, skip) { var p = lanePoint(L, s, {}); for (var i = 0; i < ROADS.cars.length; i++) { var d = ROADS.cars[i]; if (d === skip || d.parked) continue; if (d.lane === L && Math.abs(d.s - s) < 9) return false; if (Math.hypot(d.g.position.x - p.x, d.g.position.z - p.z) < 7) return false; } return true; }
+  function roadFree(L, s, skip) { var p = lanePoint(L, s, {}); for (var i = 0; i < ROADNET.cars.length; i++) { var d = ROADNET.cars[i]; if (d === skip || d.parked) continue; if (d.lane === L && Math.abs(d.s - s) < 9) return false; if (Math.hypot(d.g.position.x - p.x, d.g.position.z - p.z) < 7) return false; } return true; }
   function roadPlace(c, L, s) { c.lane = L; c.src = L.src; c.s = s; c.next = roadPick(L); c.wait = 0; c.parked = false; c.g.visible = true; var p = lanePoint(L, s, {}); c.g.position.set(p.x, p.y, p.z); c.yaw = p.yaw; c.g.rotation.y = p.yaw; }
   function roadPark(c) { c.parked = true; c.lane = null; c.next = null; c.v = 0; c.g.visible = false; }
   function roadSeat(c, anywhere) {
-    var net = ROADS.net; if (!net || !net.lanes.length) { roadPark(c); return false; }
+    var net = ROADNET.net; if (!net || !net.lanes.length) { roadPark(c); return false; }
     var pool = anywhere ? net.lanes.filter(function (l) { return !l.box && l.len > 4; }) : net.entries; if (!pool.length) pool = net.lanes;
     for (var k = 0; k < 8; k++) { var L = pool[Math.floor(Math.random() * pool.length)], s = anywhere ? Math.random() * L.len : 0; if (roadFree(L, s, c)) { roadPlace(c, L, s); c.v = anywhere ? c.vmax * 0.6 : Math.min(c.vmax, L.vmax) * 0.7; return true; } }
     roadPark(c); return false;
   }
   function roadReseat() {
-    var byNode = new Map(); ROADS.net.lanes.forEach(function (l) { byNode.set(l.src, l); });
-    ROADS.cars.forEach(function (c) { if (c.parked) return; var L = byNode.get(c.src); if (L) { c.lane = L; c.s = Math.min(c.s, L.len); if (!c.next || L.next.indexOf(c.next) < 0) { var nn = c.next && byNode.get(c.next.src); c.next = nn && L.next.indexOf(nn) >= 0 ? nn : roadPick(L); } } else roadSeat(c, true); });
+    var byNode = new Map(); ROADNET.net.lanes.forEach(function (l) { byNode.set(l.src, l); });
+    ROADNET.cars.forEach(function (c) { if (c.parked) return; var L = byNode.get(c.src); if (L) { c.lane = L; c.s = Math.min(c.s, L.len); if (!c.next || L.next.indexOf(c.next) < 0) { var nn = c.next && byNode.get(c.next.src); c.next = nn && L.next.indexOf(nn) >= 0 ? nn : roadPick(L); } } else roadSeat(c, true); });
   }
   // how far ahead the nearest car is: on this lane, on the lane it goes to next, or any car close in front heading its way.
   // Two cars that each have the other in front (side by side at a merge or in a junction) do not both wait: the one on the
   // lower priority lane does, or on equal lanes the later car, so one always goes and they cannot lock each other
   function roadGap(c, me) {
     var best = 1e9, rem = c.lane.len - c.s;
-    for (var i = 0; i < ROADS.cars.length; i++) {
-      var d = ROADS.cars[i]; if (d === c || d.parked) continue;
+    for (var i = 0; i < ROADNET.cars.length; i++) {
+      var d = ROADNET.cars[i]; if (d === c || d.parked) continue;
       if (d.lane === c.lane && d.s > c.s) best = Math.min(best, d.s - c.s);
       else if (d.lane === c.next) best = Math.min(best, rem + d.s);
       else { var dx = d.g.position.x - me.x, dz = d.g.position.z - me.z, dist = Math.hypot(dx, dz); if (dist < 7) { var hx = Math.cos(c.yaw), hz = -Math.sin(c.yaw), fwd = dx * hx + dz * hz, side = Math.abs(dx * hz - dz * hx); if (fwd > 0 && side < 1.7 && Math.cos(d.yaw - c.yaw) > -0.3) { var gx = Math.cos(d.yaw), gz = -Math.sin(d.yaw), mutual = (-dx * gx - dz * gz) > 0 && Math.abs(-dx * gz + dz * gx) < 1.7; if (!mutual || d.lane.prio > c.lane.prio || (d.lane.prio === c.lane.prio && d.id < c.id)) best = Math.min(best, fwd); } } }
@@ -110,7 +110,7 @@
   // is any car within limit metres of the end of lane L, counting back through the lanes that feed it (acc is the way already counted)
   function roadComing(L, acc, limit, skip, seen) {
     seen = seen || []; if (seen.indexOf(L) >= 0) return false; seen.push(L);
-    for (var i = 0; i < ROADS.cars.length; i++) { var d = ROADS.cars[i]; if (d !== skip && !d.parked && d.lane === L && L.len - d.s + acc < limit) return true; }
+    for (var i = 0; i < ROADNET.cars.length; i++) { var d = ROADNET.cars[i]; if (d !== skip && !d.parked && d.lane === L && L.len - d.s + acc < limit) return true; }
     for (var k = 0; k < L.prev.length; k++) if (acc + L.len < limit && roadComing(L.prev[k], acc + L.len, limit, skip, seen)) return true;
     return false;
   }
@@ -124,26 +124,26 @@
     var B = c.next; c.capHold = false; c.boxHold = false; if (!B) return true;
     if (c.lane.src.opt.merge) return true;   // a car already merging has given way at the line: it carries on
     // into a junction only with room on the far side, so nobody stops in the box and locks the other approaches out
-    if (B.box) { if (!c.after || B.next.indexOf(c.after) < 0) c.after = roadPick(B); if (c.after) for (var ai = 0; ai < ROADS.cars.length; ai++) { var da = ROADS.cars[ai]; if (da !== c && !da.parked && da.lane === c.after && da.s < 8) { c.boxHold = true; return false; } } }
+    if (B.box) { if (!c.after || B.next.indexOf(c.after) < 0) c.after = roadPick(B); if (c.after) for (var ai = 0; ai < ROADNET.cars.length; ai++) { var da = ROADNET.cars[ai]; if (da !== c && !da.parked && da.lane === c.after && da.s < 8) { c.boxHold = true; return false; } } }
     var loopL = B.comp ? B : (B.src.opt.merge && B.next.length ? B.next[0] : null);
-    if (loopL && loopL.comp && c.lane.comp !== loopL.comp) { B = loopL; var inLoop = 0; for (var ci = 0; ci < ROADS.cars.length; ci++) { var dc = ROADS.cars[ci]; if (dc !== c && !dc.parked && dc.lane && dc.lane.comp === B.comp) inLoop++; } if (inLoop >= B.comp.cap) { c.capHold = true; return false; } B = c.next; }
-    for (var i = 0; i < ROADS.cars.length; i++) {
-      var d = ROADS.cars[i]; if (d === c || d.parked || !d.lane) continue;
+    if (loopL && loopL.comp && c.lane.comp !== loopL.comp) { B = loopL; var inLoop = 0; for (var ci = 0; ci < ROADNET.cars.length; ci++) { var dc = ROADNET.cars[ci]; if (dc !== c && !dc.parked && dc.lane && dc.lane.comp === B.comp) inLoop++; } if (inLoop >= B.comp.cap) { c.capHold = true; return false; } B = c.next; }
+    for (var i = 0; i < ROADNET.cars.length; i++) {
+      var d = ROADNET.cars[i]; if (d === c || d.parked || !d.lane) continue;
       if (B.box && ((d.lane.box === B.box && d.lane.from !== B.from) || (d.res === B.box && d.resFrom !== B.from))) { c.boxHold = true; return false; }
       if (d.lane === B && d.s < 6) return false;
     }
     // a merge lane (a roundabout entry) joins the lane after it: give way to anyone coming round on that lane's feeders
     if (B.src.opt.merge && B.next.length) { var T = B.next[0]; for (var ti = 0; ti < T.prev.length; ti++) if (T.prev[ti] !== B && roadComing(T.prev[ti], 0, 22, c)) return false; }
-    var near = function (F, extra) { for (var j = 0; j < ROADS.cars.length; j++) { var e = ROADS.cars[j]; if (e !== c && !e.parked && e.lane === F && F.len - e.s + extra < 12) return true; } return false; };
+    var near = function (F, extra) { for (var j = 0; j < ROADNET.cars.length; j++) { var e = ROADNET.cars[j]; if (e !== c && !e.parked && e.lane === F && F.len - e.s + extra < 12) return true; } return false; };
     for (var k = 0; k < B.prev.length; k++) { var F = B.prev[k]; if (F === c.lane || F.prio <= c.lane.prio) continue; if (near(F, 0)) return false; for (var m = 0; m < F.prev.length; m++) if (F.prev[m].prio > c.lane.prio && near(F.prev[m], F.len)) return false; }
     return true;
   }
   function roadTick(dt) {
-    ROADS.checkT -= dt;
-    if (ROADS.checkT <= 0 || !ROADS.sig) { ROADS.checkT = 0.5; var sig = roadSig(); if (sig !== ROADS.sig) { ROADS.sig = sig; ROADS.net = roadNet(); roadReseat(); if (ROADS.dbg) roadDebugDraw(); } }
-    var net = ROADS.net; if (!ROADS.cars.length || !net) return;
+    ROADNET.checkT -= dt;
+    if (ROADNET.checkT <= 0 || !ROADNET.sig) { ROADNET.checkT = 0.5; var sig = roadSig(); if (sig !== ROADNET.sig) { ROADNET.sig = sig; ROADNET.net = roadNet(); roadReseat(); if (ROADNET.dbg) roadDebugDraw(); } }
+    var net = ROADNET.net; if (!ROADNET.cars.length || !net) return;
     var me = new THREE.Vector3(), p = {};
-    ROADS.cars.forEach(function (c) { if (c.parked) { if (Math.random() < dt) roadSeat(c, false); return; }
+    ROADNET.cars.forEach(function (c) { if (c.parked) { if (Math.random() < dt) roadSeat(c, false); return; }
       var L = c.lane, rem = L.len - c.s, target = Math.min(c.vmax, L.vmax);
       if (c.next && rem < 18) target = Math.min(target, c.next.vmax + rem * 0.5);
       me.copy(c.g.position); var gap = roadGap(c, me); if (gap < 40) target = Math.min(target, Math.max(0, (gap - 6) * 0.9));
@@ -151,7 +151,7 @@
       if (c.hold) { c.wait += dt; var force = c.wait > 9 && !c.capHold && !c.boxHold; target = force ? 1.5 : 0; if (force) c.hold = false; } else if (rem >= 3) c.wait = 0;
       c.v = clamp(c.v + clamp(target - c.v, -8 * dt, 3 * dt), 0, 30);
     });
-    ROADS.cars.forEach(function (c) {
+    ROADNET.cars.forEach(function (c) {
       if (c.parked) return;
       c.s += c.v * dt;
       if (c.hold && c.s > c.lane.len - 0.4) { c.s = c.lane.len - 0.4; c.v = 0; }
@@ -164,34 +164,34 @@
   }
   // keep n cars on the road network (0 takes them all off); opt.speed is the top speed in m/s, opt.colours a list to pick from
   function roadTraffic(opt) {
-    opt = typeof opt === 'number' ? { cars: opt } : (opt || {}); ROADS.want = Math.max(0, opt.cars | 0);
-    while (ROADS.cars.length > ROADS.want) { var c0 = ROADS.cars.pop(); scene.remove(c0.g); var k = traffic.cars.indexOf(c0); if (k >= 0) traffic.cars.splice(k, 1); }
-    if (!ROADS.sig) { ROADS.sig = roadSig(); ROADS.net = roadNet(); }
-    while (ROADS.cars.length < ROADS.want) {
+    opt = typeof opt === 'number' ? { cars: opt } : (opt || {}); ROADNET.want = Math.max(0, opt.cars | 0);
+    while (ROADNET.cars.length > ROADNET.want) { var c0 = ROADNET.cars.pop(); scene.remove(c0.g); var k = traffic.cars.indexOf(c0); if (k >= 0) traffic.cars.splice(k, 1); }
+    if (!ROADNET.sig) { ROADNET.sig = roadSig(); ROADNET.net = roadNet(); }
+    while (ROADNET.cars.length < ROADNET.want) {
       var g = carMesh(opt.colours ? pick(opt.colours) : undefined); g.userData.dynamic = true; scene.add(g);
-      var c = { id: ++ROADS.seq, g: g, road: true, dir: 1, z: 0, v: 0, vmax: (opt.speed || 9) * randf(0.85, 1.1), s: 0, lane: null, next: null, wait: 0, yaw: 0 };
-      ROADS.cars.push(c); traffic.cars.push(c); roadSeat(c, true);
+      var c = { id: ++ROADNET.seq, g: g, road: true, dir: 1, z: 0, v: 0, vmax: (opt.speed || 9) * randf(0.85, 1.1), s: 0, lane: null, next: null, wait: 0, yaw: 0 };
+      ROADNET.cars.push(c); traffic.cars.push(c); roadSeat(c, true);
     }
-    return ROADS.cars.length;
+    return ROADNET.cars.length;
   }
   function roadDebugDraw() {
-    if (ROADS.dbg) { scene.remove(ROADS.dbg); ROADS.dbg.traverse(function (o) { if (o.geometry) o.geometry.dispose(); }); }
+    if (ROADNET.dbg) { scene.remove(ROADNET.dbg); ROADNET.dbg.traverse(function (o) { if (o.geometry) o.geometry.dispose(); }); }
     var g = new THREE.Group(); g.userData.dynamic = true; g.userData.noBake = true;
     var mats = [new THREE.LineBasicMaterial({ color: 0x2fd0ff }), new THREE.LineBasicMaterial({ color: 0xffb020 }), new THREE.LineBasicMaterial({ color: 0xff3a6a })];
-    (ROADS.net ? ROADS.net.lanes : []).forEach(function (L) {
+    (ROADNET.net ? ROADNET.net.lanes : []).forEach(function (L) {
       var m = L.next.length ? (L.prio ? mats[1] : mats[0]) : mats[2], pts = L.pts.map(function (q) { return new THREE.Vector3(q[0], q[1] + 0.15, q[2]); });
       g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), m));
       var p = lanePoint(L, L.len * 0.5, {}), a = p.yaw, hx = Math.cos(a), hz = -Math.sin(a), tip = new THREE.Vector3(p.x + hx * 0.5, p.y + 0.15, p.z + hz * 0.5);
       g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(p.x - hx * 0.3 - hz * 0.35, p.y + 0.15, p.z - hz * 0.3 + hx * 0.35), tip, new THREE.Vector3(p.x - hx * 0.3 + hz * 0.35, p.y + 0.15, p.z - hz * 0.3 - hx * 0.35)]), m));
     });
-    scene.add(g); ROADS.dbg = g;
+    scene.add(g); ROADNET.dbg = g;
   }
   // the dev command 'lanes': draw the network (blue lanes, amber priority lanes, red ends that lead nowhere) or hide it
   function roadDebug(on) {
-    if (on === undefined) on = !ROADS.dbg;
-    if (!on) { if (ROADS.dbg) { scene.remove(ROADS.dbg); ROADS.dbg = null; } return 'lanes hidden'; }
-    if (!ROADS.net || !ROADS.sig) { ROADS.sig = roadSig(); ROADS.net = roadNet(); }
-    roadDebugDraw(); return ROADS.net.lanes.length + ' lanes, ' + ROADS.net.joins + ' joins, ' + ROADS.cars.length + ' cars';
+    if (on === undefined) on = !ROADNET.dbg;
+    if (!on) { if (ROADNET.dbg) { scene.remove(ROADNET.dbg); ROADNET.dbg = null; } return 'lanes hidden'; }
+    if (!ROADNET.net || !ROADNET.sig) { ROADNET.sig = roadSig(); ROADNET.net = roadNet(); }
+    roadDebugDraw(); return ROADNET.net.lanes.length + ' lanes, ' + ROADNET.net.joins + ' joins, ' + ROADNET.cars.length + ' cars';
   }
   // ── A vehicle you drive ───────────────────────────────────────────
   // The record is the game's ({ x, z, yaw, speed, gear }); driveStep moves it from the keys with an acceleration, a top speed per

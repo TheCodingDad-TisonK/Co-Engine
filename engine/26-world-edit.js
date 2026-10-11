@@ -18,7 +18,7 @@
     if (!b.isEmpty()) { var cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2; g.children.forEach(function (c) { c.position.x -= cx; c.position.z -= cz; }); g.position.set(cx, 0, cz); g.updateMatrixWorld(true); }
     return out;
   }
-  function wr(v) { return Math.round(v * 100) / 100; }
+  function worldRound(v) { return Math.round(v * 100) / 100; }
   // the things at the top of the world that count as items: not props, people, doors, cars, lights, helpers, the sky or the bake
   function worldCandidate(o) {
     if (!o || o === CO.root || o.userData.editor || o.userData.baked || o.userData.dynamic || o.userData.legs || o.userData.person || o.userData.propId) return false;
@@ -32,7 +32,7 @@
   }
   function worldKind(o) {
     if (o.userData.worldItem) return o.userData.worldItem;
-    if (o.isMesh) { var P = o.geometry.parameters || {}, t = (o.geometry.type || 'mesh').replace(/Geometry$/, '').toLowerCase(); var dims = ['width', 'height', 'depth', 'radius', 'radiusTop'].filter(function (k) { return typeof P[k] === 'number'; }).map(function (k) { return wr(P[k]); }).join('x'); return 'mesh ' + t + (dims ? ' ' + dims : ''); }
+    if (o.isMesh) { var P = o.geometry.parameters || {}, t = (o.geometry.type || 'mesh').replace(/Geometry$/, '').toLowerCase(); var dims = ['width', 'height', 'depth', 'radius', 'radiusTop'].filter(function (k) { return typeof P[k] === 'number'; }).map(function (k) { return worldRound(P[k]); }).join('x'); return 'mesh ' + t + (dims ? ' ' + dims : ''); }
     return o.name || 'group';
   }
   function worldName(o) { var k = worldKind(o); return /^mesh /.test(k) ? k.replace(/^mesh (\w+).*/, '$1') + (o.material && matName(o.material) ? ' · ' + matName(o.material) : '') : k; }
@@ -49,7 +49,7 @@
     (CO.root && CO.root !== scene ? [scene, CO.root] : [scene]).forEach(function (r) { r.children.forEach(function (o) { (o.userData.solids || []).forEach(function (s) { claimed.push(s); }); }); });   /* a kit item's own solids are not up for claiming */
     (CO.root && CO.root !== scene ? [scene, CO.root] : [scene]).forEach(function (r) { r.children.slice().forEach(function (o) {
       if (!worldCandidate(o) || o.userData.worldKey) { if (o.userData.worldKey) WORLD_ITEMS.push(o); return; }
-      var base = worldKind(o) + '@' + wr(o.position.x) + ',' + wr(o.position.z) + (Math.abs(o.position.y) > 0.005 ? ',' + wr(o.position.y) : ''), key = base, n = 1;
+      var base = worldKind(o) + '@' + worldRound(o.position.x) + ',' + worldRound(o.position.z) + (Math.abs(o.position.y) > 0.005 ? ',' + worldRound(o.position.y) : ''), key = base, n = 1;
       while (seen[key]) key = base + '#' + (++n); seen[key] = true;
       if (!o.userData.worldItem && o.isMesh && !o.userData.solids) worldClaimSolids(o, claimed);   /* a wall drawn as a plain box takes the solid laid on its footprint */
       o.userData.worldKey = key; o.userData.worldBase = { x: o.position.x, y: o.position.y, z: o.position.z, ry: o.rotation.y, sx: o.scale.x, sy: o.scale.y, sz: o.scale.z };
@@ -102,12 +102,12 @@
   function worldCopyRemove(g) { var c = g.userData.worldCopy; if (g.parent) g.parent.remove(g); (g.userData.solids || []).forEach(function (s) { var k = solids.indexOf(s); if (k >= 0) solids.splice(k, 1); }); var a = WORLD_COPIES.indexOf(c); if (a >= 0) WORLD_COPIES.splice(a, 1); var b = WORLD_ITEMS.indexOf(g); if (b >= 0) WORLD_ITEMS.splice(b, 1); if (typeof NAV === 'object' && NAV) NAV.dirty = true; shadowDirty = true; }
   // what the editor keeps: the item as it stands now against where the game built it
   function worldRecord(o) {
-    if (o.userData.worldCopy) { var c = o.userData.worldCopy; c.x = wr(o.position.x); c.y = wr(o.position.y); c.z = wr(o.position.z); c.ry = Math.round(o.rotation.y * 180 / Math.PI * 10) / 10; c.sx = wr(o.scale.x); c.sy = wr(o.scale.y); c.sz = wr(o.scale.z); worldSolids(o); return c; }
+    if (o.userData.worldCopy) { var c = o.userData.worldCopy; c.x = worldRound(o.position.x); c.y = worldRound(o.position.y); c.z = worldRound(o.position.z); c.ry = Math.round(o.rotation.y * 180 / Math.PI * 10) / 10; c.sx = worldRound(o.scale.x); c.sy = worldRound(o.scale.y); c.sz = worldRound(o.scale.z); worldSolids(o); return c; }
     var b0 = o.userData.worldBase, key = o.userData.worldKey; if (!b0 || !key) return null;
     var e = {}, near = function (a, b) { return Math.abs(a - b) < 0.0005; };
-    if (!near(o.position.x, b0.x)) e.x = wr(o.position.x); if (!near(o.position.y, b0.y)) e.y = wr(o.position.y); if (!near(o.position.z, b0.z)) e.z = wr(o.position.z);
+    if (!near(o.position.x, b0.x)) e.x = worldRound(o.position.x); if (!near(o.position.y, b0.y)) e.y = worldRound(o.position.y); if (!near(o.position.z, b0.z)) e.z = worldRound(o.position.z);
     if (!near(o.rotation.y, b0.ry)) e.ry = Math.round(o.rotation.y * 180 / Math.PI * 10) / 10;
-    if (!near(o.scale.x, b0.sx)) e.sx = wr(o.scale.x); if (!near(o.scale.y, b0.sy)) e.sy = wr(o.scale.y); if (!near(o.scale.z, b0.sz)) e.sz = wr(o.scale.z);
+    if (!near(o.scale.x, b0.sx)) e.sx = worldRound(o.scale.x); if (!near(o.scale.y, b0.sy)) e.sy = worldRound(o.scale.y); if (!near(o.scale.z, b0.sz)) e.sz = worldRound(o.scale.z);
     if (!o.visible) e.hidden = true;
     if (Object.keys(e).length) WORLD_EDITS[key] = e; else delete WORLD_EDITS[key];
     worldSolids(o); return e;

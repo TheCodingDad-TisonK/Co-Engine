@@ -207,25 +207,25 @@ module.exports = `
     ok(total === 189, 'the thirteen new packs hold 189 props between them: ' + total); }
   // the road network (0.11.0): road pieces carry lanes that join where they meet; roadTraffic's cars drive them, cross a junction one approach at a time, never stack up, and an open end sends a car back to the start
   { const E = T.editor, roads = NEW_PACKS.find((q) => q[0] === 'roads'); E.define(roads[3]); const ids = [];
-    const net0 = E.run('(function () { ROADS.sig = ""; roadTick(0.01); return ROADS.net ? ROADS.net.lanes.length : -1; })()');
+    const net0 = E.run('(function () { ROADNET.sig = ""; roadTick(0.01); return ROADNET.net ? ROADNET.net.lanes.length : -1; })()');
     [['rdStraight', -16.5, 40], ['rdCrossroads', -6, 40], ['rdStraight', 4.5, 40]].forEach((q) => ids.push(E.spawn(q[0], q[1], q[2])));
-    const net = E.run('(function () { ROADS.sig = ""; roadTick(0.01); var n = ROADS.net; return { lanes: n.lanes.length, joins: n.joins, boxes: n.lanes.filter(function (l) { return l.box; }).length, ends: n.lanes.filter(function (l) { return !l.next.length; }).length }; })()');
+    const net = E.run('(function () { ROADNET.sig = ""; roadTick(0.01); var n = ROADNET.net; return { lanes: n.lanes.length, joins: n.joins, boxes: n.lanes.filter(function (l) { return l.box; }).length, ends: n.lanes.filter(function (l) { return !l.next.length; }).length }; })()');
     ok(net.lanes - net0 === 16 && net.boxes === 12 && net.joins >= 8, 'two straights and a crossroads make 16 lanes, 12 of them through the junction, joined where they meet: ' + JSON.stringify(net) + ' over ' + net0);
-    const run = E.run('(function () { var n = roadTraffic({ cars: 6, speed: 9 }), start = ROADS.cars.map(function (c) { return c.g.position.clone(); }), minGap = 1e9, hops = 0, inBox = 0, maxBox = 0, last = ROADS.cars.map(function (c) { return c.src; });' +
-      ' for (var i = 0; i < 1200; i++) { roadTick(1 / 30); var froms = {}; ROADS.cars.forEach(function (c, k) { if (c.parked) return; if (c.src !== last[k]) { hops++; last[k] = c.src; } if (c.lane && c.lane.box) froms[c.lane.from] = 1; }); maxBox = Math.max(maxBox, Object.keys(froms).length);' +
-      ' for (var a = 0; a < ROADS.cars.length; a++) for (var b = a + 1; b < ROADS.cars.length; b++) { var A = ROADS.cars[a], B = ROADS.cars[b]; if (A.parked || B.parked) continue; minGap = Math.min(minGap, A.g.position.distanceTo(B.g.position)); } }' +
-      ' var moved = ROADS.cars.filter(function (c, k) { return c.g.position.distanceTo(start[k]) > 1; }).length, inTraffic = ROADS.cars.every(function (c) { return traffic.cars.indexOf(c) >= 0; }); return { n: n, moved: moved, hops: hops, maxBox: maxBox, minGap: Math.round(minGap * 10) / 10, inTraffic: inTraffic }; })()');
+    const run = E.run('(function () { var n = roadTraffic({ cars: 6, speed: 9 }), start = ROADNET.cars.map(function (c) { return c.g.position.clone(); }), minGap = 1e9, hops = 0, inBox = 0, maxBox = 0, last = ROADNET.cars.map(function (c) { return c.src; });' +
+      ' for (var i = 0; i < 1200; i++) { roadTick(1 / 30); var froms = {}; ROADNET.cars.forEach(function (c, k) { if (c.parked) return; if (c.src !== last[k]) { hops++; last[k] = c.src; } if (c.lane && c.lane.box) froms[c.lane.from] = 1; }); maxBox = Math.max(maxBox, Object.keys(froms).length);' +
+      ' for (var a = 0; a < ROADNET.cars.length; a++) for (var b = a + 1; b < ROADNET.cars.length; b++) { var A = ROADNET.cars[a], B = ROADNET.cars[b]; if (A.parked || B.parked) continue; minGap = Math.min(minGap, A.g.position.distanceTo(B.g.position)); } }' +
+      ' var moved = ROADNET.cars.filter(function (c, k) { return c.g.position.distanceTo(start[k]) > 1; }).length, inTraffic = ROADNET.cars.every(function (c) { return traffic.cars.indexOf(c) >= 0; }); return { n: n, moved: moved, hops: hops, maxBox: maxBox, minGap: Math.round(minGap * 10) / 10, inTraffic: inTraffic }; })()');
     ok(run.n === 6 && run.inTraffic && run.moved >= 4 && run.hops >= 6, 'roadTraffic keeps six cars driving the lanes, onto the next lane at each end: ' + JSON.stringify(run));
     ok(run.maxBox <= 1, 'a junction holds one approach at a time: at most ' + run.maxBox);
     ok(run.minGap > 2.5, 'cars keep their distance: closest ' + run.minGap + ' m');
-    const loop = E.run('(function () { var c = ROADS.cars[0], L0 = ROADS.net.entries[0]; return { entries: ROADS.net.entries.length, entryIsOpenEnd: !L0.prev.length }; })()');
+    const loop = E.run('(function () { var c = ROADNET.cars[0], L0 = ROADNET.net.entries[0]; return { entries: ROADNET.net.entries.length, entryIsOpenEnd: !L0.prev.length }; })()');
     ok(loop.entries >= 2 && loop.entryIsOpenEnd, 'an open road end leads back to a lane nothing feeds: ' + JSON.stringify(loop));
-    const moved = E.run('(function () { var before = ROADS.net.lanes.length; return before; })()'); E.set(ids[2], 'prop.x', 30);
-    const apart = E.run('(function () { ROADS.sig = ""; roadTick(0.01); return { lanes: ROADS.net.lanes.length, joins: ROADS.net.joins }; })()');
+    const moved = E.run('(function () { var before = ROADNET.net.lanes.length; return before; })()'); E.set(ids[2], 'prop.x', 30);
+    const apart = E.run('(function () { ROADNET.sig = ""; roadTick(0.01); return { lanes: ROADNET.net.lanes.length, joins: ROADNET.net.joins }; })()');
     ok(apart.lanes === moved && apart.joins < net.joins, 'moving a piece away keeps its lanes and breaks its joins: ' + JSON.stringify(apart) + ' (was ' + net.joins + ' joins)');
     const lanes = E.command('lanes', 'on'), hidden = E.command('lanes', 'off');
     ok(lanes.indexOf(' joins, 6 cars') > 0 && hidden === 'lanes hidden', 'the lanes command draws the network and hides it: ' + lanes);
-    ids.forEach((id) => E.remove(id)); const gone = E.run('(function () { roadTraffic(0); ROADS.sig = ""; roadTick(0.01); return { lanes: ROADS.net.lanes.length, cars: ROADS.cars.length, inTraffic: traffic.cars.filter(function (c) { return c.road; }).length }; })()');
+    ids.forEach((id) => E.remove(id)); const gone = E.run('(function () { roadTraffic(0); ROADNET.sig = ""; roadTick(0.01); return { lanes: ROADNET.net.lanes.length, cars: ROADNET.cars.length, inTraffic: traffic.cars.filter(function (c) { return c.road; }).length }; })()');
     ok(gone.lanes === net0 && gone.cars === 0 && gone.inTraffic === 0, 'removing the pieces takes their lanes; roadTraffic(0) takes the cars off: ' + JSON.stringify(gone)); }
   // the world as things to edit (0.9.0): kit calls and plain meshes are world items; moved, resized and removed with their solids, kept as code
   { const E = T.editor, items = E.worldItems(), lamp = items.find((i) => /lamp post/.test(i.name)), fence = items.find((i) => /^fence/.test(i.name)), walls = items.filter((i) => /^wall/.test(i.name));

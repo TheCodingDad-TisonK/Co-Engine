@@ -61,7 +61,7 @@
     if (look.shirt) hopt.shirt = std({ map: TEX.cloth, color: npcHex(look.shirt, NPC_COLS.shirt), roughness: 0.92 }); if (look.pants) hopt.pants = std({ map: TEX.cloth, color: npcHex(look.pants, NPC_COLS.pants), roughness: 0.95 });
     var g = makeHuman(hopt); g.userData.dynamic = true; g.userData.npc = true; scene.add(g);
     var n = { id: 'npc' + npcSeq, ch: ch, charId: charId, name: name, g: g, x: at.x, z: at.z, yaw: at.ry || 0, path: null, speed: ch.speed || 1.4, step: 0, t: 0, state: 'start', talkOpen: false, home: { x: at.x, z: at.z }, data: {}, spawner: opt.spawner || null, worker: opt.worker || null, post: opt.post || null, car: null, carDoor: null, gone: false };
-    n.pub = { id: n.id, name: name, character: charId, data: n.data, get x() { return n.x; }, get z() { return n.z; }, get step() { return n.step; }, say: function (t) { return npcSay(n, t); }, leave: function () { npcLeave(n); }, go: function (i) { npcGoto(n, i); }, next: function () { npcNext(n); } };
+    n.pub = { id: n.id, name: name, character: charId, data: n.data, get x() { return n.x; }, get z() { return n.z; }, get step() { return n.step; }, say: function (t) { return npcSay(n, t); }, leave: function () { npcSendOff(n); }, go: function (i) { npcGoto(n, i); }, next: function () { npcNext(n); } };
     n.hit = hitBox(0.8, 1.9, 0.8, 0, 0.95, 0, { prompt: function () { var st = npcStepNow(n); return st && st.do === 'talk' && n.state === 'talk' ? String(st.prompt || 'Talk to {name}').replace(/\{name\}/g, n.name) : ''; }, use: function () { npcTalk(n); } }, g);
     npcList.push(n); npcPlace(n); runHooks('npcSpawn', n.pub); return n;
   }
@@ -75,7 +75,7 @@
   function npcStepNow(n) { var steps = n.ch.steps || []; return steps[n.step] || null; }
   function npcNext(n) { n.step++; n.state = 'start'; n.t = 0; n.path = null; }
   function npcGoto(n, i) { n.step = Math.max(0, i | 0); n.state = 'start'; n.t = 0; n.path = null; }
-  function npcLeave(n) { n.leaving = true; n.state = 'start'; n.path = null; n.t = 0; }
+  function npcSendOff(n) { n.leaving = true; n.state = 'start'; n.path = null; n.t = 0; }
   // the route finder where its grid covers both ends; outside it a straight walk; either way the walk ends on the point itself
   function npcOnGrid(q) { if (NAV.dirty || !NAV.grid) navBuild(); return !!NAV.grid && q.x >= NAV.x0 && q.z >= NAV.z0 && q.x < NAV.x0 + NAV.w * NAV.cell && q.z < NAV.z0 + NAV.h * NAV.cell; }
   function npcWalkTo(n, p) { var path = npcOnGrid(n) && npcOnGrid(p) ? route({ x: n.x, z: n.z }, { x: p.x, z: p.z }) : null; if (!path || !path.length) path = [{ x: p.x, z: p.z }]; else { var last = path[path.length - 1]; if (Math.hypot(last.x - p.x, last.z - p.z) > 0.5) path.push({ x: p.x, z: p.z }); } n.path = path; n.faceTo = p.ry; }
@@ -93,7 +93,7 @@
     if (c.say) npcSay(n, c.say); if (c.run) npcRun(n, c.run);
     runHooks('npc', 'choice', n.pub, c.label); if (CO.game && CO.game.npcEvent) CO.game.npcEvent('choice', n.pub, c.label);
     var then = String(c.then || 'next').trim();
-    if (then === 'stay') n.state = 'talk'; else if (then === 'leave') npcLeave(n); else if (then === 'repeat') npcGoto(n, 0); else if (/^step\s+\d+$/.test(then)) npcGoto(n, +then.slice(5) - 1); else npcNext(n);
+    if (then === 'stay') n.state = 'talk'; else if (then === 'leave') npcSendOff(n); else if (then === 'repeat') npcGoto(n, 0); else if (/^step\s+\d+$/.test(then)) npcGoto(n, +then.slice(5) - 1); else npcNext(n);
     return true;
   }
   // one NPC, one frame: its car, its walk, the step it is on
@@ -105,8 +105,8 @@
     if (moving) return;
     if (n.leaving) { npcLeaveTick(n, dt); return; }
     var st = npcStepNow(n);
-    if (!st) { if (n.worker) { npcGoto(n, 0); return; } npcLeave(n); return; }
-    if (n.worker && !npcInHours(n.worker.hours) && st.do !== 'talk') { npcLeave(n); return; }
+    if (!st) { if (n.worker) { npcGoto(n, 0); return; } npcSendOff(n); return; }
+    if (n.worker && !npcInHours(n.worker.hours) && st.do !== 'talk') { npcSendOff(n); return; }
     var first = n.state === 'start'; if (first) { n.state = 'run'; n.t = 0; } n.t += dt;
     switch (st.do) {
       case 'walk': if (first) { var p = npcPoint(n, st.to); if (p) npcWalkTo(n, p); else npcNext(n); } else npcNext(n); break;
@@ -119,7 +119,7 @@
       case 'until': if (!n.untilT || n.untilT <= 0) { n.untilT = +st.every || 0.5; if (npcTest(n, st.test || 'true')) npcNext(n); } else n.untilT -= dt; break;
       case 'run': npcRun(n, st.code); npcNext(n); break;
       case 'event': runHooks('npc', st.name || 'event', n.pub); if (CO.game && CO.game.npcEvent) CO.game.npcEvent(st.name || 'event', n.pub); npcNext(n); break;
-      case 'leave': npcLeave(n); break;
+      case 'leave': npcSendOff(n); break;
       case 'repeat': npcGoto(n, 0); break;
       case 'goto': npcGoto(n, (+st.step || 1) - 1); break;
       default: npcNext(n);
