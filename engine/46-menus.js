@@ -1,7 +1,8 @@
 //@ Co Engine, part 46: menus as data. CO.menus({ theme, start, pause, settings, pages }) describes the start screen, the pause menu, the settings and text pages a button opens, and the engine draws them into the page's dc-start and dc-menu. The editor's Menus tab edits it with a live preview and writes src/00-menus.js. A section left out keeps the page's own markup, so a game opts in a screen at a time.
   // ── Menus as data ─────────────────────────────────────────────────
   // theme:    { accent, panel, text, muted, font, radius, dim, align: 'center' | 'left', width, layout: 'stack' | 'row', image }
-  // start:    { title, subtitle, logo, chips, note, buttons: [{ label, action, primary }] }      image (in theme) is the start backdrop
+  // start:    { title, subtitle, logo, chips, note, keepPage, buttons: [{ label, action, primary }] }   image (in theme) is the backdrop;
+  //           keepPage (on unless false) keeps what else the page's start card held under the buttons: a disclaimer, support links
   // pause:    { title, line, buttons: [{ label, action, primary }] }
   // settings: { hide: ['fov', ...], custom: [{ key, label, type: 'toggle' | 'slider' | 'select', min, max, step, options, value }] }
   // pages:    { name: { title, text } }                                   text is paragraphs and '- ' lists, as in the UI tab
@@ -9,7 +10,7 @@
   // settings, guide, stats, saves, edit, devlink, reset, quit; on both 'page <name>'. Anything else is a dev command or an
   // expression over the kit, as a UI panel button's is. A custom setting lives in SET with the engine's (SET.difficulty), is
   // kept with them, and reaches GAME.setting(key, value) and the 'settings' hook when it changes; setting(key) reads one.
-  var MENUS = { theme: {}, start: null, pause: null, settings: null, pages: {} };
+  var MENUS = { theme: {}, start: null, pause: null, settings: null, pages: {} }, menusPageExtra = null;
   var MENU_THEME = { accent: '#f5b53d', panel: '#121a24', text: '#eef1f5', muted: '#a0acb8', font: 'Bahnschrift, "Segoe UI", Arial, sans-serif', radius: 12, dim: 0.72, align: 'center', width: 440, layout: 'stack', image: '' };
   var MENU_SETTINGS = [['sens', 'Mouse sensitivity'], ['invertY', 'Invert Y'], ['fov', 'Field of view'], ['bob', 'Head bob while walking'], ['quality', 'Quality'], ['sound', 'Sound'], ['vol', 'Volume'], ['film', 'Film look (vignette, grain)'], ['fps', 'Show FPS (F3)']];
   var MENU_ACTIONS = { start: ['play', 'new', 'settings', 'guide', 'slots', 'quit'], pause: ['resume', 'settings', 'guide', 'stats', 'saves', 'edit', 'devlink', 'reset', 'quit'] };
@@ -43,6 +44,7 @@
       '.co-mm .co-mm-btns button:hover, .co-mm .co-mm-body button:hover { border-color: ' + menusRgba(t.accent, 0.7) + '; }' +
       '.co-mm button.primary { background: ' + menusRgba(t.accent, 0.16) + '; border-color: ' + menusRgba(t.accent, 0.5) + '; color: var(--amber); }' +
       '.co-mm .co-mm-body { margin-top: 14px; text-align: left; } .co-mm .co-mm-body .dc-form label { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }' +
+      '.co-mm .co-mm-extra { margin-top: 16px; text-align: left; }' +
       '.co-mm .co-mm-slot { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; } .co-mm .co-mm-slot small { color: var(--muted); }';
   }
   function menusButtons(list, attr) { return (list || []).map(function (b, i) { return '<button ' + attr + '="' + i + '"' + (b.primary ? ' class="primary"' : '') + '>' + esc(b.label || 'Button') + '</button>'; }).join(''); }
@@ -52,11 +54,13 @@
     var st = $('dc-start');
     if (MENUS.start) {
       if (!st) { st = document.createElement('div'); st.id = 'dc-start'; st.className = 'dc-overlay'; document.body.appendChild(st); }
+      if (menusPageExtra === null) menusPageExtra = menusExtraOf(st);   // once, from the page's own card, before it is drawn over
       var s = MENUS.start, keepStats = $('dc-start-stats'), keepNote = $('dc-start-note'), stats = keepStats ? keepStats.innerHTML : '', note = keepNote ? keepNote.textContent : '';
       st.classList.add('co-mm'); st.classList.remove('dim');
       st.innerHTML = '<div class="co-mm-card">' + (s.logo ? '<img class="co-mm-logo" src="' + esc(s.logo) + '" alt="">' : '') + '<h1 class="co-mm-title">' + esc(s.title || document.title || 'A new game') + '</h1>' + (s.subtitle ? '<p class="co-mm-subtitle">' + esc(s.subtitle) + '</p>' : '') +
         '<p id="dc-start-stats"' + (s.chips === false ? ' hidden' : '') + '>' + stats + '</p><p id="dc-start-note" class="dc-sub"' + (s.note === false ? ' hidden' : '') + '>' + esc(note) + '</p>' +
-        '<div class="co-mm-btns" id="co-mm-start-btns">' + menusButtons(s.buttons, 'data-start') + '</div><div class="co-mm-body" id="co-mm-start-body" hidden></div></div>';
+        '<div class="co-mm-btns" id="co-mm-start-btns">' + menusButtons(s.buttons, 'data-start') + '</div><div class="co-mm-body" id="co-mm-start-body" hidden></div>' + (s.keepPage !== false && menusPageExtra ? '<div class="co-mm-extra">' + menusPageExtra + '</div>' : '') + '</div>';
+      if (st.hasAttribute('data-co-menus')) st.style.visibility = '';
       if (!st.coMenusBound) { st.coMenusBound = true; st.addEventListener('click', menusStartClick); st.addEventListener('input', function (e) { settingInput(e.target); }); }
     } else if (st) st.classList.remove('co-mm');
     var mn = $('dc-menu');
@@ -69,6 +73,15 @@
       var body = $('dc-menu-body'); if (body && !body.coMenusBound) { body.coMenusBound = true; body.addEventListener('input', function (e) { settingInput(e.target); }); }
     } else if (mn) mn.classList.remove('co-mm');
   }
+  // what the page's start card holds besides its title, subtitle, chips, note and start button: kept under the made start screen
+  function menusExtraOf(st) {
+    var card = st.querySelector('.card') || st.firstElementChild; if (!card || card.classList.contains('co-mm-card')) return '';
+    var out = ''; Array.prototype.forEach.call(card.children, function (el, i) { if (/^H[12]$/.test(el.tagName) || el.id === 'dc-start-stats' || el.id === 'dc-start-note' || el.id === 'dc-start-btn' || el.querySelector('#dc-start-btn') || (i < 3 && el.classList.contains('dc-sub') && !el.id)) return; out += el.outerHTML; }); return out;
+  }
+  // the page's start card was told to wait for the made one (data-co-menus); with no start screen made, it shows itself
+  function menusPageReady() { var st = $('dc-start'); if (st && st.hasAttribute('data-co-menus') && !MENUS.start) st.style.visibility = ''; }
+  // the editor's menu-first: the game waits at its start screen as a player sees it
+  function menusAtMenu() { var st = $('dc-start'); if (st) { st.hidden = false; if (st.hasAttribute('data-co-menus')) st.style.visibility = ''; } return !ui.started; }
   // the start screen's own body: settings, a page, the guide or the slots, with a way back to the buttons
   function menusStartBody(html) { var b = $('co-mm-start-body'), bs = $('co-mm-start-btns'); if (!b) return; if (html === null) { b.hidden = true; if (bs) bs.hidden = false; return; } b.innerHTML = '<div style="margin:0 0 10px"><button data-start-back="1" class="primary">← Back</button></div>' + html; b.hidden = false; if (bs) bs.hidden = true; }
   function menusPageHtml(name) { var pg = MENUS.pages && MENUS.pages[name]; return pg ? (pg.title ? '<h3 style="margin:0 0 8px">' + esc(pg.title) + '</h3>' : '') + '<div class="dc-how">' + uiTextHtml(pg.text) + '</div>' : '<p>No page called ' + esc(name) + '.</p>'; }
@@ -131,7 +144,7 @@
     if (((CO.cfg && CO.cfg.slots) || 3) > 1) startBtns.push({ label: 'Save slots', action: 'slots' });
     startBtns.push({ label: 'Quit', action: 'quit' });
     return { theme: { accent: css('--amber', MENU_THEME.accent), panel: css('--panel', MENU_THEME.panel), text: css('--text', MENU_THEME.text), muted: css('--muted', MENU_THEME.muted) },
-      start: { title: h1 ? h1.textContent.trim() : document.title, subtitle: '', buttons: startBtns },
+      start: { title: h1 ? h1.textContent.trim() : document.title, subtitle: (document.querySelector('#dc-start .card > .dc-sub:not([id])') || { textContent: '' }).textContent.trim(), buttons: startBtns },
       pause: { title: h2 ? h2.textContent.trim() : 'Paused', buttons: btns.map(function (b) { var o = { label: b.label, action: b.action }; if (b.primary) o.primary = true; return o; }) },
       settings: { hide: [], custom: [] }, pages: {} };
   }

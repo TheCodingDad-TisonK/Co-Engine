@@ -371,6 +371,7 @@ module.exports = `
     const pc = E.packCode(['crateStack', 'lever']); ok(pc.ids.length === 2 && pc.code.indexOf('defProp("crateStack"') >= 0 && pc.code.indexOf('"shop":false') >= 0, 'packCode writes a pack from the game\u2019s own props'); }
   // the menu maker (0.12.0): CO.menus draws the start screen, the pause menu and the settings from data; a custom setting lives in SET and reaches the game; pages open; the editor seeds from the page and writes src/00-menus.js
   { const E = T.editor; if (T.ui.menuOpen) T.closeMenu();
+    { const card = document.querySelector('#dc-start .card'); card.insertAdjacentHTML('beforeend', '<div class="dc-disclaimer">Not a product of anyone else</div>'); const st0 = document.getElementById('dc-start'); st0.setAttribute('data-co-menus', ''); st0.style.visibility = 'hidden'; }
     const seed = E.menusSeed(); ok(seed.start && seed.start.title === 'Co Engine sample' && seed.pause.buttons.some((b) => b.action === 'resume') && seed.settings.hide.length === 0, 'the seed reads the page: the title ' + seed.start.title + ', ' + seed.pause.buttons.length + ' pause buttons');
     let heard = null; const prevSetting = T.CO.game.setting; T.CO.game.setting = (k, v) => { heard = [k, v]; };
     seed.start.subtitle = 'A test of the menu maker'; seed.start.buttons.push({ label: 'Credits', action: 'page credits' }, { label: 'Pay', action: 'cash 7' });
@@ -379,6 +380,8 @@ module.exports = `
     seed.pages = { credits: { title: 'Credits', text: 'Made by the sample.' } }; seed.theme.accent = '#33aaff'; seed.theme.align = 'left';
     E.menusSet(seed);
     const st = document.getElementById('dc-start'); ok(st.classList.contains('co-mm') && /A test of the menu maker/.test(st.textContent) && st.querySelectorAll('[data-start]').length === seed.start.buttons.length && !!document.getElementById('dc-start-stats'), 'the start screen is drawn from the data, with the save chips kept: ' + st.querySelectorAll('[data-start]').length + ' buttons');
+    ok(/Not a product of anyone else/.test(st.textContent) && !!st.querySelector('.co-mm-extra .dc-disclaimer'), 'the made start screen keeps what else the page card held (a disclaimer) under its buttons');
+    ok(st.style.visibility === '', 'the page start card that waited (data-co-menus) shows once the made one is drawn');
     ok(/#33aaff/.test(document.getElementById('co-mm-style').textContent) && /flex-start/.test(document.getElementById('co-mm-style').textContent), 'the theme sets the accent and puts the menus on the left');
     ok(T.SET.difficulty === 'Normal' && T.SET.gore === false, 'a custom setting starts at its value in SET: ' + T.SET.difficulty);
     E.menusPreview('start'); const credits = [...st.querySelectorAll('[data-start]')].find((b) => b.textContent === 'Credits'); credits.click(); ok(/Made by the sample/.test(document.getElementById('co-mm-start-body').innerHTML) && document.getElementById('co-mm-start-btns').hidden, 'a start button opens its page');
@@ -395,6 +398,7 @@ module.exports = `
     [...mn.querySelectorAll('.dc-menu-btns button')].find((b) => b.getAttribute('data-menu') === 'resume').click(); ok(!T.ui.menuOpen, 'Resume still closes the menu');
     const code = E.menusCode(); ok(code.indexOf('CO.menus(') > 0 && code.indexOf('"difficulty"') > 0 && code.indexOf('Taking a break') > 0, 'the menus are kept as code for src/00-menus.js: ' + code.length + ' characters');
     E.menusSet({ start: { title: 'Two' } }); E.undo(); ok(E.menus().pause && E.menus().pause.title === 'Taking a break', 'undo brings the last menus back');
+    const waits = E.atMenu(); ok(!document.getElementById('dc-start').hidden && waits === false, 'menu first shows the start screen (the sample has already entered, so it says so)'); document.getElementById('dc-start').hidden = true;
     E.menusPreview(null); T.CO.game.setting = prevSetting; }
   // the NPC creator (0.12.0): characters and their steps, a spawner that brings one by car, a worker at a post; talk waits for the player, a choice pays and sends them off, the game hears events, and it all keeps as code
   { const E = T.editor; let heard = []; const prevEv = T.CO.game.npcEvent; T.CO.game.npcEvent = (name, npc, extra) => { heard.push(name + (extra ? ':' + extra : '')); };

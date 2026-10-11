@@ -84,6 +84,58 @@ function runScript(dir, script) {
     child.on('error', (e) => { delete running[key]; log('could not run npm: ' + e.message, 'err'); resolve(false); });
   });
 }
+// a command in a game's folder, its lines into the editor's log (the npm install of an engine update)
+function runCmd(dir, cmd) {
+  return new Promise((resolve) => {
+    log('> ' + cmd + '   (' + dir + ')', 'cmd');
+    const env = Object.assign({}, process.env); delete env.ELECTRON_RUN_AS_NODE;
+    const child = spawn(cmd, { cwd: dir, shell: true, env: env });
+    const pipe = (stream, kind) => { let buf = ''; stream.on('data', (c) => { buf += c.toString(); const lines = buf.split(/\r?\n/); buf = lines.pop(); lines.forEach((l) => { if (l.trim()) log(l, kind); }); }); stream.on('end', () => { if (buf.trim()) log(buf, kind); }); };
+    pipe(child.stdout, 'out'); pipe(child.stderr, 'err');
+    child.on('close', (code) => { log(cmd.split(' ').slice(0, 2).join(' ') + ' exited with ' + code, code ? 'err' : 'ok'); resolve(code === 0); });
+    child.on('error', (e) => { log('could not run ' + cmd + ': ' + e.message, 'err'); resolve(false); });
+  });
+}
+// which engine a game runs against this editor's: an npm game pins a tag of the engine repo (package.json), a game made with New
+// carries a copy of the engine's parts (engine/VERSION says which). older is true when this editor's engine is newer.
+function verNum(v) { const m = /(\d+)\.(\d+)\.(\d+)/.exec(String(v || '')); return m ? (+m[1]) * 1e6 + (+m[2]) * 1e3 + (+m[3]) : 0; }
+function engineState(dir) {
+  const out = { editor: PKG_VERSION, kind: 'none', game: null, older: false };
+  try {
+    const pkg = path.join(dir, 'package.json'), co = path.join(dir, 'co.json');
+    if (fs.existsSync(pkg)) { const p = JSON.parse(fs.readFileSync(pkg, 'utf8')), dep = (p.dependencies || {})['co-engine'] || (p.devDependencies || {})['co-engine']; if (dep) { const m = /^(.*)#v?(\d+\.\d+\.\d+)$/.exec(dep); out.kind = 'npm'; out.repo = m ? m[1] : dep; out.game = m ? m[2] : null; } }
+    if (out.kind === 'none' && fs.existsSync(co)) { const c = JSON.parse(fs.readFileSync(co, 'utf8')); if (c.engine === 'engine') { out.kind = 'copy'; try { out.game = fs.readFileSync(path.join(dir, 'engine', 'VERSION'), 'utf8').trim(); } catch (e) { out.game = null; } } }
+    if (out.kind === 'npm') { try { out.installed = JSON.parse(fs.readFileSync(path.join(dir, 'node_modules', 'co-engine', 'package.json'), 'utf8')).version; } catch (e) { out.installed = null; } }
+    out.older = out.kind !== 'none' && verNum(out.game) < verNum(PKG_VERSION);
+  } catch (e) { out.error = e.message; }
+  return out;
+}
+ipcMain.handle('engine-state', (e, dir) => engineState(dir));
+// bring a game onto this editor's engine: pin the matching tag and install it (an npm game), or copy the parts in (a game made with New); then build
+ipcMain.handle('engine-update', async (e, dir) => {
+  const st = engineState(dir); if (st.kind === 'none') return { error: 'this game does not use the engine' };
+  if (st.kind === 'npm') {
+    const spec = 'co-engine@' + (st.repo || 'github:TheCodingDad-TisonK/Co-Engine') + '#v' + PKG_VERSION;
+    log('engine: updating ' + path.basename(dir) + ' from ' + (st.game || '?') + ' to ' + PKG_VERSION, 'ok');
+    if (!(await runCmd(dir, 'npm install "' + spec + '"'))) return { error: 'npm install failed: see the log' };
+    const d = describe(dir); if (d.scripts && d.scripts.build && !(await runScript(dir, 'build'))) return { error: 'the build failed: see the log' };
+  } else {
+    fs.readdirSync(ENGINE_DIR).filter((n) => /^\d\d-.*\.js$/.test(n)).forEach((n) => fs.copyFileSync(path.join(ENGINE_DIR, n), path.join(dir, 'engine', n)));
+    fs.writeFileSync(path.join(dir, 'engine', 'VERSION'), PKG_VERSION + '\n');
+    if (!buildEngineGame(dir, false)) return { error: 'the build failed: see the log' };
+  }
+  log('engine: ' + path.basename(dir) + ' now runs engine ' + PKG_VERSION, 'ok');
+  return { ok: true, state: engineState(dir) };
+});
+// the page's start card stays hidden until the engine draws the made one, so it does not flash up while the game loads
+ipcMain.handle('page-menus', (e, dir, on) => {
+  const d = describe(dir); if (!d.page) return { error: 'no page' }; const p = path.join(dir, d.page); let html = fs.readFileSync(p, 'utf8');
+  const re = /<div id="dc-start"([^>]*)>/, m = re.exec(html); if (!m) return { error: 'the page has no dc-start' };
+  let attrs = m[1].replace(/\s+data-co-menus(="[^"]*")?/g, '').replace(/\s+style="visibility:hidden"/g, '');
+  if (on) attrs += ' data-co-menus style="visibility:hidden"';
+  const next = html.replace(re, '<div id="dc-start"' + attrs + '>'); if (next === html) return { ok: true, changed: false };
+  fs.writeFileSync(p, next); log('menus: ' + (on ? 'the page\'s own start card now waits for the made one' : 'the page shows its own start card again'), 'ok'); return { ok: true, changed: true };
+});
 function openGame(dir, page, dev) {
   const gw = new BrowserWindow({ width: 1280, height: 760, backgroundColor: '#0b0f14', title: path.basename(dir), autoHideMenuBar: true, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
   gw.loadFile(path.join(dir, page), dev ? { query: { dev: '1' } } : undefined);

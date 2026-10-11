@@ -155,6 +155,8 @@ Each milestone ends with every suite green and a tag.
 
 **v0.9.1 (2026-10-10):** a selection box (Shift and a drag in the scene camera) picks a building and everything in it at once; doors move with the item they are built in; an item can be marked moves-only so a game's rules can follow a building's place.
 
+**v0.12.1 (2026-10-11):** the editor keeps every game on its engine: a bar names an older pin and Update installs the matching tag and builds. menu first opens a game at its start screen. The made start screen keeps the page card's disclaimer and links, and the page's own card no longer flashes up first. Depot Co. and Grow Co., left on 0.8.0, move to the current engine.
+
 **v0.12.0 (2026-10-10):** the menu maker and the NPC creator. The Menus tab makes the start screen, the pause menu, the settings (the engine's, and switches, sliders and lists of a game's own) and text pages in a theme, live in the viewport, saved into src/00-menus.js; a new game starts on it. The NPCs tab makes characters and what they do step by step (walk, say, talk with choices, wait, wander, wait until, run, tell the game, leave), spawners that bring them on a clock, by car or on foot, and workers who keep a place through their hours, saved into src/00-npcs.js.
 
 **v0.11.0 (2026-10-10):** traffic that follows the roads a game lays. Road pieces carry lanes that join where the pieces meet; roadTraffic keeps cars on the network, turning at junctions, one approach at a time through a junction with room on the far side, giving way on a roundabout ring that takes a car per 10 m, slowing for bends, never locking two cars against each other. The dev command lanes draws the network. Garage Co.'s road moves onto it.
