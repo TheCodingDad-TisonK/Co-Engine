@@ -13,8 +13,14 @@
   // The layout a game ships: where its props stand (over what the definitions say) and the copies the editor placed. The editor writes it
   // into src/00-layout.js as CO.layout({ props: { id: { x, z, rot, h, hidden } }, placed: [{ id, type, x, z, rot, h }] }), the first part
   // in the build so the boot sees it. A player's save still wins over it, as it wins over the definitions.
-  var LAYOUT = { props: {}, placed: [] };
-  CO.layout = function (L) { if (!L) return LAYOUT; if (L.props) for (var k in L.props) LAYOUT.props[k] = L.props[k]; if (L.placed) L.placed.forEach(function (p) { if (p && p.id && !placedById(p.id)) LAYOUT.placed.push(p); }); return LAYOUT; };
+  // 0.13.0: one layout a world, as with the world edits (part 26). A game that names the world a page built (GAME.worldVariant) keeps each
+  // world's layout apart, all written into the one src/00-layout.js as CO.layout({ ... }, "stage 5"). CO.layout(L) with no name adds to the
+  // current layout: the "" one while src/ loads, the page's own world once layoutPick (90-boot, before the save and the build) has run.
+  var LAYOUT_SETS = {};
+  function layoutSet(v) { v = v === undefined || v === null ? '' : String(v); return LAYOUT_SETS[v] || (LAYOUT_SETS[v] = { props: {}, placed: [] }); }
+  var LAYOUT = layoutSet('');
+  CO.layout = function (L, variant) { var T = variant === undefined ? LAYOUT : layoutSet(variant); if (!L) return T; if (L.props) for (var k in L.props) T.props[k] = L.props[k]; if (L.placed) L.placed.forEach(function (p) { if (p && p.id && !T.placed.some(function (q) { return q.id === p.id; })) T.placed.push(p); }); return T; };
+  function layoutPick() { LAYOUT = layoutSet(worldVariantOf()); return LAYOUT; }
   function placedById(id) { for (var i = 0; i < LAYOUT.placed.length; i++) if (LAYOUT.placed[i].id === id) return LAYOUT.placed[i]; return null; }
   function numOr(v, d) { return typeof v === 'number' ? v : d; }
   function defProp(id, def) { if (CO.game && CO.game.resolveDef) CO.game.resolveDef(id, def); def.id = id; if (MODEL_OVER[id]) def.build = MODEL_OVER[id]; PROPS[id] = def; PROP_ORDER.push(id); return def; }

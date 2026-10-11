@@ -2,10 +2,16 @@
   // ── World items ───────────────────────────────────────────────────
   // A key names an item by what it is and where the game built it ("lamp post@12,6", "mesh plane 34x19.2@0,13.6"), so it survives a
   // reload and most changes to the game's code. An edit is { x, y, z, ry (degrees), sx, sy, sz, hidden }, every field optional.
-  var WORLD_EDITS = {}, WORLD_ITEMS = [], WORLD_PARENT = null, WORLD_COPIES = [];
+  // 0.13.0: a game that builds more than one world (Depot's six building stages, each a page load of its own) names the one a page built
+  // in GAME.worldVariant (a string, or a function asked once the save is loaded and again after the build). Each world keeps its own edits and copies, and the editor writes
+  // every world's set into the one src/00-world.js as CO.world({ ... }, "stage 5"). A game that names none has one world, the "" set.
+  var WORLD_SETS = {}, WORLD_VARIANT = '', WORLD_ITEMS = [], WORLD_PARENT = null;
+  function worldSet(v) { v = v === undefined || v === null ? '' : String(v); return WORLD_SETS[v] || (WORLD_SETS[v] = { edits: {}, copies: [] }); }
+  var WORLD_EDITS = worldSet('').edits, WORLD_COPIES = worldSet('').copies;   // the set of the world this page built: worldEditsApply points them at it
   // copies of world items (0.9.4): { id, of (the original's key), x, y, z, ry (degrees), sx, sy, sz }, kept in src/00-world.js
-  CO.worldCopies = function (list) { (list || []).forEach(function (c) { if (c && c.id && c.of && !WORLD_COPIES.some(function (k) { return k.id === c.id; })) WORLD_COPIES.push(c); }); return WORLD_COPIES; };
-  CO.world = function (edits) { if (edits && typeof edits === 'object') for (var k in edits) WORLD_EDITS[k] = edits[k]; return WORLD_EDITS; };
+  CO.worldCopies = function (list, variant) { var set = worldSet(variant); (list || []).forEach(function (c) { if (c && c.id && c.of && !set.copies.some(function (k) { return k.id === c.id; })) set.copies.push(c); }); return set.copies; };
+  CO.world = function (edits, variant) { var set = worldSet(variant); if (edits && typeof edits === 'object') for (var k in edits) set.edits[k] = edits[k]; return set.edits; };
+  function worldVariantOf() { var g = CO.game || {}, v = typeof g.worldVariant === 'function' ? g.worldVariant() : g.worldVariant; return v === undefined || v === null ? '' : String(v); }
   // a kit call builds into a group of its own, centred on what it built and standing on the ground, so it turns and resizes about itself
   // a game marks an item movesOnly (o.userData.movesOnly = true) when its rules follow where it stands but not a turn or a new size
   function worldItem(kind, fn, parent) {
@@ -84,7 +90,7 @@
     o.visible = !e.hidden; o.updateMatrixWorld(true); worldSolids(o); shadowDirty = true;
   }
   // after the build and before the bake: the saved edits laid on the world, then the copies built
-  function worldEditsApply() { worldScan(); WORLD_ITEMS.forEach(function (o) { var e = WORLD_EDITS[o.userData.worldKey]; if (e) worldLay(o, e); }); WORLD_COPIES.forEach(function (c) { worldCopyBuild(c); }); }
+  function worldEditsApply() { WORLD_VARIANT = worldVariantOf(); var set = worldSet(WORLD_VARIANT); WORLD_EDITS = set.edits; WORLD_COPIES = set.copies; worldScan(); WORLD_ITEMS.forEach(function (o) { var e = WORLD_EDITS[o.userData.worldKey]; if (e) worldLay(o, e); }); WORLD_COPIES.forEach(function (c) { worldCopyBuild(c); }); }
   // a copy: the original's meshes cloned (they share its geometry and materials, so a copy costs little), its solids cloned and laid where
   // the copy stands. What the original does (a door that opens, a prompt) stays with the original: a copy is its look and its solids
   function worldCopyBuild(c) {
@@ -112,12 +118,15 @@
     if (Object.keys(e).length) WORLD_EDITS[key] = e; else delete WORLD_EDITS[key];
     worldSolids(o); return e;
   }
-  // the part the editor writes: src/00-world.js, or nothing when the world stands as the game builds it
+  // the part the editor writes: src/00-world.js, or nothing when the world stands as the game builds it. Every world's set is written,
+  // not only the one this page built, so editing one stage never drops what another stage keeps. The "" set comes first, as before 0.13
   function worldCode() {
-    var keys = Object.keys(WORLD_EDITS).sort(); if (!keys.length && !WORLD_COPIES.length) return '';
     var obj = function (o) { return JSON.stringify(o).replace(/"(\w+)":/g, '$1: ').replace(/,(?=\w+: )/g, ', ').replace(/^\{/, '{ ').replace(/\}$/, ' }'); };
     var lines = ['//@ the world the editor changed: what was moved, turned, resized, removed or copied of what the game builds straight into its world. Written by the Co Engine editor; it sorts first in src/ and is laid on the world as it is built. A key is the thing and where the game built it; delete a line to put that thing back, or to take a copy away.'];
-    if (keys.length) { lines.push('  CO.world({'); keys.forEach(function (k) { lines.push('    ' + JSON.stringify(k) + ': ' + obj(WORLD_EDITS[k]) + ','); }); lines.push('  });'); }
-    if (WORLD_COPIES.length) { lines.push('  CO.worldCopies(['); WORLD_COPIES.forEach(function (c) { lines.push('    ' + obj(c) + ','); }); lines.push('  ]);'); }
-    return lines.join('\n') + '\n';
+    Object.keys(WORLD_SETS).sort().forEach(function (v) {
+      var set = WORLD_SETS[v], keys = Object.keys(set.edits).sort(), tail = v ? ', ' + JSON.stringify(v) + ');' : ');';
+      if (keys.length) { lines.push('  CO.world({'); keys.forEach(function (k) { lines.push('    ' + JSON.stringify(k) + ': ' + obj(set.edits[k]) + ','); }); lines.push('  }' + tail); }
+      if (set.copies.length) { lines.push('  CO.worldCopies(['); set.copies.forEach(function (c) { lines.push('    ' + obj(c) + ','); }); lines.push('  ]' + tail); }
+    });
+    return lines.length > 1 ? lines.join('\n') + '\n' : '';
   }

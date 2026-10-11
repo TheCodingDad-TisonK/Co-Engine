@@ -17,6 +17,7 @@
     GAME = GAME || {}; if (!CO.game) CO.game = {}; for (var k in GAME) if (!(k in CO.game)) CO.game[k] = GAME[k]; CO.gameVersion = GAME.version || window[GAME.versionGlobal || 'GAME_VERSION'] || CO.gameVersion;
     loaded = loadSave(GAME.freshState || function () { return { day: 1, time: CAL.dayStart, bank: 0, log: [], ledger: [], stats: { earned: 0, spent: 0 }, layout: {}, custom: [], hdoors: {} }; }, GAME.migrate);
     if (GAME.afterLoad) GAME.afterLoad(loaded);
+    layoutPick();   // part 20: the layout of the world this page builds (GAME.worldVariant), before anything is built
     runHooks('beforeBuild', loaded);
     terrainBuild();
     if (GAME.buildWorld) GAME.buildWorld(loaded);

@@ -155,6 +155,8 @@ Each milestone ends with every suite green and a tag.
 
 **v0.9.1 (2026-10-10):** a selection box (Shift and a drag in the scene camera) picks a building and everything in it at once; doors move with the item they are built in; an item can be marked moves-only so a game's rules can follow a building's place.
 
+**v0.13.0 (2026-10-11):** one world a stage. A game names the world a page builds (`GAME.worldVariant`); the world edits, world copies and shipped layout are kept per world, and the editor writes every world into `src/00-world.js` and `src/00-layout.js` so editing one never drops another. Depot Co. names its six building stages: edits made at stage 5 no longer show at the shed.
+
 **v0.12.2 (2026-10-11):** three engine names that Grow Co. also declares (ROADS, npcLeave, wr) are renamed (ROADNET, npcSendOff, worldRound), so a game's own names never clash with the engine's.
 
 **v0.12.1 (2026-10-11):** the editor keeps every game on its engine: a bar names an older pin and Update installs the matching tag and builds. menu first opens a game at its start screen. The made start screen keeps the page card's disclaimer and links, and the page's own card no longer flashes up first. Depot Co. and Grow Co., left on 0.8.0, move to the current engine.

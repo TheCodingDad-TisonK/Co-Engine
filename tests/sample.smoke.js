@@ -139,7 +139,14 @@ module.exports = `
     { E.set('lever', 'prop.h', 0.5); const lg = T.propInst ? null : null; const yy = E.inspect('lever').position[1]; ok(Math.abs(yy - 0.5) < 1e-6, 'a prop raised to 0.5 stands 0.5 up after its rebuild (0.6.0): y ' + yy); E.set('lever', 'prop.h', 0); ok(E.inspect('lever').position[1] === 0, 'and back on the floor at 0'); }
     E.set('wallSign', 'prop.hidden', true); ok(E.layout().props.wallSign && E.layout().props.wallSign.hidden === true && /hidden: true/.test(E.layout().code), 'a hidden prop is written as hidden'); E.set('wallSign', 'prop.hidden', false); ok(!E.layout().props.wallSign, 'and unhidden it is back to its definition');
     E.remove('plChair'); E.undo(); ok(!!node('plChair'), 'a placed copy hides and comes back');
-    ok(E.set('plChair', 'prop.rot', 2) === 'ok' && E.inspect('plChair').prop.rot === 2, 'a placed copy turns through set after the layout adopted it (0.4.1)'); E.set('plChair', 'prop.reset', 1); }
+    ok(E.set('plChair', 'prop.rot', 2) === 'ok' && E.inspect('plChair').prop.rot === 2, 'a placed copy turns through set after the layout adopted it (0.4.1)'); E.set('plChair', 'prop.reset', 1);
+    // one layout a world (0.13.0): another world's layout leaves this page's props alone, is written back as it was read, and is the layout when that world is built
+    const lw = E.run('(function () { var g = CO.game, was = g.worldVariant, base = LAYOUT, out = {};' +
+      ' CO.layout({ props: { lever: { x: 3, z: -7, rot: 0, h: 0 } } }, "far"); out.here = propDefault("lever").x; out.code = editorLayout().code;' +
+      ' g.worldVariant = "far"; layoutPick(); out.there = propDefault("lever").x;' +
+      ' g.worldVariant = was; LAYOUT = base; delete LAYOUT_SETS.far; out.after = editorLayout().code; return out; })()');
+    ok(lw && lw.here === 7.5 && lw.there === 3, 'a layout kept for another world moves nothing here and is the layout there: here ' + (lw && lw.here) + ', there ' + (lw && lw.there));
+    ok(lw && lw.code.indexOf('"lever": { x: 7.5') > 0 && lw.code.indexOf('}, "far");') > lw.code.indexOf('"lever": { x: 7.5') && lw.code.indexOf('"lever": { x: 3') > 0 && lw.after.indexOf('"far"') < 0 && lw.after.split('CO.layout(').length === 2, 'the editor writes the layout of every world, this one first, and a game with one world writes one'); }
 
   // M8 (0.2.0): the terrain and the material graph
   { const E = T.editor, CO2 = T.CO; const node = (id) => { const tr = E.tree(); for (const k in tr.props) { const n = tr.props[k].find((p) => p.id === id); if (n) return n; } return null; };
@@ -242,6 +249,18 @@ module.exports = `
     const ap = E.run('(function () { var o = worldByKey(' + JSON.stringify(lamp.key) + '), b = o.userData.worldBase; o.position.set(b.x, b.y, b.z); o.rotation.y = b.ry; o.scale.set(1, 1, 1); worldEditsApply(); return [Math.round(o.position.x * 100) / 100, Math.round(o.rotation.y * 180 / Math.PI), o.scale.y]; })()');
     ok(Math.abs(ap[0] - li.position[0] - 3) < 0.02 && ap[1] === 90 && ap[2] === 1.5, 'a saved edit is laid on the world as it is built: ' + ap.join(', '));
     E.set(lamp.id, 'world.reset', 1); E.set(fence.id, 'world.reset', 1); ok(E.worldCode() === '', 'Put it back leaves nothing to keep'); }
+  // one world a stage (0.13.0): a game that names the world a page built (GAME.worldVariant) keeps each world's edits apart, and the editor writes them all
+  { const E = T.editor, lamp = E.worldItems().find((i) => /lamp post/.test(i.name));
+    const r = E.run('(function () { var k = ' + JSON.stringify(lamp.key) + ', o = worldByKey(k), b = o.userData.worldBase, g = CO.game, was = g.worldVariant, out = {};' +
+      ' g.worldVariant = "big"; worldEditsApply(); o.position.x = b.x + 4; worldRecord(o);' +
+      ' g.worldVariant = function () { return "small"; }; o.position.x = b.x; worldEditsApply(); out.small = Math.round((o.position.x - b.x) * 100) / 100; out.smallEdited = !!WORLD_EDITS[k]; out.variant = CO.editor.worldVariant();' +
+      ' g.worldVariant = "big"; worldEditsApply(); out.big = Math.round((o.position.x - b.x) * 100) / 100; out.code = worldCode();' +
+      ' WORLD_SETS = {}; eval(out.code); out.back = !!(WORLD_SETS.big && WORLD_SETS.big.edits[k] && !WORLD_SETS[""] && !WORLD_SETS.small);' +
+      ' WORLD_SETS = {}; g.worldVariant = was; o.position.x = b.x; worldEditsApply(); worldSolids(o); out.after = worldCode();' +
+      ' return out; })()');
+    ok(r && r.small === 0 && !r.smallEdited && r.variant === 'small' && r.big === 4, 'an edit made in one world stays out of another: ' + JSON.stringify(r && { big: r.big, small: r.small, variant: r.variant, err: r.__err }));
+    ok(r && r.code.indexOf('}, "big");') > 0 && r.code.indexOf(JSON.stringify(lamp.key)) > 0 && r.code.indexOf('  });') < 0 && r.back, 'the editor writes the world it belongs to, and the file reads back into that world');
+    ok(r && r.after === '', 'a game that names no world is back to the one world'); }
   // a door is a world item too (0.9.1): moved, its leaf, frame and the solid it closes move with it; an item marked movesOnly will not turn
   { const E = T.editor, door = E.worldItems().find((i) => /^door/.test(i.name));
     const dsol = () => E.run('(function () { var out = []; doorSolids(out); return out.length ? Math.round(out[0].x0 * 100) / 100 : null; })()');
