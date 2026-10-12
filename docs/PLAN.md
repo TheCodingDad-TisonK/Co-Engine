@@ -155,6 +155,8 @@ Each milestone ends with every suite green and a tag.
 
 **v0.9.1 (2026-10-10):** a selection box (Shift and a drag in the scene camera) picks a building and everything in it at once; doors move with the item they are built in; an item can be marked moves-only so a game's rules can follow a building's place.
 
+**v0.13.1 (2026-10-12):** a release puts only its own installer on the Desktop. electron-builder never clears a game's `dist/`, and the editor's Release copied every `.exe` in it, so every earlier version came back to the Desktop with each release. It now clears the earlier installers out of `dist/` before it builds and copies only the one with the release's version in its name.
+
 **v0.13.0 (2026-10-11):** one world a stage. A game names the world a page builds (`GAME.worldVariant`); the world edits, world copies and shipped layout are kept per world, and the editor writes every world into `src/00-world.js` and `src/00-layout.js` so editing one never drops another. Depot Co. names its six building stages: edits made at stage 5 no longer show at the shed.
 
 **v0.12.2 (2026-10-11):** three engine names that Grow Co. also declares (ROADS, npcLeave, wr) are renamed (ROADNET, npcSendOff, worldRound), so a game's own names never clash with the engine's.

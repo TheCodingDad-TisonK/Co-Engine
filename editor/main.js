@@ -264,6 +264,21 @@ ipcMain.handle('release-preflight', (e, dir) => {
     return { name: pkg.productName || d.name, version, next: { patch: bump(version, 'patch'), minor: bump(version, 'minor'), major: bump(version, 'major') }, branch, remote, dirty, lastTag, hasChangelog: fs.existsSync(path.join(dir, 'CHANGELOG.md')), canInstaller: !!(d.scripts && d.scripts.installer), gh: !!findExe('gh') };
   } catch (e2) { return { error: e2.message }; }
 });
+// the installers in a game's dist/: electron-builder never clears the folder, so it still holds every earlier version's installer.
+// A release clears them out before it builds (clearOldInstallers) and puts only the installer with its own version in the name on the
+// Desktop (releaseInstallers); a name without the version falls back to what this build wrote (newer than since)
+function clearOldInstallers(dist) {
+  if (!fs.existsSync(dist)) return 0; let n = 0;
+  fs.readdirSync(dist).filter((m) => /\.exe(\.blockmap)?$/i.test(m)).forEach((m) => { try { fs.unlinkSync(path.join(dist, m)); if (/\.exe$/i.test(m)) n++; } catch (e) {} });
+  return n;
+}
+function releaseInstallers(dist, version, since) {
+  if (!fs.existsSync(dist)) return [];
+  const exes = fs.readdirSync(dist).filter((m) => /\.exe$/i.test(m) && !/^__/.test(m)), ver = new RegExp('(^|[^0-9])' + version.replace(/\./g, '\\.') + '(?![0-9])');
+  const named = exes.filter((m) => ver.test(m));
+  if (named.length) return named;
+  return exes.filter((m) => { try { return fs.statSync(path.join(dist, m)).mtimeMs >= since; } catch (e) { return false; } });
+}
 ipcMain.handle('release', async (e, q) => {
   const dir = q.dir, d = describe(dir), steps = [];
   const say = (t, kind) => { steps.push(t); log('release: ' + t, kind || 'cmd'); };
@@ -287,7 +302,7 @@ ipcMain.handle('release', async (e, q) => {
     if (d.kind === 'engine') { if (!buildEngineGame(dir, false)) return fail('the build failed'); } else if (d.scripts && d.scripts.build) { if (!(await runScript(dir, 'build'))) return fail('npm run build failed'); }
     if (d.scripts && d.scripts.check) { if (!(await runScript(dir, 'check'))) return fail('npm run check failed'); }
     let installer = false;
-    if (q.installer && d.scripts && d.scripts.installer) { say('building the installer'); if (!(await runScript(dir, 'installer'))) return fail('npm run installer failed'); const dist = path.join(dir, 'dist'); const exes = fs.existsSync(dist) ? fs.readdirSync(dist).filter((n) => /\.exe$/i.test(n) && !/^__/.test(n)) : []; const desk = app.getPath('desktop'); exes.forEach((n) => { try { fs.copyFileSync(path.join(dist, n), path.join(desk, n)); say('on the Desktop: ' + n, 'ok'); installer = true; } catch (e2) { say('could not copy ' + n + ': ' + e2.message, 'err'); } }); }
+    if (q.installer && d.scripts && d.scripts.installer) { say('building the installer'); const dist = path.join(dir, 'dist'), gone = clearOldInstallers(dist), t0 = Date.now(); if (gone) say('cleared ' + gone + ' earlier installer' + (gone === 1 ? '' : 's') + ' out of dist/', 'out'); if (!(await runScript(dir, 'installer'))) return fail('npm run installer failed'); const exes = releaseInstallers(dist, q.version, t0); if (!exes.length) say('no installer for ' + q.version + ' in dist/: nothing put on the Desktop', 'err'); const desk = app.getPath('desktop'); exes.forEach((n) => { try { fs.copyFileSync(path.join(dist, n), path.join(desk, n)); say('on the Desktop: ' + n, 'ok'); installer = true; } catch (e2) { say('could not copy ' + n + ': ' + e2.message, 'err'); } }); }
     // 4. commit and tag
     git(dir, ['add', '-A']);
     const staged = git(dir, ['status', '--porcelain']);
