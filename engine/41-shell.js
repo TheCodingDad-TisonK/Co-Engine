@@ -32,6 +32,28 @@
   // The catalogue kind is the engine's. Buttons in a panel carry data-act and data-arg; the engine takes the catalogue's restore
   // and buy, the game takes the rest in CO.game.panelAct(act, arg). Tabs carry data-tab.
   var panel = { kind: null, tab: null };
+  var panelDrag = null;
+  function panelPositionLoad() {
+    try { var p = JSON.parse(localStorage.getItem('co-panel-position') || 'null'); if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) { document.documentElement.style.setProperty('--panel-left', p.x + 'px'); document.documentElement.style.setProperty('--panel-top', p.y + 'px'); } } catch (e) {}
+  }
+  function panelDragStart(e) {
+    if (!e || e.button !== 0 || e.target.closest('button, input, select, textarea, a')) return;
+    var el = $('dc-panel'), r = el && el.getBoundingClientRect(); if (!r) return;
+    panelDrag = { dx: e.clientX - (r.left + r.width / 2), dy: e.clientY - (r.top + r.height / 2) };
+    el.style.transform = 'translate(-50%, -50%)'; el.classList.add('dragging');
+    e.preventDefault();
+  }
+  function panelDragMove(e) {
+    if (!panelDrag) return;
+    var el = $('dc-panel'); if (!el) return;
+    var w = el.offsetWidth, h = el.offsetHeight, x = Math.max(w / 2 + 8, Math.min(window.innerWidth - w / 2 - 8, e.clientX - panelDrag.dx)), y = Math.max(h / 2 + 8, Math.min(window.innerHeight - h / 2 - 8, e.clientY - panelDrag.dy));
+    document.documentElement.style.setProperty('--panel-left', x + 'px'); document.documentElement.style.setProperty('--panel-top', y + 'px');
+  }
+  function panelDragEnd() {
+    if (!panelDrag) return; panelDrag = null;
+    var el = $('dc-panel'); if (el) el.classList.remove('dragging');
+    try { var r = el.getBoundingClientRect(); localStorage.setItem('co-panel-position', JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 })); } catch (e) {}
+  }
   function openPanel(kind, tab) {
     panel.kind = kind; panel.tab = tab || null; ui.panelOpen = true; var el = $('dc-panel'); if (el) el.hidden = false; if (ui.scanOpen && CO.game && CO.game.scanToggle) CO.game.scanToggle(false);
     ui.suppressMenu = true; try { document.exitPointerLock(); } catch (e) {}
@@ -40,6 +62,7 @@
   function closePanel() { if (!ui.panelOpen) return; ui.panelOpen = false; var el = $('dc-panel'); if (el) el.hidden = true; panel.kind = null; hudDirty = true; lockPointer(); }
   function renderPanel() {
     if (!ui.panelOpen) return;
+    panelPositionLoad();
     var spec = panel.kind === 'catalogue' ? { title: 'Catalogue · build mode', tabs: [], body: catalogueHtml() } : (CO.game && CO.game.panel ? CO.game.panel(panel.kind, panel.tab) : null);
     if (!spec && panel.kind === 'npc') spec = npcPanelSpec();   /* part 47: an NPC's words and choices */
     if (!spec) spec = uiPanelSpec(panel.kind);   /* a panel the editor's UI tab described */
@@ -147,7 +170,12 @@
   function coSetupShell() {
     menusPageReady();   // part 46
     var pc = $('dc-panel-close'); if (pc) pc.addEventListener('click', closePanel);
-    var pn = $('dc-panel'); if (pn) pn.addEventListener('click', function (e) { var tb = e.target.closest('[data-tab]'); if (tb) { panel.tab = tb.getAttribute('data-tab'); renderPanel(); sfx('click'); return; } var b = e.target.closest('[data-act]'); if (!b || b.disabled) return; panelAct(b.getAttribute('data-act'), b.getAttribute('data-arg')); });
+    var pn = $('dc-panel'); if (pn) {
+      panelPositionLoad();
+      var ph = pn.querySelector('header'); if (ph && !ph.__coPanelDrag) { ph.__coPanelDrag = true; ph.addEventListener('pointerdown', panelDragStart); }
+      if (!window.__coPanelDragBound) { window.__coPanelDragBound = true; window.addEventListener('pointermove', panelDragMove); window.addEventListener('pointerup', panelDragEnd); window.addEventListener('pointercancel', panelDragEnd); }
+      pn.addEventListener('click', function (e) { var tb = e.target.closest('[data-tab]'); if (tb) { panel.tab = tb.getAttribute('data-tab'); renderPanel(); sfx('click'); return; } var b = e.target.closest('[data-act]'); if (!b || b.disabled) return; panelAct(b.getAttribute('data-act'), b.getAttribute('data-arg')); });
+    }
     var mn = $('dc-menu'); if (mn) mn.addEventListener('click', function (e) { var b = e.target.closest('[data-menu]'); if (!b) return; menuAct(b.getAttribute('data-menu'), b); });
     var mb = $('dc-menu-body'); if (mb) mb.addEventListener('input', function (e) { settingInput(e.target); });
   }
