@@ -1,6 +1,6 @@
 # The engine contract
 
-What a game on Co Engine writes against, as of v0.13.1. One HTML page, one closure: the build script opens the closure, joins the engine's parts (`engine/NN-*.js`) in front of the game's (`src/NN-*.js`), and closes it. A game part may use any engine name at its top level once `CO.setup` has run, which the game's first part does.
+What a game on Co Engine writes against, as of v0.13.2. One HTML page, one closure: the build script opens the closure, joins the engine's parts (`engine/NN-*.js`) in front of the game's (`src/NN-*.js`), and closes it. A game part may use any engine name at its top level once `CO.setup` has run, which the game's first part does.
 
 ## The two calls
 
@@ -211,3 +211,4 @@ Since 0.1.5 the page carries `CO.editor` (`engine/60-editor.js`), published as `
 ## 8. The test handle
 
 `window.<handle>.T` carries the engine's part (`S`, `player`, `ui`, `edit`, `run(sec)`, `setTime`, `lookAt`, the props, doors, screens, panels, menu, cards, photo, dev link, people, vehicles, weather, bake and helpers; see `coHandle` in `engine/90-boot.js`) merged with `GAME.T`. The smoke runner (`tools/smoke-runner.js`) wraps a scenario body with `T`, a live `S`, `ok`, `info`, `near` and `wait`, and fails the run on any page error.
+
