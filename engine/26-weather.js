@@ -110,11 +110,11 @@
     MAT.lamp.color.setHex(power ? 0xfff6e4 : 0x3a3a3a); MAT.skylight.color.setHex(0xffffff); MAT.skylight.color.multiplyScalar(0.04 + day * 0.96);
     runHooks('lighting', day, dawn, overcast, power);
   }
-  // The sun's shadow map is a second full pass over every caster, so it is not redrawn every frame. It is redrawn four times a
+  // The sun's shadow map is a second full pass over every caster, so it is not redrawn every frame. It is redrawn twice a
   // second, at once when something flagged it dirty, and every frame while the game says something big is moving (CO.game.shadowLive()).
   function shadowTick(dt) {
     if (!renderer.shadowMap.enabled) return;
     shadowT += dt;
     var live = CO.game && CO.game.shadowLive ? CO.game.shadowLive() : false;
-    if (shadowDirty || live || shadowT > 0.25) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; shadowT = 0; }
+    if (shadowDirty || live || shadowT > 0.5) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; shadowT = 0; }
   }

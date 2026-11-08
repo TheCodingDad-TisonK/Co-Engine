@@ -75,6 +75,41 @@
     for (var m in HUMAN_M) keepShared(HUMAN_M[m]);
     return G;
   }
+  // A person is built from dozens of tiny meshes so each limb can swing on its own pivot. Within one pivot group the pieces
+  // never move relative to each other, so they are merged back into one mesh per material after the build: a head's neck,
+  // skull, nose and ears become a single skin mesh, its hair one mesh, and so on. The rig keeps the pivots it animates, and
+  // the meshes it still reaches for each frame (the face for mood, the chest for breathing) are left alone via skip.
+  function mergeHumanGroup(grp, skip) {
+    var byMat = {};
+    grp.children.forEach(function (c) {
+      if (!c.isMesh || !c.material || skip.indexOf(c) >= 0) return;
+      (byMat[c.material.uuid] = byMat[c.material.uuid] || []).push(c);
+    });
+    Object.keys(byMat).forEach(function (k) {
+      var parts = byMat[k];
+      if (parts.length < 2) return;
+      var pos = [], nor = [], uv = [], hasUv = true;
+      parts.forEach(function (m) {
+        m.updateMatrix();
+        var geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+        geo.applyMatrix4(m.matrix);
+        var pa = geo.attributes.position.array, na = geo.attributes.normal ? geo.attributes.normal.array : null, ua = geo.attributes.uv ? geo.attributes.uv.array : null;
+        for (var i = 0; i < pa.length; i++) pos.push(pa[i]);
+        if (na) for (var j = 0; j < na.length; j++) nor.push(na[j]); else for (var j2 = 0; j2 < pa.length; j2++) nor.push(0);
+        if (ua) for (var u = 0; u < ua.length; u++) uv.push(ua[u]); else hasUv = false;
+        geo.dispose();
+      });
+      var merged = new THREE.BufferGeometry();
+      merged.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      merged.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+      if (hasUv && uv.length === pos.length / 3 * 2) merged.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      merged.computeBoundingSphere();
+      var nm = new THREE.Mesh(merged, parts[0].material);
+      nm.castShadow = parts[0].castShadow; nm.receiveShadow = parts[0].receiveShadow;
+      parts.forEach(function (m) { grp.remove(m); });
+      grp.add(nm);
+    });
+  }
   // opt: skin, hair, style ('short' | 'long' | 'bun' | 'bald' | 'cap'), shirt (a material), vest (a material), name, rolled, mood, cap, capMat, hardhat (a material), noBeard, glasses
   function makeHuman(opt) {
     opt = opt || {}; var G = humanGeo(), M = HUMAN_M;
@@ -128,6 +163,11 @@
     // hats sit on the brows (the eye line is at 0.26 in the head's frame, the brows at 0.29), never over the eyes
     if (capOn && !opt.hardhat) { var capM = opt.capMat || MAT.blue; mesh(new THREE.SphereGeometry(0.184, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), capM, 0, 0.29, 0, head); var peak = mesh(G.peak, capM, 0, 0.3, 0.2, head); peak.rotation.x = 0.15; mesh(new THREE.SphereGeometry(0.02, 8, 6), capM, 0, 0.47, 0, head); }
     if (opt.hardhat) { mesh(new THREE.SphereGeometry(0.19, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), opt.hardhat, 0, 0.3, 0, head); mesh(roundCylGeo(0.212, 0.212, 0.016, 24), opt.hardhat, 0, 0.3, 0.0, head); var pk = mesh(bevelGeo(0.16, 0.012, 0.08, 0.004, 1), opt.hardhat, 0, 0.3, 0.245, head); pk.rotation.x = 0.12; }
+    // collapse each pivot group's static pieces into one mesh per material; the face and chest stay out (they still animate)
+    mergeHumanGroup(head, [face]);
+    mergeHumanGroup(torso, [u.chest]);
+    u.legs.forEach(function (hip) { mergeHumanGroup(hip, []); if (hip.userData.knee) mergeHumanGroup(hip.userData.knee, []); });
+    u.arms.forEach(function (sh) { mergeHumanGroup(sh, []); if (sh.userData.elbow) mergeHumanGroup(sh.userData.elbow, []); });
     groundBlob(0.9, 0.9, 0, 0, g, 0.002);
     runHooks('humanMade', g, opt);
     return g;
