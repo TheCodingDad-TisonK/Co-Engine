@@ -63,7 +63,7 @@
   function renderPanel() {
     if (!ui.panelOpen) return;
     panelPositionLoad();
-    var spec = panel.kind === 'catalogue' ? { title: 'Catalogue · build mode', tabs: [], body: catalogueHtml() } : (CO.game && CO.game.panel ? CO.game.panel(panel.kind, panel.tab) : null);
+    var spec = panel.kind === 'catalogue' ? { title: 'Catalogue · build mode', tabs: [], body: catalogueHtml() } : panel.kind === 'controls' ? { title: 'Controls & key bindings', tabs: [], body: bindingsHtml() } : (CO.game && CO.game.panel ? CO.game.panel(panel.kind, panel.tab) : null);
     if (!spec && panel.kind === 'npc') spec = npcPanelSpec();   /* part 47: an NPC's words and choices */
     if (!spec) spec = uiPanelSpec(panel.kind);   /* a panel the editor's UI tab described */
     if (!spec) spec = { title: panel.kind || '', tabs: [], body: '' };
@@ -126,7 +126,8 @@
   }
   // ── Settings ──────────────────────────────────────────────────────
   function settingsHtml() {
-    if (MENUS.settings) return '<div class="dc-form">' + menusSettingRows() + (CO.game && CO.game.settingsHtml ? CO.game.settingsHtml() : '') + '</div>';   // part 46: the settings the menu maker chose
+    var controlsBtn = '<div class="dc-menu-row" style="margin-top:12px;display:flex;gap:8px"><button type="button" class="dc-btn primary" data-open-controls="1">Controls &amp; key bindings…</button><button type="button" class="dc-btn" data-reset-settings="1">Reset to default</button></div>';
+    if (MENUS.settings) return '<div class="dc-form">' + menusSettingRows() + (CO.game && CO.game.settingsHtml ? CO.game.settingsHtml() : '') + controlsBtn + '</div>';   // part 46: the settings the menu maker chose
     return '<div class="dc-form">' +
       '<label><span>Mouse sensitivity</span><input type="range" min="0.3" max="2.5" step="0.1" value="' + SET.sens + '" data-set="sens"></label>' +
       '<label><span>Invert Y</span><input type="checkbox" ' + (SET.invertY ? 'checked' : '') + ' data-set="invertY"></label>' +
@@ -138,7 +139,17 @@
       '<label><span>Film look (vignette, grain)</span><input type="checkbox" ' + (SET.film !== false ? 'checked' : '') + ' data-set="film"></label>' +
       '<label><span>Show FPS (F3)</span><input type="checkbox" ' + (SET.fps ? 'checked' : '') + ' data-set="fps"></label>' +
       (CO.game && CO.game.settingsHtml ? CO.game.settingsHtml() : '') +
+      controlsBtn +
       '</div>';
+  }
+  function settingsReset() {
+    var k;
+    for (k in SET_DEFAULTS) SET[k] = SET_DEFAULTS[k];   // resets bind/padBind to null too
+    bindInit();                                          // and the key & pad bindings to their defaults
+    saveSettings(); applySettings();
+    if (ui.menuOpen) menuBody(settingsHtml());
+    else if (!ui.started) menusStartBody(settingsHtml());
+    sfx('click');
   }
   function settingInput(el) {
     var k = el.getAttribute('data-set'); if (!k) return;
