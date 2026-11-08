@@ -9,7 +9,7 @@
   function bakeable(o) {
     if (!o.isMesh || o.isInstancedMesh || o.isSprite || !o.visible) return false;
     for (var a = o.parent; a; a = a.parent) if (a.visible === false) return false;   /* a removed world item stays out of the bake */
-    var m = o.material; if (!m || Array.isArray(m) || m.userData.glow || m.userData.noBake || m.transparent) return false;
+    var m = o.material; if (!m || Array.isArray(m) || m.userData.glow || m.userData.noBake || m.emissiveMap || m.transparent) return false;
     if (o.userData.it || o.userData.noBake || inter.indexOf(o) >= 0) return false;
     if (!(o.geometry && o.geometry.attributes && o.geometry.attributes.position)) return false;
     for (var p = o; p; p = p.parent) { if (p.userData && p.userData.dynamic) return false; if (!p.visible) return false; if (p === camera) return false; }
