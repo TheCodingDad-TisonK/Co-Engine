@@ -15,31 +15,67 @@
     for (var p = o; p; p = p.parent) { if (p.userData && p.userData.dynamic) return false; if (!p.visible) return false; if (p === camera) return false; }
     return true;
   }
+  // The static bake used to be one mesh per material, and one mesh spans the whole site: it can never leave the frustum, so
+  // every corner of it is drawn (and shadowed) whole wherever the player stands. It now bakes per material per CHUNK, a cell of
+  // the site grid, so the cells behind the player cull away and only the scenery near the view is drawn. A material spread too
+  // thin for a cell (a lone mesh in each) still merges whole, exactly as it did before, so no mesh regresses to a separate draw.
+  var BAKE_CHUNK = 96;   // metres: the side of the grid cell the static bake splits into
+  // Two meshes merge only if they carry the SAME material object. Games build hundreds of visually identical materials (each
+  // std({...}) call is a fresh material), so merge by the material's rendering properties instead: same look = same draw.
+  function bakeMatKey(m) {
+    var t = function (x) { return x ? x.uuid : ''; };
+    return m.type + '|' + (m.color && m.color.getHex ? m.color.getHex() : '') + '|' +
+      (m.emissive && m.emissive.getHex ? m.emissive.getHex() : '') + '|' + (m.emissiveIntensity || 0) + '|' +
+      (m.roughness || 0) + '|' + (m.metalness || 0) + '|' + (m.opacity === undefined ? 1 : m.opacity) + '|' +
+      (m.transparent ? 1 : 0) + '|' + m.side + '|' + (m.flatShading ? 1 : 0) + '|' + (m.vertexColors ? 1 : 0) + '|' +
+      (m.envMapIntensity || 0) + '|' + t(m.map) + '|' + t(m.normalMap) + '|' + t(m.roughnessMap) + '|' + t(m.metalnessMap) + '|' +
+      t(m.emissiveMap) + '|' + t(m.alphaMap) + '|' + t(m.aoMap) + '|' + t(m.envMap) + '|' +
+      (m.name || '') + '|' + (m.customProgramCacheKey ? m.customProgramCacheKey() : '');
+  }
+  var _bakeWp = new THREE.Vector3();
+  function bakeBatch(mat, items) {
+    var pos = [], nor = [], uv = [], hasUv = true;
+    items.forEach(function (o) {
+      var g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+      g.applyMatrix4(o.matrixWorld);
+      var pa = g.attributes.position.array, na = g.attributes.normal ? g.attributes.normal.array : null, ua = g.attributes.uv ? g.attributes.uv.array : null;
+      for (var i = 0; i < pa.length; i++) pos.push(pa[i]);
+      if (na) for (var j = 0; j < na.length; j++) nor.push(na[j]); else for (var j2 = 0; j2 < pa.length; j2++) nor.push(0);
+      if (ua) for (var u = 0; u < ua.length; u++) uv.push(ua[u]); else hasUv = false;
+      g.dispose();
+    });
+    var merged = new THREE.BufferGeometry();
+    merged.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    merged.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    if (hasUv && uv.length === pos.length / 3 * 2) merged.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    merged.computeBoundingSphere();
+    var mesh = new THREE.Mesh(merged, mat); mesh.castShadow = items[0].castShadow; mesh.receiveShadow = items[0].receiveShadow; mesh.frustumCulled = true; mesh.userData.baked = true;
+    scene.add(mesh); baked.meshes.push(mesh);
+    items.forEach(function (o) { o.visible = false; o.userData.bakedAway = true; baked.hidden++; });
+    baked.draws++;
+  }
   function bakeStatic() {
     scene.updateMatrixWorld(true);
     var byMat = {}, list = [];
     scene.traverse(function (o) { if (bakeable(o)) list.push(o); });
-    list.forEach(function (o) { var k = o.material.uuid + (o.castShadow ? 'c' : '') + (o.receiveShadow ? 'r' : ''); (byMat[k] = byMat[k] || { mat: o.material, items: [] }).items.push(o); });
+    list.forEach(function (o) {
+      var k = bakeMatKey(o.material) + (o.castShadow ? 'c' : '') + (o.receiveShadow ? 'r' : '');
+      (byMat[k] = byMat[k] || { mat: o.material, items: [] }).items.push(o);
+    });
     Object.keys(byMat).forEach(function (k) {
-      var grp = byMat[k]; if (grp.items.length < 2) return;
-      var pos = [], nor = [], uv = [], hasUv = true;
+      var grp = byMat[k];
+      if (grp.items.length < 2) return;
+      var cells = {}, strays = [];
       grp.items.forEach(function (o) {
-        var g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
-        g.applyMatrix4(o.matrixWorld);
-        var pa = g.attributes.position.array, na = g.attributes.normal ? g.attributes.normal.array : null, ua = g.attributes.uv ? g.attributes.uv.array : null;
-        for (var i = 0; i < pa.length; i++) pos.push(pa[i]);
-        if (na) for (var j = 0; j < na.length; j++) nor.push(na[j]); else for (var j2 = 0; j2 < pa.length; j2++) nor.push(0);
-        if (ua) for (var u = 0; u < ua.length; u++) uv.push(ua[u]); else hasUv = false;
-        g.dispose();
+        o.getWorldPosition(_bakeWp);
+        var ck = Math.floor(_bakeWp.x / BAKE_CHUNK) + ',' + Math.floor(_bakeWp.z / BAKE_CHUNK);
+        (cells[ck] = cells[ck] || []).push(o);
       });
-      var merged = new THREE.BufferGeometry();
-      merged.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      merged.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-      if (hasUv && uv.length === pos.length / 3 * 2) merged.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-      var mesh = new THREE.Mesh(merged, grp.mat); mesh.castShadow = grp.items[0].castShadow; mesh.receiveShadow = grp.items[0].receiveShadow; mesh.frustumCulled = false; mesh.userData.baked = true;
-      scene.add(mesh); baked.meshes.push(mesh);
-      grp.items.forEach(function (o) { o.visible = false; o.userData.bakedAway = true; baked.hidden++; });
-      baked.draws++;
+      Object.keys(cells).forEach(function (ck) {
+        var cell = cells[ck];
+        if (cell.length >= 2) bakeBatch(grp.mat, cell); else strays = strays.concat(cell);
+      });
+      if (strays.length >= 2) bakeBatch(grp.mat, strays);   // a sparse material still bakes whole, so it never loses the merge
     });
     shadowDirty = true;
   }
