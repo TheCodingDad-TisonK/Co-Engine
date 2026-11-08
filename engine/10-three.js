@@ -203,7 +203,7 @@
     MAT.cork = std({ map: TEX.cork, roughness: 0.95 });
     MAT.fabric = std({ map: TEX.fabric, roughness: 1 });
     MAT.screen = new THREE.MeshBasicMaterial({ color: 0x0d1216 }); MAT.screen.userData.noBake = true;
-    MAT.screenGlass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, depthWrite: false });
+    MAT.screenGlass = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, depthWrite: false });   // unlit: no clearcoat mirror reflecting the room over the display
     MAT.skylight = new THREE.MeshBasicMaterial({ map: TEX.skylight });
     MAT.lamp = new THREE.MeshBasicMaterial({ color: 0xfff6e4 });
     MAT.exit = new THREE.MeshBasicMaterial({ color: 0x5fd38d }); MAT.exit.userData.noBake = true;
